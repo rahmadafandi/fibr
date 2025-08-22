@@ -18,7 +18,12 @@ func TestConfig(t *testing.T) {
 		assert.NoError(t, err)
 		file.Close()
 
-		config, err := LoadConfig(".")
+		type Config struct {
+			JWTSecret string `mapstructure:"JWT_SECRET"`
+			LogLevel  string `mapstructure:"LOG_LEVEL"`
+		}
+
+		config, err := LoadConfig[Config](".")
 		assert.NoError(t, err)
 		assert.Equal(t, "test_secret", config.JWTSecret)
 		assert.Equal(t, "debug", config.LogLevel)

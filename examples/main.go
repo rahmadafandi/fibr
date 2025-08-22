@@ -19,7 +19,12 @@ import (
 
 func main() {
 	// Load config
-	cfg, err := config.LoadConfig(".")
+	type Config struct {
+		JWTSecret string `mapstructure:"JWT_SECRET"`
+		LogLevel  string `mapstructure:"LOG_LEVEL"`
+	}
+
+	cfg, err := config.LoadConfig[Config](".")
 	if err != nil {
 		panic(err)
 	}
