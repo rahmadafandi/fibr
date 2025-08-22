@@ -4,14 +4,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Config holds the configuration for the application.
-type Config struct {
-	JWTSecret string `mapstructure:"JWT_SECRET"`
-	LogLevel  string `mapstructure:"LOG_LEVEL"`
-}
-
 // LoadConfig loads the configuration from a .env file or environment variables.
-func LoadConfig(path string) (*Config, error) {
+func LoadConfig[T any](path string) (*T, error) {
 	viper.AddConfigPath(path)
 	viper.SetConfigName(".env")
 	viper.SetConfigType("env")
@@ -24,7 +18,7 @@ func LoadConfig(path string) (*Config, error) {
 		}
 	}
 
-	var config Config
+	var config T
 	if err := viper.Unmarshal(&config); err != nil {
 		return nil, err
 	}
