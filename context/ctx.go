@@ -19,3 +19,16 @@ func GetRequestID(c *fiber.Ctx) string {
 	}
 	return ""
 }
+
+func CustomContext(c *fiber.Ctx, key string, value ...any) string {
+	if len(value) == 0 {
+		if v, ok := c.Locals(key).(string); ok {
+			return v
+		}
+		return ""
+	}
+	if v, ok := c.Locals(key, value[0]).(string); ok {
+		return v
+	}
+	return ""
+}
