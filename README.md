@@ -11,7 +11,7 @@ A structured logger based on [zerolog](https://github.com/rs/zerolog).
 **Usage:**
 
 ```go
-import "github.com/yomaaf/fiber-helpers/logger"
+import "github.com/rahmadafandi/fiber-helpers/logger"
 
 log := logger.Default()
 log.Info("Hello, world!")
@@ -24,7 +24,7 @@ Helper functions for sending standardized JSON responses.
 **Usage:**
 
 ```go
-import "github.com/yomaaf/fiber-helpers/response"
+import "github.com/rahmadafandi/fiber-helpers/response"
 
 response.SendSuccess(c, data, "Success")
 response.SendError(c, nil, "Error", 400)
@@ -37,7 +37,7 @@ Helper functions for parsing request body, query, and params.
 **Usage:**
 
 ```go
-import "github.com/yomaaf/fiber-helpers/parser"
+import "github.com/rahmadafandi/fiber-helpers/parser"
 
 type MyStruct struct {
     Name string `json:"name"`
@@ -60,7 +60,7 @@ A helper package for validating structs using [go-playground/validator](https://
 **Usage:**
 
 ```go
-import "github.com/yomaaf/fiber-helpers/validator"
+import "github.com/rahmadafandi/fiber-helpers/validator"
 
 type MyStruct struct {
     Name string `json:"name" validate:"required"`
@@ -80,7 +80,7 @@ A helper package for working with JSON Web Tokens.
 **Usage:**
 
 ```go
-import "github.com/yomaaf/fiber-helpers/jwt"
+import "github.com/rahmadafandi/fiber-helpers/jwt"
 
 // Generate a token
 token, err := jwt.GenerateToken(claims, secret)
@@ -96,7 +96,7 @@ A helper package for uploading files.
 **Usage:**
 
 ```go
-import "github.com/yomaaf/fiber-helpers/uploader"
+import "github.com/rahmadafandi/fiber-helpers/uploader"
 
 // Create a local uploader
 up := uploader.NewLocalUploader("./uploads")
@@ -112,7 +112,7 @@ A collection of useful middleware.
 **Usage:**
 
 ```go
-import "github.com/yomaaf/fiber-helpers/middleware"
+import "github.com/rahmadafandi/fiber-helpers/middleware"
 
 app := fiber.New()
 
