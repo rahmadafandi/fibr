@@ -11,8 +11,8 @@ import (
 func LoadConfig[T any](path string) (*T, error) {
 	_ = godotenv.Load(fmt.Sprintf("%s/.env", path))
 	viper.AddConfigPath(path)
-	viper.SetConfigName(".env")
-	viper.SetConfigType("env")
+	viper.SetConfigName(".env.yaml")
+	viper.SetConfigType("yaml")
 
 	viper.AutomaticEnv()
 
