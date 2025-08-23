@@ -24,7 +24,7 @@ func main() {
 		LogLevel  string `mapstructure:"LOG_LEVEL"`
 	}
 
-	cfg, err := config.LoadConfig[Config](".")
+	cfg, err := config.LoadConfig[Config]()
 	if err != nil {
 		panic(err)
 	}
@@ -35,6 +35,7 @@ func main() {
 		logLevel = zerolog.InfoLevel
 	}
 	log := logger.New(os.Stdout, logLevel)
+	log.Info(fmt.Sprintf("Config: %+v", cfg))
 
 	// Create fiber app
 	app := fiber.New()

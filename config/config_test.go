@@ -23,7 +23,7 @@ func TestConfig(t *testing.T) {
 			LogLevel  string `mapstructure:"LOG_LEVEL"`
 		}
 
-		config, err := LoadConfig[Config](".")
+		config, err := LoadConfig[Config]()
 		assert.NoError(t, err)
 		assert.Equal(t, "test_secret", config.JWTSecret)
 		assert.Equal(t, "debug", config.LogLevel)
