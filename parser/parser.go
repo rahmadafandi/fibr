@@ -76,6 +76,13 @@ func Paginate(pq *PaginationQuery, columnsSearchable []string) func(db *gorm.DB)
 	}
 }
 
+func Count(search string, columnsSearchable []string) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		db = applySearch(db, search, columnsSearchable)
+		return db
+	}
+}
+
 func applyPaginationDefaults(db *gorm.DB, pq *PaginationQuery) *gorm.DB {
 	if pq.Page <= 0 {
 		pq.Page = 1
