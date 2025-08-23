@@ -1,11 +1,15 @@
 package config
 
 import (
+	"fmt"
+
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
 // LoadConfig loads the configuration from a .env file or environment variables.
 func LoadConfig[T any](path string) (*T, error) {
+	_ = godotenv.Load(fmt.Sprintf("%s/.env", path))
 	viper.AddConfigPath(path)
 	viper.SetConfigName(".env")
 	viper.SetConfigType("env")
