@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -47,10 +48,23 @@ func LoadConfig[T any]() (*T, error) {
 			continue
 		}
 
-		// Set field value
+		// Set field value based on type
 		fieldValue := v.Field(i)
-		if fieldValue.CanSet() {
+		if !fieldValue.CanSet() {
+			continue
+		}
+
+		switch fieldValue.Kind() {
+		case reflect.String:
 			fieldValue.SetString(envValue)
+		case reflect.Int:
+			if intVal, err := strconv.Atoi(envValue); err == nil {
+				fieldValue.SetInt(int64(intVal))
+			}
+		case reflect.Bool:
+			if boolVal, err := strconv.ParseBool(envValue); err == nil {
+				fieldValue.SetBool(boolVal)
+			}
 		}
 	}
 
