@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 // ParseBody parses the request body into the provided generic type T.
@@ -63,4 +64,51 @@ func (p *PaginationQuery) Validate(sortOptions []string) error {
 		return fmt.Errorf("validation failed: %s", strings.Join(errs, ", "))
 	}
 	return nil
+}
+
+func Paginate(pq *PaginationQuery, columnsSearchable []string) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		db = applySearch(db, pq.Search, columnsSearchable)
+		db = applySorting(db, pq.Sort, pq.Order)
+		db = applyPaginationDefaults(db, pq)
+
+		return db
+	}
+}
+
+func applyPaginationDefaults(db *gorm.DB, pq *PaginationQuery) *gorm.DB {
+	if pq.Page <= 0 {
+		pq.Page = 1
+	}
+	if pq.Limit <= 0 {
+		pq.Limit = 10
+	}
+	offset := (pq.Page - 1) * pq.Limit
+	return db.Offset(offset).Limit(pq.Limit)
+}
+
+func applySearch(db *gorm.DB, search string, columnsSearchable []string) *gorm.DB {
+	if search == "" {
+		return db
+	}
+	searchPattern := "%" + search + "%"
+	searchCondition := strings.Join(columnsSearchable, " ILIKE ? OR ") + " ILIKE ?"
+
+	// Example:
+	// If columnsSearchable = []string{"name", "slug"} and search = "test"
+	// Will generate SQL query:
+	// WHERE name ILIKE '%test%' OR slug ILIKE '%test%'
+
+	args := make([]interface{}, len(columnsSearchable))
+	for i := range columnsSearchable {
+		args[i] = searchPattern
+	}
+	return db.Where(searchCondition, args...)
+}
+
+func applySorting(db *gorm.DB, sort string, order string) *gorm.DB {
+	if sort == "" || order == "" {
+		return db
+	}
+	return db.Order(sort + " " + order)
 }
