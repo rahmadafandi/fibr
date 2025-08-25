@@ -1,3 +1,17 @@
+// Copyright 2025 Rahmad Afandi
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package parser
 
 import (
@@ -98,13 +112,13 @@ func applySearch(db *gorm.DB, search string, columnsSearchable []string) *gorm.D
 	if search == "" {
 		return db
 	}
-	searchPattern := "%" + search + "%"
+	searchPattern := "%%" + search + "%%"
 	searchCondition := strings.Join(columnsSearchable, " ILIKE ? OR ") + " ILIKE ?"
 
 	// Example:
 	// If columnsSearchable = []string{"name", "slug"} and search = "test"
 	// Will generate SQL query:
-	// WHERE name ILIKE '%test%' OR slug ILIKE '%test%'
+	// WHERE name ILIKE '%%test%%' OR slug ILIKE '%%test%%'
 
 	args := make([]interface{}, len(columnsSearchable))
 	for i := range columnsSearchable {
