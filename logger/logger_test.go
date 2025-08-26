@@ -17,16 +17,15 @@ package logger
 import (
 	"bytes"
 	"encoding/json"
-	
+
 	"testing"
 
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestLogger(t *testing.T) {
 	var buf bytes.Buffer
-	logger := New(&buf, zerolog.InfoLevel)
+	logger := New(&buf, InfoLevel)
 
 	t.Run("Info", func(t *testing.T) {
 		buf.Reset()

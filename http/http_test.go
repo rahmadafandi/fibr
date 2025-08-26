@@ -117,7 +117,7 @@ func TestHttp(t *testing.T) {
 			},
 		}
 
-		h.FireAndForget(fasthttp.MethodPost, "/", map[string]interface{}{"data": "test"})
+		h.FireAndForget(Post, "/", map[string]interface{}{"data": "test"})
 
 		<-done
 	})

@@ -9,13 +9,17 @@ import (
 	"gorm.io/gorm"
 )
 
+type (
+	Client = redis.Client
+)
+
 // Redis is a struct that holds the redis client
 type Redis struct {
-	Client *redis.Client
+	Client *Client
 }
 
 // New is a function to create a new redis client
-func New(client *redis.Client) *Redis {
+func New(client *Client) *Redis {
 	return &Redis{
 		Client: client,
 	}

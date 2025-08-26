@@ -18,13 +18,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestJWT(t *testing.T) {
 	secret := "secret"
-	claims := jwt.MapClaims{
+	claims := MapClaims{
 		"name": "test",
 		"exp":  time.Now().Add(time.Hour * 24).Unix(),
 	}

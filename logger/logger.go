@@ -21,13 +21,27 @@ import (
 	"github.com/rs/zerolog"
 )
 
+type (
+	Level = zerolog.Level
+)
+
+var (
+	InfoLevel  = zerolog.InfoLevel
+	DebugLevel = zerolog.DebugLevel
+	WarnLevel  = zerolog.WarnLevel
+	ErrorLevel = zerolog.ErrorLevel
+	FatalLevel = zerolog.FatalLevel
+	PanicLevel = zerolog.PanicLevel
+	TraceLevel = zerolog.TraceLevel
+)
+
 // Logger represents a logger.
 type Logger struct {
 	logger zerolog.Logger
 }
 
 // New creates a new logger.
-func New(out io.Writer, level zerolog.Level) *Logger {
+func New(out io.Writer, level Level) *Logger {
 	return &Logger{
 		logger: zerolog.New(out).With().Timestamp().Logger().Level(level),
 	}

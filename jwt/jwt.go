@@ -22,16 +22,19 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type MapClaims jwt.MapClaims
+type (
+	MapClaims = jwt.MapClaims
+	Token     = jwt.Token
+)
 
 // GenerateToken generates a new JWT token.
-func GenerateToken(claims jwt.MapClaims, secret string) (string, error) {
+func GenerateToken(claims MapClaims, secret string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(secret))
 }
 
 // ValidateToken validates a JWT token.
-func ValidateToken(tokenString string, secret string) (*jwt.Token, error) {
+func ValidateToken(tokenString string, secret string) (*Token, error) {
 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -40,8 +43,8 @@ func ValidateToken(tokenString string, secret string) (*jwt.Token, error) {
 	})
 }
 
-func ExtractClaimsFromJwt(jwtToken *jwt.Token) (jwt.MapClaims, error) {
-	claims, ok := jwtToken.Claims.(jwt.MapClaims)
+func ExtractClaimsFromJwt(jwtToken *Token) (MapClaims, error) {
+	claims, ok := jwtToken.Claims.(MapClaims)
 	if !ok {
 		return nil, errors.New("invalid claims")
 	}
@@ -49,16 +52,16 @@ func ExtractClaimsFromJwt(jwtToken *jwt.Token) (jwt.MapClaims, error) {
 }
 
 // Claims gets claims from a JWT token in the fiber context or set claims to the fiber context.
-func Claims(c *fiber.Ctx, localKey string, claims ...jwt.MapClaims) (jwt.MapClaims, error) {
+func Claims(c *fiber.Ctx, localKey string, claims ...MapClaims) (MapClaims, error) {
 	if len(claims) > 0 {
 		c.Locals(localKey, claims[0])
 
 		return claims[0], nil
 	}
 
-	claimsData, ok := c.Locals(localKey).(jwt.MapClaims)
+	claimsData, ok := c.Locals(localKey).(MapClaims)
 	if !ok {
-		return jwt.MapClaims{}, errors.New("invalid claims")
+		return MapClaims{}, errors.New("invalid claims")
 	}
 
 	return claimsData, nil

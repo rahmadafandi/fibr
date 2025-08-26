@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	jwtMain "github.com/golang-jwt/jwt/v5"
 	"github.com/rahmadafandi/fiber-helpers/config"
 	"github.com/rahmadafandi/fiber-helpers/jwt"
 	"github.com/rahmadafandi/fiber-helpers/logger"
@@ -81,7 +80,7 @@ func main() {
 
 		// In a real app, you would check the password here
 
-		claims := jwtMain.MapClaims{
+		claims := jwt.MapClaims{
 			"email": body.Email,
 		}
 
@@ -95,7 +94,7 @@ func main() {
 
 	// Protected route
 	app.Get("/protected", middleware.Auth(cfg.JWTSecret), func(c *fiber.Ctx) error {
-		claims, err := jwt.GetClaims(c)
+		claims, err := jwt.ExtractClaimsFromJwt(c.Locals("user").(*jwt.Token))
 		if err != nil {
 			return response.SendError(c, nil, err.Error(), fiber.StatusInternalServerError)
 		}

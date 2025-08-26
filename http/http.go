@@ -26,6 +26,18 @@ type Http struct {
 	Client  *fasthttp.Client
 }
 
+var (
+	Post    = fasthttp.MethodPost
+	Get     = fasthttp.MethodGet
+	Put     = fasthttp.MethodPut
+	Patch   = fasthttp.MethodPatch
+	Delete  = fasthttp.MethodDelete
+	Options = fasthttp.MethodOptions
+	Head    = fasthttp.MethodHead
+	Connect = fasthttp.MethodConnect
+	Trace   = fasthttp.MethodTrace
+)
+
 func New(baseURL string) *Http {
 	return &Http{
 		BaseURL: baseURL,
