@@ -15,6 +15,7 @@
 package jwt
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
@@ -39,17 +40,26 @@ func ValidateToken(tokenString string, secret string) (*jwt.Token, error) {
 	})
 }
 
-// GetClaims gets claims from a JWT token in the fiber context.
-func GetClaims(c *fiber.Ctx) (jwt.MapClaims, error) {
-	user, ok := c.Locals("user").(*jwt.Token)
+func ExtractClaimsFromJwt(jwtToken *jwt.Token) (jwt.MapClaims, error) {
+	claims, ok := jwtToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, fmt.Errorf("user not found in context")
+		return nil, errors.New("invalid claims")
 	}
-
-	claims, ok := user.Claims.(jwt.MapClaims)
-	if !ok {
-		return nil, fmt.Errorf("invalid claims")
-	}
-
 	return claims, nil
+}
+
+// Claims gets claims from a JWT token in the fiber context or set claims to the fiber context.
+func Claims(c *fiber.Ctx, localKey string, claims ...jwt.MapClaims) (jwt.MapClaims, error) {
+	if len(claims) > 0 {
+		c.Locals(localKey, claims[0])
+
+		return claims[0], nil
+	}
+
+	claimsData, ok := c.Locals(localKey).(jwt.MapClaims)
+	if !ok {
+		return jwt.MapClaims{}, errors.New("invalid claims")
+	}
+
+	return claimsData, nil
 }
