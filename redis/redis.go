@@ -97,4 +97,12 @@ func (gr *GormResult) Find(ctx context.Context, key string, dest interface{}, ex
 	return gr.DB.Find(dest).Error
 }
 
+func ParseRedisOptions(redisURL string) *redis.Options {
+	opt, err := redis.ParseURL(redisURL)
+	if err != nil {
+		return nil
+	}
+	return opt
+}
+
 var r *Redis

@@ -13,9 +13,7 @@ import (
 
 func TestRedis(t *testing.T) {
 	// setup redis
-	client := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
-	})
+	client := redis.NewClient(ParseRedisOptions("redis://localhost:6379"))
 	r = New(client)
 
 	// setup gorm
