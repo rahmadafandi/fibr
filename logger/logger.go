@@ -25,7 +25,7 @@ type (
 	Level = zerolog.Level
 )
 
-var (
+const (
 	InfoLevel  = zerolog.InfoLevel
 	DebugLevel = zerolog.DebugLevel
 	WarnLevel  = zerolog.WarnLevel

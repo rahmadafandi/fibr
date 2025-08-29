@@ -26,7 +26,7 @@ type Http struct {
 	Client  *fasthttp.Client
 }
 
-var (
+const (
 	Post    = fasthttp.MethodPost
 	Get     = fasthttp.MethodGet
 	Put     = fasthttp.MethodPut
