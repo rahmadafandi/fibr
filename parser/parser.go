@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
+	"github.com/uptrace/bun"
 )
 
 // ParseBody parses the request body into the provided generic type T.
@@ -80,24 +80,26 @@ func (p *PaginationQuery) Validate(sortOptions []string) error {
 	return nil
 }
 
-func Paginate(pq *PaginationQuery, columnsSearchable []string) func(db *gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		db = applySearch(db, pq.Search, columnsSearchable)
-		db = applySorting(db, pq.Sort, pq.Order)
-		db = applyPaginationDefaults(db, pq)
-
-		return db
+// Paginate returns a Bun query modifier that applies search, sorting, and
+// page/limit offsets. Use it via query.Apply(Paginate(pq, columns)).
+func Paginate(pq *PaginationQuery, columnsSearchable []string) func(*bun.SelectQuery) *bun.SelectQuery {
+	return func(q *bun.SelectQuery) *bun.SelectQuery {
+		q = applySearch(q, pq.Search, columnsSearchable)
+		q = applySorting(q, pq.Sort, pq.Order)
+		q = applyPaginationDefaults(q, pq)
+		return q
 	}
 }
 
-func Count(search string, columnsSearchable []string) func(db *gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		db = applySearch(db, search, columnsSearchable)
-		return db
+// Count returns a Bun query modifier that applies only the search filter,
+// for use with a COUNT query. Use it via query.Apply(Count(search, columns)).
+func Count(search string, columnsSearchable []string) func(*bun.SelectQuery) *bun.SelectQuery {
+	return func(q *bun.SelectQuery) *bun.SelectQuery {
+		return applySearch(q, search, columnsSearchable)
 	}
 }
 
-func applyPaginationDefaults(db *gorm.DB, pq *PaginationQuery) *gorm.DB {
+func applyPaginationDefaults(q *bun.SelectQuery, pq *PaginationQuery) *bun.SelectQuery {
 	if pq.Page <= 0 {
 		pq.Page = 1
 	}
@@ -105,31 +107,30 @@ func applyPaginationDefaults(db *gorm.DB, pq *PaginationQuery) *gorm.DB {
 		pq.Limit = 10
 	}
 	offset := (pq.Page - 1) * pq.Limit
-	return db.Offset(offset).Limit(pq.Limit)
+	return q.Offset(offset).Limit(pq.Limit)
 }
 
-func applySearch(db *gorm.DB, search string, columnsSearchable []string) *gorm.DB {
-	if search == "" {
-		return db
+func applySearch(q *bun.SelectQuery, search string, columnsSearchable []string) *bun.SelectQuery {
+	if search == "" || len(columnsSearchable) == 0 {
+		return q
 	}
 	searchPattern := "%" + search + "%"
-	searchCondition := strings.Join(columnsSearchable, " ILIKE ? OR ") + " ILIKE ?"
+	condition := strings.Join(columnsSearchable, " ILIKE ? OR ") + " ILIKE ?"
 
 	// Example:
-	// If columnsSearchable = []string{"name", "slug"} and search = "test"
-	// Will generate SQL query:
+	// columnsSearchable = []string{"name", "slug"}, search = "test"
 	// WHERE name ILIKE '%test%' OR slug ILIKE '%test%'
 
 	args := make([]interface{}, len(columnsSearchable))
 	for i := range columnsSearchable {
 		args[i] = searchPattern
 	}
-	return db.Where(searchCondition, args...)
+	return q.Where(condition, args...)
 }
 
-func applySorting(db *gorm.DB, sort string, order string) *gorm.DB {
+func applySorting(q *bun.SelectQuery, sort, order string) *bun.SelectQuery {
 	if sort == "" || order == "" {
-		return db
+		return q
 	}
-	return db.Order(sort + " " + order)
+	return q.OrderExpr(sort + " " + order)
 }
