@@ -117,3 +117,21 @@ func TestGenerateDDDSample(t *testing.T) {
 	assertFileContains(t, filepath.Join(dir, "internal/interface/http/user_handler.go"), "/users")
 	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "persistence.NewUserRepository")
 }
+
+func TestGenerateLayeredNoSample(t *testing.T) {
+	dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "postgres", Layout: "layered"})
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "router.Register")
+	assertFileContains(t, filepath.Join(dir, "internal/config/config.go"), "func Load")
+	assertFileContains(t, filepath.Join(dir, "internal/router/router.go"), "func Register")
+	_, err := os.Stat(filepath.Join(dir, "internal/model/user.go"))
+	assert.True(t, os.IsNotExist(err))
+}
+
+func TestGenerateLayeredSample(t *testing.T) {
+	dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "sqlite", Layout: "layered", Sample: true})
+	assertFileContains(t, filepath.Join(dir, "internal/model/user.go"), "bun.BaseModel")
+	assertFileContains(t, filepath.Join(dir, "internal/repository/user_repo.go"), "func NewUserRepository")
+	assertFileContains(t, filepath.Join(dir, "internal/service/user_service.go"), "func NewUserService")
+	assertFileContains(t, filepath.Join(dir, "internal/handler/user_handler.go"), "func NewUserHandler")
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "handler.NewUserHandler")
+}
