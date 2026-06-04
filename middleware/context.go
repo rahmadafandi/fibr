@@ -32,14 +32,14 @@ func ContextMiddleware(timeout time.Duration) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		ctx, cancel := context.WithTimeout(c.Context(), timeout)
 		defer cancel()
-		if requestID, ok := c.Locals("requestid").(string); ok && requestID != "" {
-			ctx = context.WithValue(ctx, RequestIDKey, requestID)
-		} else {
+		requestID, ok := c.Locals("requestid").(string)
+		if !ok || requestID == "" {
 			requestID = uuid.New().String()
-			ctx = context.WithValue(ctx, RequestIDKey, requestID)
 			c.Locals("requestid", requestID)
 		}
+		ctx = context.WithValue(ctx, RequestIDKey, requestID)
 		c.Locals("ctx", ctx)
+		c.Set("X-Request-ID", requestID)
 		return c.Next()
 	}
 }
