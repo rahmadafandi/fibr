@@ -401,3 +401,7 @@ app := bootstrap.New(bootstrap.Options{
 app.Get("/", handler)
 log.Fatal(app.Run(":3000")) // graceful shutdown + db.Close handled
 ```
+
+## License
+
+[MIT](LICENSE) © 2026 Rahmad Afandi
