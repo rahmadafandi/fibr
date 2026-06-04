@@ -44,6 +44,7 @@ type Options struct {
 	EnableCORS      bool
 	RateLimit       int
 	HealthChecks    []health.NamedCheck
+	FiberConfig     fiber.Config
 }
 
 // New builds a Fiber app wired with recover, request-id/context, request
@@ -59,10 +60,16 @@ func New(o Options) *App {
 		o.ShutdownTimeout = 10 * time.Second
 	}
 
-	f := fiber.New()
+	f := fiber.New(o.FiberConfig)
 	f.Use(middleware.Recover(o.Logger))
 	f.Use(middleware.ContextMiddleware(o.RequestTimeout))
 	f.Use(middleware.RequestLogger(o.Logger))
+
+	// Register health endpoints BEFORE rate limiting / CORS so liveness and
+	// readiness probes are never throttled.
+	if len(o.HealthChecks) > 0 {
+		health.Register(f, o.HealthChecks...)
+	}
 
 	if o.EnableCORS {
 		f.Use(cors.New())
@@ -73,9 +80,6 @@ func New(o Options) *App {
 
 	app := &App{App: f, shutdownTimeout: o.ShutdownTimeout}
 
-	if len(o.HealthChecks) > 0 {
-		health.Register(f, o.HealthChecks...)
-	}
 	if o.DB != nil {
 		db := o.DB
 		app.cleanup = append(app.cleanup, func(ctx context.Context) error {

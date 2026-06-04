@@ -69,3 +69,18 @@ func TestNewNoDBNoCleanup(t *testing.T) {
 	app := New(Options{})
 	assert.Empty(t, app.cleanup)
 }
+
+func TestHealthExemptFromRateLimit(t *testing.T) {
+	app := New(Options{
+		RateLimit: 1,
+		HealthChecks: []health.NamedCheck{
+			health.Check("ok", func(ctx context.Context) error { return nil }),
+		},
+	})
+	// Probe hit far more than the limit must never be throttled.
+	for i := 0; i < 5; i++ {
+		resp, err := app.Test(httptest.NewRequest("GET", "/livez", nil))
+		require.NoError(t, err)
+		assert.Equal(t, 200, resp.StatusCode)
+	}
+}
