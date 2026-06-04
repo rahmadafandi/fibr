@@ -20,6 +20,7 @@ import (
 	"io"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
@@ -90,4 +91,34 @@ func TestRegisterAtCustomPaths(t *testing.T) {
 	assert.Equal(t, 200, code)
 	code, _ = doGet(t, app, "/ready")
 	assert.Equal(t, 200, code)
+}
+
+func TestReadyzTimesOutSlowCheck(t *testing.T) {
+	old := defaultCheckTimeout
+	defaultCheckTimeout = 100 * time.Millisecond
+	defer func() { defaultCheckTimeout = old }()
+
+	app := fiber.New()
+	Register(app, Check("slow", func(ctx context.Context) error {
+		time.Sleep(3 * time.Second) // ignores ctx
+		return nil
+	}))
+
+	start := time.Now()
+	// Pass a 5s client timeout so app.Test doesn't cut us off before our
+	// overall deadline (checkTimeout + 1s = 1.1s) fires.
+	req := httptest.NewRequest("GET", "/readyz", nil)
+	resp, err := app.Test(req, 5000)
+	require.NoError(t, err)
+	body, _ := io.ReadAll(resp.Body)
+	var m map[string]interface{}
+	_ = json.Unmarshal(body, &m)
+	code := resp.StatusCode
+	elapsed := time.Since(start)
+
+	assert.Equal(t, 503, code)
+	assert.Equal(t, "error", m["status"])
+	checks := m["checks"].(map[string]interface{})
+	assert.Equal(t, "timeout", checks["slow"])
+	assert.Less(t, elapsed, 2*time.Second) // returned well before the 3s sleep
 }

@@ -24,10 +24,13 @@ import (
 )
 
 const (
-	defaultLivez        = "/livez"
-	defaultReadyz       = "/readyz"
-	defaultCheckTimeout = 5 * time.Second
+	defaultLivez  = "/livez"
+	defaultReadyz = "/readyz"
 )
+
+// defaultCheckTimeout bounds each individual readiness check. It is a var so
+// tests can lower it; treat it as a constant in production.
+var defaultCheckTimeout = 5 * time.Second
 
 // NamedCheck is a readiness check with a name.
 type NamedCheck struct {
@@ -47,7 +50,9 @@ func PingBun(db *bun.DB) NamedCheck {
 	})
 }
 
-// Register mounts /livez and /readyz on app.
+// Register mounts /livez and /readyz on app. Readiness checks should honor the
+// context they are given (each is bounded by an overall deadline) and should use
+// unique names, since results are keyed by name in the JSON response.
 func Register(app *fiber.App, checks ...NamedCheck) {
 	RegisterAt(app, defaultLivez, defaultReadyz, checks...)
 }
@@ -83,10 +88,15 @@ func runChecks(ctx context.Context, checks []NamedCheck) (bool, map[string]strin
 	}
 	ch := make(chan result, len(checks))
 
+	// Snapshot once so goroutines and the overall timer use the same value,
+	// and so that tests changing defaultCheckTimeout don't cause a data race
+	// with the goroutines we're about to spawn.
+	checkTimeout := defaultCheckTimeout
+
 	for _, chk := range checks {
 		chk := chk
 		go func() {
-			cctx, cancel := context.WithTimeout(ctx, defaultCheckTimeout)
+			cctx, cancel := context.WithTimeout(ctx, checkTimeout)
 			defer cancel()
 
 			r := result{name: chk.Name, ok: true, msg: "ok"}
@@ -106,12 +116,24 @@ func runChecks(ctx context.Context, checks []NamedCheck) (bool, map[string]strin
 		}()
 	}
 
+	timer := time.NewTimer(checkTimeout + time.Second)
+	defer timer.Stop()
+
 	allOK := true
 	for i := 0; i < len(checks); i++ {
-		r := <-ch
-		detail[r.name] = r.msg
-		if !r.ok {
-			allOK = false
+		select {
+		case r := <-ch:
+			detail[r.name] = r.msg
+			if !r.ok {
+				allOK = false
+			}
+		case <-timer.C:
+			for _, chk := range checks {
+				if _, ok := detail[chk.Name]; !ok {
+					detail[chk.Name] = "timeout"
+				}
+			}
+			return false, detail
 		}
 	}
 	return allOK, detail
