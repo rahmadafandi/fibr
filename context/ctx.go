@@ -34,15 +34,17 @@ func GetRequestID(c *fiber.Ctx) string {
 	return ""
 }
 
-func CustomContext(c *fiber.Ctx, key string, value ...any) string {
-	if len(value) == 0 {
-		if v, ok := c.Locals(key).(string); ok {
-			return v
-		}
-		return ""
-	}
-	if v, ok := c.Locals(key, value[0]).(string); ok {
+// SetLocal stores a value in the fiber context under key.
+func SetLocal(c *fiber.Ctx, key string, value any) {
+	c.Locals(key, value)
+}
+
+// GetLocal retrieves a value of type T from the fiber context.
+// It returns the zero value of T if the key is absent or the type does not match.
+func GetLocal[T any](c *fiber.Ctx, key string) T {
+	if v, ok := c.Locals(key).(T); ok {
 		return v
 	}
-	return ""
+	var zero T
+	return zero
 }
