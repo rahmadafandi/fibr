@@ -69,6 +69,9 @@ func (o *Options) Validate() error {
 	if o.Name == "" {
 		return fmt.Errorf("project name is required")
 	}
+	if strings.ContainsAny(o.Name, `/\`) || strings.Contains(o.Name, "..") {
+		return fmt.Errorf("project name %q must be a simple name (no path separators or \"..\")", o.Name)
+	}
 	if o.Module == "" {
 		return fmt.Errorf("--module is required")
 	}

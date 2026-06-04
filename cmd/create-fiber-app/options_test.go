@@ -43,6 +43,14 @@ func TestValidate(t *testing.T) {
 		o := Options{Name: "app", Module: "m", DB: "sqlite", Layout: "mvc"}
 		assert.Error(t, o.Validate())
 	})
+	t.Run("bad name path", func(t *testing.T) {
+		o := Options{Name: "../evil", Module: "m", DB: "sqlite", Layout: "ddd"}
+		assert.Error(t, o.Validate())
+	})
+	t.Run("bad name slash", func(t *testing.T) {
+		o := Options{Name: "a/b", Module: "m", DB: "sqlite", Layout: "ddd"}
+		assert.Error(t, o.Validate())
+	})
 }
 
 func TestResolveInteractive(t *testing.T) {

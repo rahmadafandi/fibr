@@ -102,6 +102,7 @@ func Generate(o Options, out io.Writer) error {
 
 	for _, fsp := range plan(d) {
 		if err := renderFile(fsp, d, o.Dir); err != nil {
+			_ = os.RemoveAll(o.Dir)
 			return fmt.Errorf("render %s: %w", fsp.tmpl, err)
 		}
 	}
