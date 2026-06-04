@@ -76,3 +76,13 @@ func TestRememberLoaderError(t *testing.T) {
 	})
 	assert.Error(t, err)
 }
+
+func TestParseRedisOptions(t *testing.T) {
+	opt, err := ParseRedisOptions("redis://localhost:6379/0")
+	assert.NoError(t, err)
+	assert.NotNil(t, opt)
+
+	bad, err := ParseRedisOptions("not-a-valid-url")
+	assert.Error(t, err)
+	assert.Nil(t, bad)
+}

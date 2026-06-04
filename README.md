@@ -166,7 +166,11 @@ import (
     firedis "github.com/rahmadafandi/fiber-helpers/redis"
 )
 
-rds := firedis.New(redis.NewClient(firedis.ParseRedisOptions("redis://localhost:6379/0")))
+opt, err := firedis.ParseRedisOptions("redis://localhost:6379/0")
+if err != nil {
+    // handle invalid URL
+}
+rds := firedis.New(redis.NewClient(opt))
 
 // Set / Get
 _ = rds.Set(ctx, "key", myValue, time.Minute)

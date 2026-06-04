@@ -17,6 +17,7 @@ package redis
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -74,11 +75,11 @@ func Remember[T any](ctx context.Context, r *Redis, key string, ttl time.Duratio
 	return val, nil
 }
 
-// ParseRedisOptions parses a redis:// URL into options. Returns nil on parse error.
-func ParseRedisOptions(redisURL string) *redis.Options {
+// ParseRedisOptions parses a redis:// URL into options.
+func ParseRedisOptions(redisURL string) (*redis.Options, error) {
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("redis: invalid url: %w", err)
 	}
-	return opt
+	return opt, nil
 }
