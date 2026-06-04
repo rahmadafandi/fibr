@@ -1,0 +1,21 @@
+package http
+
+import (
+	"github.com/gofiber/fiber/v2"
+	"github.com/rahmadafandi/fiber-helpers/response"
+{{if .Sample}}	appuser "{{.Module}}/internal/application/user"
+{{end}})
+
+{{if .Sample}}// Register wires the root route and the user routes.
+func Register(app fiber.Router, userSvc *appuser.Service) {
+	app.Get("/", root)
+	registerUserRoutes(app, userSvc)
+}
+{{else}}// Register wires the root route.
+func Register(app fiber.Router) {
+	app.Get("/", root)
+}
+{{end}}
+func root(c *fiber.Ctx) error {
+	return response.SendSuccess(c, fiber.Map{"name": "{{.Name}}"}, "ok")
+}

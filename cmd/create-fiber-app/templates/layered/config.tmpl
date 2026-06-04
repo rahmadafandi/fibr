@@ -1,0 +1,17 @@
+package config
+
+import fhconfig "github.com/rahmadafandi/fiber-helpers/config"
+
+type Config struct {
+	DatabaseURL string `mapstructure:"DATABASE_URL" default:"{{if eq .DB "postgres"}}postgres://app:app@localhost:5432/app?sslmode=disable{{else}}file:./data/app.db?cache=shared{{end}}"`
+	Port        string `mapstructure:"PORT" default:"3000"`
+	LogLevel    string `mapstructure:"LOG_LEVEL" default:"info"`
+}
+
+func Load() (*Config, error) {
+	var c Config
+	if err := fhconfig.LoadConfig(&c); err != nil {
+		return nil, err
+	}
+	return &c, nil
+}

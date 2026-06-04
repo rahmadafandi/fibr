@@ -1,0 +1,42 @@
+package repository
+
+import (
+	"context"
+
+	"{{.Module}}/internal/model"
+	"github.com/uptrace/bun"
+)
+
+// UserRepository is the Bun-backed user store.
+type UserRepository struct {
+	db *bun.DB
+}
+
+func NewUserRepository(db *bun.DB) *UserRepository {
+	return &UserRepository{db: db}
+}
+
+// AutoMigrate creates the users table if it does not exist.
+func AutoMigrate(db *bun.DB) error {
+	_, err := db.NewCreateTable().Model((*model.User)(nil)).IfNotExists().Exec(context.Background())
+	return err
+}
+
+func (r *UserRepository) List(ctx context.Context) ([]model.User, error) {
+	var users []model.User
+	err := r.db.NewSelect().Model(&users).Scan(ctx)
+	return users, err
+}
+
+func (r *UserRepository) Get(ctx context.Context, id int64) (*model.User, error) {
+	u := new(model.User)
+	if err := r.db.NewSelect().Model(u).Where("id = ?", id).Scan(ctx); err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
+func (r *UserRepository) Create(ctx context.Context, u *model.User) error {
+	_, err := r.db.NewInsert().Model(u).Exec(ctx)
+	return err
+}

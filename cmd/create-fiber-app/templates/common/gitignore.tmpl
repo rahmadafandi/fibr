@@ -1,0 +1,12 @@
+# binaries
+/api
+/bin/
+*.test
+*.out
+
+# env
+.env
+{{if eq .DB "sqlite"}}
+# sqlite data
+/data/
+{{end}}

@@ -1,0 +1,47 @@
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"{{.Module}}/internal/config"
+	"{{.Module}}/internal/router"
+{{if .Sample}}	"{{.Module}}/internal/handler"
+	"{{.Module}}/internal/repository"
+	"{{.Module}}/internal/service"
+{{end}}
+	"github.com/rahmadafandi/fiber-helpers/bootstrap"
+	fhdatabase "github.com/rahmadafandi/fiber-helpers/database"
+	"github.com/rahmadafandi/fiber-helpers/health"
+)
+
+func main() {
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	db, err := fhdatabase.NewBun(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	app := bootstrap.New(bootstrap.Options{
+		DB:           db,
+		EnableCORS:   true,
+		RateLimit:    100,
+		HealthChecks: []health.NamedCheck{health.PingBun(db)},
+	})
+
+{{if .Sample}}	if err := repository.AutoMigrate(db); err != nil {
+		log.Fatal(err)
+	}
+	userRepo := repository.NewUserRepository(db)
+	userSvc := service.NewUserService(userRepo)
+	userHandler := handler.NewUserHandler(userSvc)
+	router.Register(app, userHandler)
+{{else}}	router.Register(app)
+{{end}}
+	fmt.Printf("listening on :%s\n", cfg.Port)
+	log.Fatal(app.Run(":" + cfg.Port))
+}

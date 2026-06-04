@@ -1,0 +1,44 @@
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"{{.Module}}/internal/infrastructure/config"
+	"{{.Module}}/internal/infrastructure/database"
+	httpiface "{{.Module}}/internal/interface/http"
+{{if .Sample}}	appuser "{{.Module}}/internal/application/user"
+	"{{.Module}}/internal/infrastructure/persistence"
+{{end}}	"github.com/rahmadafandi/fiber-helpers/bootstrap"
+	"github.com/rahmadafandi/fiber-helpers/health"
+)
+
+func main() {
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	db, err := database.New(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	app := bootstrap.New(bootstrap.Options{
+		DB:           db,
+		EnableCORS:   true,
+		RateLimit:    100,
+		HealthChecks: []health.NamedCheck{health.PingBun(db)},
+	})
+
+{{if .Sample}}	if err := persistence.AutoMigrate(db); err != nil {
+		log.Fatal(err)
+	}
+	userRepo := persistence.NewUserRepository(db)
+	userSvc := appuser.NewService(userRepo)
+	httpiface.Register(app, userSvc)
+{{else}}	httpiface.Register(app)
+{{end}}
+	fmt.Printf("listening on :%s\n", cfg.Port)
+	log.Fatal(app.Run(":" + cfg.Port))
+}

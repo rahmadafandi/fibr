@@ -1,0 +1,17 @@
+# {{.Name}}
+
+Generated with create-fiber-app (fiber-helpers), {{.Layout}} layout, {{.DB}} database.
+
+## Run
+
+```bash
+cp .env.example .env
+{{if eq .DB "postgres"}}docker compose up -d db
+{{end}}make run
+```
+
+Endpoints: `GET /livez`, `GET /readyz`.{{if .Sample}} Sample CRUD at `GET/POST /users`.{{end}}
+
+## Structure
+
+`cmd/api` is the entrypoint. Application code lives under `internal/` following the {{.Layout}} layout.
