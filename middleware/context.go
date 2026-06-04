@@ -25,9 +25,12 @@ import (
 type contextKey string
 
 const (
+	// RequestIDKey is the context key used to store and retrieve the request ID.
 	RequestIDKey contextKey = "request_id"
 )
 
+// ContextMiddleware attaches a timeout-bounded context and a unique request ID
+// to every incoming Fiber request, storing both via c.Locals.
 func ContextMiddleware(timeout time.Duration) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		ctx, cancel := context.WithTimeout(c.Context(), timeout)

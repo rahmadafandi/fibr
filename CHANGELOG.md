@@ -1,0 +1,50 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+This project has not yet had a stable release; all changes are listed under **Unreleased**.
+
+## [Unreleased]
+
+### Added
+
+- **`database`**: `NewBun` opens a Bun ORM connection with automatic Postgres/SQLite dialect detection from the DSN; pool options (`WithMaxOpenConns`, `WithMaxIdleConns`, `WithConnMaxLifetime`, `WithPingTimeout`, `WithoutPing`).
+- **`health`**: `Register`/`RegisterAt` mount `/livez` (liveness) and `/readyz` (readiness) endpoints that run named checks concurrently; `/readyz` applies an overall deadline so a stuck check cannot hang the server. `PingBun` and `Check` helpers provided.
+- **`server`**: `RunGraceful` starts a Fiber app and blocks until SIGINT/SIGTERM, then shuts the server down cleanly and calls optional cleanup hooks.
+- **`bootstrap`**: `New(Options)` wires recover, request-id, structured logging, optional CORS, optional rate limiting (health probes are exempt), optional DB health checks, and graceful shutdown in a single call. `App.Run(addr)` replaces `fiber.App.Listen`.
+- **`config`**: `default:"..."` and `required:"true"` struct tags; extended type support (`time.Duration`, float, bool, integer with per-kind overflow detection, comma-separated `[]string`); combined error reporting across all fields.
+- **`http`**: Context-aware JSON client built on fasthttp. All methods (`Get`, `Post`, `Put`, `Patch`, `Delete`) accept `context.Context` and return `(statusCode int, err error)`. `WithRetry` retries only on 5xx; `WithTimeout`, `WithHeader` options; `FireAndForget` for background non-blocking calls; `HTTPError` type for status-code errors.
+- **`redis`**: Generic `Remember` cache-aside helper that returns a cached value or calls a loader on miss. `ParseRedisOptions` parses a Redis URL into `*redis.Options` and returns an error on bad input.
+- **`validator`**: `Register` for custom validation rules; error messages use JSON field names and include the failing value; handles non-struct input without panicking.
+- **`jwt`**: `GenerateTokenWithExpiry` for generating tokens with an explicit expiry duration.
+- **`uploader`**: `WithMaxSize` and `WithAllowedMime` options for `NewLocalUploader`; filenames are sanitized and permissions are tightened; partial files are removed on write error.
+- **`middleware`**: `X-Request-ID` response header added by the request-id middleware so callers can correlate responses.
+- **`context`**: `SetLocal` and `GetLocal` typed helpers replace the former `CustomContext`.
+- **`pagination`**: `pagination` package extracted to manage page/limit logic independently.
+
+### Changed
+
+- **ORM migration**: GORM removed; Bun is now the ORM throughout the library. `parser` pagination scopes and `slug.Generate` (now `slug.Generate(ctx, db, table, text) (string, error)`) migrated accordingly.
+- **`config.LoadConfig`**: Signature changed from a generic return (`LoadConfig[T]() (T, error)`) to pointer-out (`LoadConfig(out any) error`), matching idiomatic Go.
+- **`http` methods**: All request methods now accept a leading `context.Context` argument and return `(int, error)` instead of a plain error.
+- **`common` package removed**: Functionality split into the `response` and `logger` packages.
+
+### Removed
+
+- **`common` package**: Replaced by dedicated `response` and `logger` packages.
+- **`parser.ParseBody` / `ParseQuery` / `ParseParams`**: Removed generic parse helpers; use Fiber's built-in `c.BodyParser`, `c.QueryParser`, and `c.ParamsParser` directly.
+- **`redis.GormResult`**: Removed broken GORM-coupled helper; use `Remember` instead.
+
+### Fixed
+
+- **`pagination`**: Guard against divide-by-zero when `limit` is zero; clamp page number to a valid range.
+- **`parser`**: Corrected ILIKE pattern construction; added SQL-injection guard on the sort column expression.
+- **`uploader`**: Path-traversal protection on uploaded filenames; partial file is cleaned up on write error; file permissions tightened.
+- **`validator`**: No longer panics on non-struct input.
+- **`config`**: Per-kind numeric overflow detection; errors from all fields are combined and reported together.
+- **`slug`**: Uniqueness retry loop is now capped to prevent an infinite spin.
+- **`redis`**: `ParseRedisOptions` returns an error instead of `nil` on a bad URL.
+- **`server`**: Signal-notify goroutine and exit bridge goroutine are cleaned up correctly on return.
+- **`database`**: Malformed DSN schemes are rejected with an error instead of being silently treated as SQLite.
+- **`http`**: `FireAndForget` detaches from the caller's context so cancellation does not abort background requests; retry backoff is context-aware.

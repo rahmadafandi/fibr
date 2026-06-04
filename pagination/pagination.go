@@ -14,6 +14,8 @@
 
 package pagination
 
+// Pagination holds a single page of results together with the metadata needed
+// to render page navigation controls.
 type Pagination[T any] struct {
 	Data        []T `json:"data"`
 	PageSize    int `json:"page_size"`
@@ -24,6 +26,8 @@ type Pagination[T any] struct {
 	StartNumber int `json:"start_number"`
 }
 
+// NewPagination constructs a Pagination value from a slice of items and the
+// associated paging parameters. pageNumber is clamped to 1 if less than 1.
 func NewPagination[T any](items []T, pageSize int, pageNumber int, totalCount int) *Pagination[T] {
 	if pageNumber < 1 {
 		pageNumber = 1

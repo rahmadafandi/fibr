@@ -22,9 +22,12 @@ import (
 )
 
 type (
+	// Level is re-exported from zerolog so callers need not import that package
+	// directly.
 	Level = zerolog.Level
 )
 
+// Log-level constants re-exported from zerolog.
 const (
 	InfoLevel  = zerolog.InfoLevel
 	DebugLevel = zerolog.DebugLevel

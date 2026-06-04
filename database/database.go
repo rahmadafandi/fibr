@@ -48,10 +48,17 @@ type config struct {
 // Option configures the database connection.
 type Option func(*config)
 
-func WithMaxOpenConns(n int) Option              { return func(c *config) { c.maxOpenConns = n } }
-func WithMaxIdleConns(n int) Option              { return func(c *config) { c.maxIdleConns = n } }
+// WithMaxOpenConns sets the maximum number of open connections to the database.
+func WithMaxOpenConns(n int) Option { return func(c *config) { c.maxOpenConns = n } }
+
+// WithMaxIdleConns sets the maximum number of idle connections in the pool.
+func WithMaxIdleConns(n int) Option { return func(c *config) { c.maxIdleConns = n } }
+
+// WithConnMaxLifetime sets the maximum amount of time a connection may be reused.
 func WithConnMaxLifetime(d time.Duration) Option { return func(c *config) { c.connMaxLifetime = d } }
-func WithPingTimeout(d time.Duration) Option     { return func(c *config) { c.pingTimeout = d } }
+
+// WithPingTimeout sets the timeout for the connect-time ping (default 5 s).
+func WithPingTimeout(d time.Duration) Option { return func(c *config) { c.pingTimeout = d } }
 
 // WithoutPing skips the connect-time ping.
 func WithoutPing() Option { return func(c *config) { c.skipPing = true } }

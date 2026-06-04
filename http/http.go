@@ -25,6 +25,8 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+// HTTP method constants re-exported from fasthttp for use with Http.FireAndForget
+// and similar helpers.
 const (
 	Post    = fasthttp.MethodPost
 	Get     = fasthttp.MethodGet
@@ -63,13 +65,23 @@ type Http struct {
 // Option configures an Http client.
 type Option func(*Http)
 
+// WithTimeout sets the per-request timeout used when no context deadline is present.
 func WithTimeout(d time.Duration) Option { return func(h *Http) { h.timeout = d } }
+
+// WithRetry configures the number of additional retry attempts and the backoff
+// duration between them. Only 5xx errors and transport failures are retried.
 func WithRetry(n int, backoff time.Duration) Option {
 	return func(h *Http) { h.retries = n; h.backoff = backoff }
 }
-func WithHeader(key, value string) Option  { return func(h *Http) { h.headers[key] = value } }
+
+// WithHeader adds a default header sent with every request.
+func WithHeader(key, value string) Option { return func(h *Http) { h.headers[key] = value } }
+
+// WithClient replaces the underlying fasthttp client.
 func WithClient(c *fasthttp.Client) Option { return func(h *Http) { h.Client = c } }
-func WithLogger(l *logger.Logger) Option   { return func(h *Http) { h.logger = l } }
+
+// WithLogger attaches a logger used to report FireAndForget errors.
+func WithLogger(l *logger.Logger) Option { return func(h *Http) { h.logger = l } }
 
 // New creates a new Http client.
 func New(baseURL string, opts ...Option) *Http {
@@ -101,22 +113,27 @@ func (h *Http) snapshotHeaders() map[string]string {
 	return out
 }
 
+// Get sends a GET request to path and JSON-decodes the response into out.
 func (h *Http) Get(ctx context.Context, path string, out interface{}) (int, error) {
 	return h.request(ctx, fasthttp.MethodGet, path, nil, out)
 }
 
+// Post sends a POST request with a JSON-encoded body and decodes the response into out.
 func (h *Http) Post(ctx context.Context, path string, body, out interface{}) (int, error) {
 	return h.request(ctx, fasthttp.MethodPost, path, body, out)
 }
 
+// Put sends a PUT request with a JSON-encoded body and decodes the response into out.
 func (h *Http) Put(ctx context.Context, path string, body, out interface{}) (int, error) {
 	return h.request(ctx, fasthttp.MethodPut, path, body, out)
 }
 
+// Patch sends a PATCH request with a JSON-encoded body and decodes the response into out.
 func (h *Http) Patch(ctx context.Context, path string, body, out interface{}) (int, error) {
 	return h.request(ctx, fasthttp.MethodPatch, path, body, out)
 }
 
+// Delete sends a DELETE request to path and JSON-decodes the response into out.
 func (h *Http) Delete(ctx context.Context, path string, out interface{}) (int, error) {
 	return h.request(ctx, fasthttp.MethodDelete, path, nil, out)
 }
