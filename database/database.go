@@ -66,7 +66,9 @@ func detectDialect(dsn string) (dialectKind, error) {
 	case strings.HasPrefix(dsn, "file:"), dsn == ":memory:":
 		return dialectSQLite, nil
 	default:
-		if strings.Contains(dsn, "://") {
+		// A bare filesystem path (e.g. "app.db", "/var/data/app.db") is SQLite.
+		// Anything else containing a colon is a malformed/unsupported scheme.
+		if strings.Contains(dsn, ":") {
 			return dialectUnknown, fmt.Errorf("database: unsupported DSN scheme in %q", dsn)
 		}
 		return dialectSQLite, nil

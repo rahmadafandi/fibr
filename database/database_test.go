@@ -72,3 +72,18 @@ func TestNewBunWithoutPing(t *testing.T) {
 	defer db.Close()
 	assert.NotNil(t, db)
 }
+
+func TestDetectDialectRejectsMalformedScheme(t *testing.T) {
+	for _, dsn := range []string{"postgres:/host", "weird:thing", "http:/x"} {
+		_, err := detectDialect(dsn)
+		assert.Error(t, err, dsn)
+	}
+}
+
+func TestNewBunPostgresWithoutPing(t *testing.T) {
+	// Exercises the Postgres branch without a live server (sql.OpenDB is lazy).
+	db, err := NewBun("postgres://user:pass@localhost:5432/db", WithoutPing())
+	require.NoError(t, err)
+	defer db.Close()
+	assert.NotNil(t, db)
+}
