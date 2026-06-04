@@ -47,4 +47,19 @@ func TestJWT(t *testing.T) {
 		_, err := ValidateToken("invalid", secret)
 		assert.Error(t, err)
 	})
+
+	t.Run("GenerateTokenWithExpiry", func(t *testing.T) {
+		token, err := GenerateTokenWithExpiry(MapClaims{"name": "test"}, secret, time.Hour)
+		assert.NoError(t, err)
+		valid, err := ValidateToken(token, secret)
+		assert.NoError(t, err)
+		assert.True(t, valid.Valid)
+	})
+
+	t.Run("ExpiredTokenRejected", func(t *testing.T) {
+		token, err := GenerateTokenWithExpiry(MapClaims{"name": "test"}, secret, -time.Hour)
+		assert.NoError(t, err)
+		_, err = ValidateToken(token, secret)
+		assert.Error(t, err)
+	})
 }

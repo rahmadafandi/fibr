@@ -17,29 +17,97 @@ package config
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestConfig(t *testing.T) {
-	t.Run("LoadConfig", func(t *testing.T) {
-		// Create a dummy .env file
-		file, err := os.Create(".env")
-		assert.NoError(t, err)
-		defer os.Remove(".env")
-
-		_, err = file.WriteString("JWT_SECRET=test_secret\nLOG_LEVEL=debug")
-		assert.NoError(t, err)
-		file.Close()
+	t.Run("BasicTypes", func(t *testing.T) {
+		os.Clearenv()
+		os.Setenv("JWT_SECRET", "test_secret")
+		os.Setenv("LOG_LEVEL", "debug")
 
 		type Config struct {
 			JWTSecret string `mapstructure:"JWT_SECRET"`
 			LogLevel  string `mapstructure:"LOG_LEVEL"`
 		}
 
-		config, err := LoadConfig[Config]()
+		cfg, err := LoadConfig[Config]()
 		assert.NoError(t, err)
-		assert.Equal(t, "test_secret", config.JWTSecret)
-		assert.Equal(t, "debug", config.LogLevel)
+		assert.Equal(t, "test_secret", cfg.JWTSecret)
+		assert.Equal(t, "debug", cfg.LogLevel)
+	})
+
+	t.Run("ExtendedTypes", func(t *testing.T) {
+		os.Clearenv()
+		os.Setenv("PORT", "8080")
+		os.Setenv("RATE", "1.5")
+		os.Setenv("DEBUG", "true")
+		os.Setenv("TIMEOUT", "30s")
+		os.Setenv("HOSTS", "a.com, b.com ,c.com")
+		os.Setenv("WORKERS", "4")
+
+		type Config struct {
+			Port    int           `mapstructure:"PORT"`
+			Rate    float64       `mapstructure:"RATE"`
+			Debug   bool          `mapstructure:"DEBUG"`
+			Timeout time.Duration `mapstructure:"TIMEOUT"`
+			Hosts   []string      `mapstructure:"HOSTS"`
+			Workers uint          `mapstructure:"WORKERS"`
+		}
+
+		cfg, err := LoadConfig[Config]()
+		assert.NoError(t, err)
+		assert.Equal(t, 8080, cfg.Port)
+		assert.Equal(t, 1.5, cfg.Rate)
+		assert.True(t, cfg.Debug)
+		assert.Equal(t, 30*time.Second, cfg.Timeout)
+		assert.Equal(t, []string{"a.com", "b.com", "c.com"}, cfg.Hosts)
+		assert.Equal(t, uint(4), cfg.Workers)
+	})
+
+	t.Run("Defaults", func(t *testing.T) {
+		os.Clearenv()
+		type Config struct {
+			Port int    `mapstructure:"PORT" default:"3000"`
+			Env  string `mapstructure:"ENV" default:"development"`
+		}
+		cfg, err := LoadConfig[Config]()
+		assert.NoError(t, err)
+		assert.Equal(t, 3000, cfg.Port)
+		assert.Equal(t, "development", cfg.Env)
+	})
+
+	t.Run("RequiredMissing", func(t *testing.T) {
+		os.Clearenv()
+		type Config struct {
+			Secret string `mapstructure:"SECRET" required:"true"`
+		}
+		_, err := LoadConfig[Config]()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "SECRET")
+	})
+
+	t.Run("ParseError", func(t *testing.T) {
+		os.Clearenv()
+		os.Setenv("PORT", "not-a-number")
+		type Config struct {
+			Port int `mapstructure:"PORT"`
+		}
+		_, err := LoadConfig[Config]()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "PORT")
+	})
+
+	t.Run("OverflowRejected", func(t *testing.T) {
+		os.Clearenv()
+		os.Setenv("SMALL", "200")
+		type Config struct {
+			Small int8 `mapstructure:"SMALL"`
+		}
+		_, err := LoadConfig[Config]()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "SMALL")
 	})
 }

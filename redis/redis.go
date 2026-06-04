@@ -1,108 +1,85 @@
+// Copyright 2025 Rahmad Afandi
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package redis
 
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"gorm.io/gorm"
 )
 
 type (
 	Client = redis.Client
 )
 
-// Redis is a struct that holds the redis client
+// Redis wraps a go-redis client with JSON (de)serialization helpers.
 type Redis struct {
 	Client *Client
 }
 
-// New is a function to create a new redis client
+// New creates a new Redis wrapper.
 func New(client *Client) *Redis {
-	return &Redis{
-		Client: client,
-	}
+	return &Redis{Client: client}
 }
 
-// Set is a function to set a value to redis
+// Set JSON-encodes value and stores it under key with the given expiration.
 func (r *Redis) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
 	p, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
-
 	return r.Client.Set(ctx, key, p, expiration).Err()
 }
 
-// Get is a function to get a value from redis
+// Get reads key and JSON-decodes it into dest. Returns an error on cache miss.
 func (r *Redis) Get(ctx context.Context, key string, dest interface{}) error {
 	p, err := r.Client.Get(ctx, key).Bytes()
 	if err != nil {
 		return err
 	}
-
 	return json.Unmarshal(p, dest)
 }
 
-// SetGormResult is a function to set a gorm result to redis
-func (r *Redis) SetGormResult(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
-	p, err := json.Marshal(value)
+// Remember returns the cached value for key, or runs loader on a cache miss,
+// stores its result with ttl, and returns it. A failure to store the loaded
+// value does not fail the call.
+func Remember[T any](ctx context.Context, r *Redis, key string, ttl time.Duration, loader func() (T, error)) (T, error) {
+	var out T
+	if err := r.Get(ctx, key, &out); err == nil {
+		return out, nil
+	}
+
+	val, err := loader()
 	if err != nil {
-		return err
+		var zero T
+		return zero, err
 	}
 
-	return r.Client.Set(ctx, key, p, expiration).Err()
+	// Best-effort cache write; ignore store errors so the loaded value is still returned.
+	_ = r.Set(ctx, key, val, ttl)
+	return val, nil
 }
 
-// GetGormResult is a function to get a gorm result from redis
-func (r *Redis) GetGormResult(ctx context.Context, key string, dest interface{}) error {
-	p, err := r.Client.Get(ctx, key).Bytes()
-	if err != nil {
-		return err
-	}
-
-	return json.Unmarshal(p, dest)
-}
-
-// GormResult is a struct that holds the gorm result
-type GormResult struct {
-	DB *gorm.DB
-}
-
-// NewGormResult is a function to create a new gorm result
-func NewGormResult(db *gorm.DB) *GormResult {
-	return &GormResult{
-		DB: db,
-	}
-}
-
-// Find is a function to find a gorm result
-func (gr *GormResult) Find(ctx context.Context, key string, dest interface{}, expiration time.Duration, f func() (interface{}, error)) error {
-	err := r.GetGormResult(ctx, key, dest)
-	if err == nil {
-		return nil
-	}
-
-	res, err := f()
-	if err != nil {
-		return err
-	}
-
-	err = r.SetGormResult(ctx, key, res, expiration)
-	if err != nil {
-		return err
-	}
-
-	return gr.DB.Find(dest).Error
-}
-
-func ParseRedisOptions(redisURL string) *redis.Options {
+// ParseRedisOptions parses a redis:// URL into options.
+func ParseRedisOptions(redisURL string) (*redis.Options, error) {
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("redis: invalid url: %w", err)
 	}
-	return opt
+	return opt, nil
 }
-
-var r *Redis

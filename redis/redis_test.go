@@ -1,3 +1,17 @@
+// Copyright 2025 Rahmad Afandi
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package redis
 
 import (
@@ -5,55 +19,70 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/alicebob/miniredis/v2"
+	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	"github.com/stretchr/testify/require"
 )
 
-func TestRedis(t *testing.T) {
-	// setup redis
-	client := redis.NewClient(ParseRedisOptions("redis://localhost:6379"))
-	r = New(client)
-
-	// setup gorm
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-	assert.NoError(t, err)
-
-	// run migration
-	err = db.AutoMigrate(&User{})
-	assert.NoError(t, err)
-
-	// create user
-	user := User{
-		Name: "test",
-	}
-	err = db.Create(&user).Error
-	assert.NoError(t, err)
-
-	// get user from redis
-	var userFromRedis User
-	err = r.GetGormResult(context.Background(), "user", &userFromRedis)
-	assert.Error(t, err)
-
-	// get user from db
-	var userFromDB User
-	gormResult := NewGormResult(db)
-	err = gormResult.Find(context.Background(), "user", &userFromDB, 10*time.Second, func() (interface{}, error) {
-		var user User
-		err := db.First(&user).Error
-		return user, err
-	})
-	assert.NoError(t, err)
-	assert.Equal(t, user.Name, userFromDB.Name)
-
-	// get user from redis
-	err = r.GetGormResult(context.Background(), "user", &userFromRedis)
-	assert.NoError(t, err)
-	assert.Equal(t, user.Name, userFromRedis.Name)
+func newTestRedis(t *testing.T) *Redis {
+	t.Helper()
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+	t.Cleanup(mr.Close)
+	client := goredis.NewClient(&goredis.Options{Addr: mr.Addr()})
+	return New(client)
 }
 
-type User struct {
-	gorm.Model
-	Name string
+func TestSetGet(t *testing.T) {
+	r := newTestRedis(t)
+	ctx := context.Background()
+
+	type item struct{ Name string }
+	assert.NoError(t, r.Set(ctx, "k", item{Name: "x"}, time.Minute))
+
+	var got item
+	assert.NoError(t, r.Get(ctx, "k", &got))
+	assert.Equal(t, "x", got.Name)
+}
+
+func TestRememberMissThenHit(t *testing.T) {
+	r := newTestRedis(t)
+	ctx := context.Background()
+
+	calls := 0
+	loader := func() (string, error) {
+		calls++
+		return "loaded", nil
+	}
+
+	v, err := Remember(ctx, r, "key", time.Minute, loader)
+	assert.NoError(t, err)
+	assert.Equal(t, "loaded", v)
+	assert.Equal(t, 1, calls)
+
+	v, err = Remember(ctx, r, "key", time.Minute, loader)
+	assert.NoError(t, err)
+	assert.Equal(t, "loaded", v)
+	assert.Equal(t, 1, calls)
+}
+
+func TestRememberLoaderError(t *testing.T) {
+	r := newTestRedis(t)
+	ctx := context.Background()
+
+	_, err := Remember(ctx, r, "key", time.Minute, func() (string, error) {
+		return "", assert.AnError
+	})
+	assert.Error(t, err)
+}
+
+func TestParseRedisOptions(t *testing.T) {
+	opt, err := ParseRedisOptions("redis://localhost:6379/0")
+	assert.NoError(t, err)
+	assert.NotNil(t, opt)
+
+	bad, err := ParseRedisOptions("not-a-valid-url")
+	assert.Error(t, err)
+	assert.Nil(t, bad)
 }

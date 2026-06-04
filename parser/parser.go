@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
+	"github.com/uptrace/bun"
 )
 
 // ParseBody parses the request body into the provided generic type T.
@@ -63,10 +63,10 @@ type PaginationQuery struct {
 func (p *PaginationQuery) Validate(sortOptions []string) error {
 	var errs []string
 	if p.Page < 0 {
-		errs = append(errs, "page must be greater than 0")
+		errs = append(errs, "page must not be negative")
 	}
 	if p.Limit < 0 {
-		errs = append(errs, "limit must be greater than 0")
+		errs = append(errs, "limit must not be negative")
 	}
 	if p.Sort != "" && !slices.Contains(sortOptions, p.Sort) {
 		errs = append(errs, fmt.Sprintf("sort must be one of %s", strings.Join(sortOptions, ", ")))
@@ -80,24 +80,30 @@ func (p *PaginationQuery) Validate(sortOptions []string) error {
 	return nil
 }
 
-func Paginate(pq *PaginationQuery, columnsSearchable []string) func(db *gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		db = applySearch(db, pq.Search, columnsSearchable)
-		db = applySorting(db, pq.Sort, pq.Order)
-		db = applyPaginationDefaults(db, pq)
-
-		return db
+// Paginate returns a Bun query modifier that applies search, sorting, and
+// page/limit offsets. Use it via query.Apply(Paginate(pq, columns)).
+//
+// pq.Page and pq.Limit are normalised in place to their defaults (1 and 10)
+// when non-positive. Invalid sort/order values are ignored; call
+// pq.Validate first to surface them as errors.
+func Paginate(pq *PaginationQuery, columnsSearchable []string) func(*bun.SelectQuery) *bun.SelectQuery {
+	return func(q *bun.SelectQuery) *bun.SelectQuery {
+		q = applySearch(q, pq.Search, columnsSearchable)
+		q = applySorting(q, pq.Sort, pq.Order)
+		q = applyPaginationDefaults(q, pq)
+		return q
 	}
 }
 
-func Count(search string, columnsSearchable []string) func(db *gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		db = applySearch(db, search, columnsSearchable)
-		return db
+// Count returns a Bun query modifier that applies only the search filter,
+// for use with a COUNT query. Use it via query.Apply(Count(search, columns)).
+func Count(search string, columnsSearchable []string) func(*bun.SelectQuery) *bun.SelectQuery {
+	return func(q *bun.SelectQuery) *bun.SelectQuery {
+		return applySearch(q, search, columnsSearchable)
 	}
 }
 
-func applyPaginationDefaults(db *gorm.DB, pq *PaginationQuery) *gorm.DB {
+func applyPaginationDefaults(q *bun.SelectQuery, pq *PaginationQuery) *bun.SelectQuery {
 	if pq.Page <= 0 {
 		pq.Page = 1
 	}
@@ -105,31 +111,59 @@ func applyPaginationDefaults(db *gorm.DB, pq *PaginationQuery) *gorm.DB {
 		pq.Limit = 10
 	}
 	offset := (pq.Page - 1) * pq.Limit
-	return db.Offset(offset).Limit(pq.Limit)
+	return q.Offset(offset).Limit(pq.Limit)
 }
 
-func applySearch(db *gorm.DB, search string, columnsSearchable []string) *gorm.DB {
-	if search == "" {
-		return db
+func applySearch(q *bun.SelectQuery, search string, columnsSearchable []string) *bun.SelectQuery {
+	if search == "" || len(columnsSearchable) == 0 {
+		return q
 	}
-	searchPattern := "%%" + search + "%%"
-	searchCondition := strings.Join(columnsSearchable, " ILIKE ? OR ") + " ILIKE ?"
+	searchPattern := "%" + search + "%"
+	condition := strings.Join(columnsSearchable, " ILIKE ? OR ") + " ILIKE ?"
 
 	// Example:
-	// If columnsSearchable = []string{"name", "slug"} and search = "test"
-	// Will generate SQL query:
-	// WHERE name ILIKE '%%test%%' OR slug ILIKE '%%test%%'
+	// columnsSearchable = []string{"name", "slug"}, search = "test"
+	// WHERE name ILIKE '%test%' OR slug ILIKE '%test%'
 
 	args := make([]interface{}, len(columnsSearchable))
 	for i := range columnsSearchable {
 		args[i] = searchPattern
 	}
-	return db.Where(searchCondition, args...)
+	return q.Where(condition, args...)
 }
 
-func applySorting(db *gorm.DB, sort string, order string) *gorm.DB {
+func applySorting(q *bun.SelectQuery, sort, order string) *bun.SelectQuery {
 	if sort == "" || order == "" {
-		return db
+		return q
 	}
-	return db.Order(sort + " " + order)
+	order = strings.ToLower(order)
+	if order != "asc" && order != "desc" {
+		return q
+	}
+	if !isSimpleIdentifier(sort) {
+		return q
+	}
+	return q.OrderExpr(sort + " " + order)
+}
+
+// isSimpleIdentifier reports whether s is a plain column name, optionally
+// table-qualified (e.g. "name" or "a.created_at"), containing only letters,
+// digits, underscores, and dots. This is defence-in-depth against SQL
+// injection through OrderExpr; PaginationQuery.Validate remains the
+// authoritative whitelist.
+func isSimpleIdentifier(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z',
+			r >= 'A' && r <= 'Z',
+			r >= '0' && r <= '9',
+			r == '_', r == '.':
+		default:
+			return false
+		}
+	}
+	return true
 }

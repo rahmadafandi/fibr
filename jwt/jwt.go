@@ -17,6 +17,7 @@ package jwt
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -29,6 +30,18 @@ type (
 
 // GenerateToken generates a new JWT token.
 func GenerateToken(claims MapClaims, secret string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
+}
+
+// GenerateTokenWithExpiry generates a new JWT token that expires after ttl.
+// It writes the "exp" claim into the provided claims map, overwriting any
+// existing "exp" value.
+func GenerateTokenWithExpiry(claims MapClaims, secret string, ttl time.Duration) (string, error) {
+	if claims == nil {
+		claims = MapClaims{}
+	}
+	claims["exp"] = time.Now().Add(ttl).Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(secret))
 }
