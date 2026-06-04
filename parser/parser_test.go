@@ -168,3 +168,17 @@ func TestApplySearchBuildsILIKECondition(t *testing.T) {
 	assert.Contains(t, sqlStr, "ILIKE")
 	assert.Contains(t, sqlStr, "name")
 }
+
+func TestApplySortingRejectsInjection(t *testing.T) {
+	db := newBunDB(t)
+	// A malicious sort value must not appear in the generated SQL.
+	pq := &PaginationQuery{Sort: "name; DROP TABLE articles", Order: "asc", Limit: 5}
+	q := db.NewSelect().Model((*article)(nil)).Apply(Paginate(pq, nil))
+	sqlStr := q.String()
+	assert.NotContains(t, sqlStr, "DROP TABLE")
+
+	// A valid identifier IS applied.
+	pq2 := &PaginationQuery{Sort: "name", Order: "asc", Limit: 5}
+	q2 := db.NewSelect().Model((*article)(nil)).Apply(Paginate(pq2, nil))
+	assert.Contains(t, q2.String(), "ORDER BY")
+}

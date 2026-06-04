@@ -82,6 +82,10 @@ func (p *PaginationQuery) Validate(sortOptions []string) error {
 
 // Paginate returns a Bun query modifier that applies search, sorting, and
 // page/limit offsets. Use it via query.Apply(Paginate(pq, columns)).
+//
+// pq.Page and pq.Limit are normalised in place to their defaults (1 and 10)
+// when non-positive. Invalid sort/order values are ignored; call
+// pq.Validate first to surface them as errors.
 func Paginate(pq *PaginationQuery, columnsSearchable []string) func(*bun.SelectQuery) *bun.SelectQuery {
 	return func(q *bun.SelectQuery) *bun.SelectQuery {
 		q = applySearch(q, pq.Search, columnsSearchable)
@@ -132,5 +136,34 @@ func applySorting(q *bun.SelectQuery, sort, order string) *bun.SelectQuery {
 	if sort == "" || order == "" {
 		return q
 	}
+	order = strings.ToLower(order)
+	if order != "asc" && order != "desc" {
+		return q
+	}
+	if !isSimpleIdentifier(sort) {
+		return q
+	}
 	return q.OrderExpr(sort + " " + order)
+}
+
+// isSimpleIdentifier reports whether s is a plain column name, optionally
+// table-qualified (e.g. "name" or "a.created_at"), containing only letters,
+// digits, underscores, and dots. This is defence-in-depth against SQL
+// injection through OrderExpr; PaginationQuery.Validate remains the
+// authoritative whitelist.
+func isSimpleIdentifier(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z',
+			r >= 'A' && r <= 'Z',
+			r >= '0' && r <= '9',
+			r == '_', r == '.':
+		default:
+			return false
+		}
+	}
+	return true
 }
