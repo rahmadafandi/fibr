@@ -2,6 +2,81 @@
 
 A collection of helper packages for the [Fiber](https://gofiber.io/) web framework.
 
+## Install
+
+```bash
+go get github.com/rahmadafandi/fiber-helpers
+```
+
+Requires Go 1.25+. Targets Fiber v2 and Bun ORM (Postgres or SQLite).
+
+## Quickstart
+
+```go
+package main
+
+import (
+    "fmt"
+
+    "github.com/gofiber/fiber/v2"
+    "github.com/rahmadafandi/fiber-helpers/bootstrap"
+    "github.com/rahmadafandi/fiber-helpers/config"
+    "github.com/rahmadafandi/fiber-helpers/database"
+    "github.com/rahmadafandi/fiber-helpers/health"
+    "github.com/rahmadafandi/fiber-helpers/response"
+)
+
+func main() {
+    type Config struct {
+        DatabaseURL string `mapstructure:"DATABASE_URL" default:"file::memory:?cache=shared"`
+    }
+
+    var cfg Config
+    if err := config.LoadConfig(&cfg); err != nil {
+        panic(err)
+    }
+
+    db, err := database.NewBun(cfg.DatabaseURL)
+    if err != nil {
+        panic(err)
+    }
+
+    app := bootstrap.New(bootstrap.Options{
+        DB:           db,
+        EnableCORS:   true,
+        RateLimit:    100,
+        HealthChecks: []health.NamedCheck{health.PingBun(db)},
+    })
+
+    app.Get("/", func(c *fiber.Ctx) error {
+        return response.SendSuccess(c, "Hello, World!", "Welcome")
+    })
+
+    fmt.Println("Server listening on :3000")
+    if err := app.Run(":3000"); err != nil {
+        panic(err)
+    }
+}
+```
+
+## Package Index
+
+- [`config`](#config) — Load env vars into typed structs with `default` and `required` tags.
+- [`logger`](#logger) — Structured logger based on zerolog.
+- [`response`](#response) — Standardized JSON response helpers.
+- [`parser`](#parser) — Bun pagination/search query modifiers.
+- [`validator`](#validator) — Struct validation with custom rules and JSON field names.
+- [`jwt`](#jwt) — JWT generation and validation helpers.
+- [`http`](#http) — Context-aware JSON HTTP client with retry.
+- [`redis`](#redis) — Redis wrapper with `Remember` cache-aside helper.
+- [`slug`](#slug) — Unique URL-safe slug generator backed by a Bun database.
+- [`uploader`](#uploader) — Local file uploader with size and MIME limits.
+- [`middleware`](#middleware) — Recover, request logging, auth, and request-id middleware.
+- [`database`](#database) — Bun connector with Postgres/SQLite dialect auto-detection.
+- [`health`](#health) — Liveness (`/livez`) and readiness (`/readyz`) endpoints.
+- [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
+- [`bootstrap`](#bootstrap) — One-call app wiring: middleware, health, DB, and graceful shutdown.
+
 ## Packages
 
 ### `config`
