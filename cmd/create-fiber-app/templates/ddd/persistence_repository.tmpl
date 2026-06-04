@@ -1,0 +1,63 @@
+package persistence
+
+import (
+	"context"
+
+	domain "{{.Module}}/internal/domain/user"
+	"github.com/uptrace/bun"
+)
+
+type userModel struct {
+	bun.BaseModel `bun:"table:users,alias:u"`
+	ID            int64  `bun:"id,pk,autoincrement"`
+	Name          string `bun:"name"`
+	Email         string `bun:"email"`
+}
+
+// AutoMigrate creates the users table if it does not exist.
+func AutoMigrate(db *bun.DB) error {
+	_, err := db.NewCreateTable().Model((*userModel)(nil)).IfNotExists().Exec(context.Background())
+	return err
+}
+
+// UserRepository implements domain/user.Repository with Bun.
+type UserRepository struct {
+	db *bun.DB
+}
+
+// NewUserRepository creates a new UserRepository.
+func NewUserRepository(db *bun.DB) *UserRepository {
+	return &UserRepository{db: db}
+}
+
+// List returns all users from the database.
+func (r *UserRepository) List(ctx context.Context) ([]domain.User, error) {
+	var rows []userModel
+	if err := r.db.NewSelect().Model(&rows).Scan(ctx); err != nil {
+		return nil, err
+	}
+	out := make([]domain.User, len(rows))
+	for i, m := range rows {
+		out[i] = domain.User{ID: m.ID, Name: m.Name, Email: m.Email}
+	}
+	return out, nil
+}
+
+// Get returns a single user by ID.
+func (r *UserRepository) Get(ctx context.Context, id int64) (*domain.User, error) {
+	m := new(userModel)
+	if err := r.db.NewSelect().Model(m).Where("id = ?", id).Scan(ctx); err != nil {
+		return nil, err
+	}
+	return &domain.User{ID: m.ID, Name: m.Name, Email: m.Email}, nil
+}
+
+// Create inserts a new user into the database.
+func (r *UserRepository) Create(ctx context.Context, u *domain.User) error {
+	m := &userModel{Name: u.Name, Email: u.Email}
+	if _, err := r.db.NewInsert().Model(m).Exec(ctx); err != nil {
+		return err
+	}
+	u.ID = m.ID
+	return nil
+}

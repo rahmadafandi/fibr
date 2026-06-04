@@ -83,3 +83,37 @@ func TestGenerateRefusesNonEmptyDir(t *testing.T) {
 	o := Options{Name: "app", Module: "m", DB: "sqlite", Layout: "ddd", Dir: dir, NoGit: true, NoTidy: true}
 	assert.Error(t, Generate(o, &strings.Builder{}))
 }
+
+func generateInto(t *testing.T, o Options) string {
+	t.Helper()
+	if o.Dir == "" {
+		o.Dir = filepath.Join(t.TempDir(), o.Name)
+	}
+	o.NoGit, o.NoTidy = true, true
+	require.NoError(t, Generate(o, &strings.Builder{}))
+	return o.Dir
+}
+
+func assertFileContains(t *testing.T, path, want string) {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Contains(t, string(b), want)
+}
+
+func TestGenerateDDDNoSample(t *testing.T) {
+	dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "postgres", Layout: "ddd"})
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "bootstrap.New")
+	assertFileContains(t, filepath.Join(dir, "internal/infrastructure/config/config.go"), "func Load")
+	assertFileContains(t, filepath.Join(dir, "internal/interface/http/router.go"), "func Register")
+	_, err := os.Stat(filepath.Join(dir, "internal/domain/user/user.go"))
+	assert.True(t, os.IsNotExist(err))
+}
+
+func TestGenerateDDDSample(t *testing.T) {
+	dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "sqlite", Layout: "ddd", Sample: true})
+	assertFileContains(t, filepath.Join(dir, "internal/domain/user/repository.go"), "type Repository interface")
+	assertFileContains(t, filepath.Join(dir, "internal/infrastructure/persistence/user_repository_bun.go"), "func NewUserRepository")
+	assertFileContains(t, filepath.Join(dir, "internal/interface/http/user_handler.go"), "/users")
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "persistence.NewUserRepository")
+}

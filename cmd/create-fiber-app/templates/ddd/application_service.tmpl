@@ -1,0 +1,28 @@
+package user
+
+import (
+	"context"
+
+	domain "{{.Module}}/internal/domain/user"
+)
+
+// Service holds user use cases.
+type Service struct {
+	repo domain.Repository
+}
+
+// NewService creates a new user Service.
+func NewService(repo domain.Repository) *Service {
+	return &Service{repo: repo}
+}
+
+// List returns all users.
+func (s *Service) List(ctx context.Context) ([]domain.User, error) { return s.repo.List(ctx) }
+
+// Get returns a single user by ID.
+func (s *Service) Get(ctx context.Context, id int64) (*domain.User, error) {
+	return s.repo.Get(ctx, id)
+}
+
+// Create persists a new user.
+func (s *Service) Create(ctx context.Context, u *domain.User) error { return s.repo.Create(ctx, u) }
