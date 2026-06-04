@@ -65,6 +65,7 @@ func main() {
 - [`logger`](#logger) — Structured logger based on zerolog.
 - [`response`](#response) — Standardized JSON response helpers.
 - [`parser`](#parser) — Bun pagination/search query modifiers.
+- [`pagination`](#pagination) — Paginated result envelope with page metadata.
 - [`validator`](#validator) — Struct validation with custom rules and JSON field names.
 - [`jwt`](#jwt) — JWT generation and validation helpers.
 - [`http`](#http) — Context-aware JSON HTTP client with retry.
@@ -72,6 +73,7 @@ func main() {
 - [`slug`](#slug) — Unique URL-safe slug generator backed by a Bun database.
 - [`uploader`](#uploader) — Local file uploader with size and MIME limits.
 - [`middleware`](#middleware) — Recover, request logging, auth, and request-id middleware.
+- [`context`](#context) — Request context, request-id, and type-safe local accessors.
 - [`database`](#database) — Bun connector with Postgres/SQLite dialect auto-detection.
 - [`health`](#health) — Liveness (`/livez`) and readiness (`/readyz`) endpoints.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
@@ -151,6 +153,20 @@ err = db.NewSelect().Model(&rows).Apply(parser.Paginate(pq, []string{"name"})).S
 
 // Count with search filter
 count, err := db.NewSelect().Model(&rows).Apply(parser.Count(pq.Search, []string{"name"})).Count(ctx)
+```
+
+### `pagination`
+
+Builds a paginated result envelope (data plus page metadata) for any element type. Guards against a zero page size and clamps page numbers below 1.
+
+**Usage:**
+
+```go
+import "github.com/rahmadafandi/fiber-helpers/pagination"
+
+p := pagination.NewPagination(rows, pq.Limit, pq.Page, totalCount)
+// p.Data, p.PageSize, p.Count, p.TotalCount, p.PageCount, p.PageNumber, p.StartNumber
+return response.SendSuccess(c, p, "ok")
 ```
 
 ### `validator`
@@ -309,6 +325,23 @@ app.Use(middleware.Auth(secret))
 
 // Context
 app.Use(middleware.ContextMiddleware(10 * time.Second))
+```
+
+### `context`
+
+Accessors for values stored on the Fiber context: the request-scoped
+`context.Context`, the request ID, and type-safe locals.
+
+**Usage:**
+
+```go
+import fhctx "github.com/rahmadafandi/fiber-helpers/context"
+
+ctx := fhctx.GetContext(c)        // request-scoped context.Context
+id := fhctx.GetRequestID(c)       // request id (set by ContextMiddleware)
+
+fhctx.SetLocal(c, "user", user)   // store a typed value
+u := fhctx.GetLocal[User](c, "user") // retrieve it (zero value if absent)
 ```
 
 ### `database`
