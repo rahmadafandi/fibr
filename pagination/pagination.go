@@ -25,11 +25,20 @@ type Pagination[T any] struct {
 }
 
 func NewPagination[T any](items []T, pageSize int, pageNumber int, totalCount int) *Pagination[T] {
-	pageCount := totalCount / pageSize
-	if totalCount%pageSize != 0 {
-		pageCount++
+	if pageNumber < 1 {
+		pageNumber = 1
 	}
-	startNumber := (pageNumber-1)*pageSize + 1
+
+	pageCount := 0
+	startNumber := 0
+	if pageSize > 0 {
+		pageCount = totalCount / pageSize
+		if totalCount%pageSize != 0 {
+			pageCount++
+		}
+		startNumber = (pageNumber-1)*pageSize + 1
+	}
+
 	return &Pagination[T]{
 		Data:        items,
 		PageSize:    pageSize,

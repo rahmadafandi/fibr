@@ -37,4 +37,20 @@ func TestPagination(t *testing.T) {
 		assert.Equal(t, pageNumber, pagination.PageNumber)
 		assert.Equal(t, 1, pagination.StartNumber)
 	})
+
+	t.Run("ZeroPageSize", func(t *testing.T) {
+		items := []string{"a"}
+		assert.NotPanics(t, func() {
+			p := NewPagination(items, 0, 1, 3)
+			assert.Equal(t, 0, p.PageCount)
+			assert.Equal(t, 0, p.StartNumber)
+		})
+	})
+
+	t.Run("PageNumberBelowOne", func(t *testing.T) {
+		items := []string{"a", "b"}
+		p := NewPagination(items, 10, 0, 2)
+		assert.Equal(t, 1, p.PageNumber)
+		assert.Equal(t, 1, p.StartNumber)
+	})
 }
