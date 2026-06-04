@@ -99,4 +99,15 @@ func TestConfig(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "PORT")
 	})
+
+	t.Run("OverflowRejected", func(t *testing.T) {
+		os.Clearenv()
+		os.Setenv("SMALL", "200")
+		type Config struct {
+			Small int8 `mapstructure:"SMALL"`
+		}
+		_, err := LoadConfig[Config]()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "SMALL")
+	})
 }

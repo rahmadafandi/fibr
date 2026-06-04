@@ -15,6 +15,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -39,7 +40,7 @@ func LoadConfig[T any]() (*T, error) {
 
 	envPath := filepath.Join(wd, ".env")
 	if err := godotenv.Load(envPath); err != nil {
-		if !os.IsNotExist(err) {
+		if !errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("error loading .env file: %w", err)
 		}
 	}
@@ -83,14 +84,33 @@ func LoadConfig[T any]() (*T, error) {
 		}
 	}
 
+	var problems []string
 	if len(missing) > 0 {
-		return nil, fmt.Errorf("missing required config: %s", strings.Join(missing, ", "))
+		problems = append(problems, "missing required config: "+strings.Join(missing, ", "))
 	}
 	if len(parseErrs) > 0 {
-		return nil, fmt.Errorf("config parse errors: %s", strings.Join(parseErrs, "; "))
+		problems = append(problems, "config parse errors: "+strings.Join(parseErrs, "; "))
+	}
+	if len(problems) > 0 {
+		return nil, fmt.Errorf("%s", strings.Join(problems, "; "))
 	}
 
 	return &config, nil
+}
+
+func intBitSize(k reflect.Kind) int {
+	switch k {
+	case reflect.Int8, reflect.Uint8:
+		return 8
+	case reflect.Int16, reflect.Uint16:
+		return 16
+	case reflect.Int32, reflect.Uint32:
+		return 32
+	case reflect.Int64, reflect.Uint64:
+		return 64
+	default: // reflect.Int / reflect.Uint -> platform size
+		return 0
+	}
 }
 
 func setField(fv reflect.Value, raw string) error {
@@ -113,19 +133,23 @@ func setField(fv reflect.Value, raw string) error {
 		}
 		fv.SetBool(b)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		n, err := strconv.ParseInt(raw, 10, 64)
+		n, err := strconv.ParseInt(raw, 10, intBitSize(fv.Kind()))
 		if err != nil {
 			return err
 		}
 		fv.SetInt(n)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		n, err := strconv.ParseUint(raw, 10, 64)
+		n, err := strconv.ParseUint(raw, 10, intBitSize(fv.Kind()))
 		if err != nil {
 			return err
 		}
 		fv.SetUint(n)
 	case reflect.Float32, reflect.Float64:
-		f, err := strconv.ParseFloat(raw, 64)
+		bits := 64
+		if fv.Kind() == reflect.Float32 {
+			bits = 32
+		}
+		f, err := strconv.ParseFloat(raw, bits)
 		if err != nil {
 			return err
 		}
