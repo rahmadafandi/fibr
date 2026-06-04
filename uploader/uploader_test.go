@@ -51,7 +51,7 @@ func TestLocalUploader(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("RejectsTraversal", func(t *testing.T) {
+	t.Run("SanitizesTraversal", func(t *testing.T) {
 		u := NewLocalUploader(path)
 		_, err := u.Upload(newFile([]byte("x")), "../../etc/evil")
 		assert.NoError(t, err) // filepath.Base strips the path...
@@ -87,6 +87,13 @@ func TestLocalUploader(t *testing.T) {
 		info, err := os.Stat(fp)
 		assert.NoError(t, err)
 		assert.Equal(t, os.FileMode(0o640), info.Mode().Perm())
+	})
+
+	t.Run("AllowsDotsInName", func(t *testing.T) {
+		u := NewLocalUploader(path)
+		fp, err := u.Upload(newFile([]byte("v2")), "version..2.tar.gz")
+		assert.NoError(t, err)
+		assert.Equal(t, filepath.Join(path, "version..2.tar.gz"), fp)
 	})
 }
 

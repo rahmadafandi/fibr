@@ -20,7 +20,6 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/gabriel-vasile/mimetype"
 )
@@ -59,9 +58,6 @@ func sanitizeFilename(name string) (string, error) {
 	if clean == "." || clean == ".." || clean == "" || clean == string(filepath.Separator) {
 		return "", fmt.Errorf("invalid filename %q", name)
 	}
-	if strings.Contains(clean, "..") {
-		return "", fmt.Errorf("invalid filename %q", name)
-	}
 	return clean, nil
 }
 
@@ -87,6 +83,7 @@ func (u *LocalUploader) Upload(file multipart.File, filename string) (string, er
 
 	if len(u.allowedMime) > 0 {
 		head := make([]byte, 512)
+		// n is 0 on an empty file; mimetype.Detect handles a zero-length slice.
 		n, _ := file.Read(head)
 		if _, err := file.Seek(0, io.SeekStart); err != nil {
 			return "", err
@@ -106,9 +103,15 @@ func (u *LocalUploader) Upload(file multipart.File, filename string) (string, er
 	if err != nil {
 		return "", err
 	}
-	defer dst.Close()
 
 	if _, err := io.Copy(dst, file); err != nil {
+		dst.Close()
+		os.Remove(dstPath)
+		return "", err
+	}
+
+	if err := dst.Close(); err != nil {
+		os.Remove(dstPath)
 		return "", err
 	}
 
