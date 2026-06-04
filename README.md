@@ -20,7 +20,8 @@ type AppConfig struct {
     Hosts   []string      `mapstructure:"hosts"    default:"a,b,c"`
 }
 
-cfg, err := config.LoadConfig[AppConfig]()
+var cfg AppConfig
+err := config.LoadConfig(&cfg)
 ```
 
 ### `logger`
@@ -51,7 +52,10 @@ response.SendError(c, nil, "Error", 400)
 
 ### `parser`
 
-Helper functions for parsing request body, query, and params. The `Paginate` helper returns a Bun query modifier for use with `query.Apply`.
+Helper functions for pagination with Bun. The `Paginate` helper returns a Bun query modifier for use with `query.Apply`.
+
+Request body/query/params parsing uses Fiber's built-in `c.BodyParser(&out)`,
+`c.QueryParser(&out)`, and `c.ParamsParser(&out)` directly.
 
 **Usage:**
 
@@ -61,15 +65,6 @@ import "github.com/rahmadafandi/fiber-helpers/parser"
 type MyStruct struct {
     Name string `json:"name"`
 }
-
-// Parse body
-body, err := parser.ParseBody[MyStruct](c)
-
-// Parse query
-query, err := parser.ParseQuery[MyStruct](c)
-
-// Parse params
-params, err := parser.ParseParams[MyStruct](c)
 
 // Pagination with Bun
 pq := &parser.PaginationQuery{}

@@ -30,23 +30,30 @@ import (
 var durationType = reflect.TypeOf(time.Duration(0))
 
 // LoadConfig loads configuration from environment variables (and a .env file if
-// present) into a struct of type T using "mapstructure" tags. Supported extra
-// tags: "default" (fallback value) and "required" ("true" to require the var).
-func LoadConfig[T any]() (*T, error) {
+// present) into the struct pointed to by out, using "mapstructure" tags.
+// Supported extra tags: "default" (fallback value) and "required" ("true").
+// out must be a non-nil pointer to a struct.
+func LoadConfig(out any) error {
 	wd, err := os.Getwd()
 	if err != nil {
-		return nil, fmt.Errorf("error getting working directory: %w", err)
+		return fmt.Errorf("error getting working directory: %w", err)
 	}
 
 	envPath := filepath.Join(wd, ".env")
 	if err := godotenv.Load(envPath); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("error loading .env file: %w", err)
+			return fmt.Errorf("error loading .env file: %w", err)
 		}
 	}
 
-	var config T
-	v := reflect.ValueOf(&config).Elem()
+	rv := reflect.ValueOf(out)
+	if rv.Kind() != reflect.Pointer || rv.IsNil() {
+		return fmt.Errorf("config: out must be a non-nil pointer to a struct")
+	}
+	v := rv.Elem()
+	if v.Kind() != reflect.Struct {
+		return fmt.Errorf("config: out must be a pointer to a struct")
+	}
 	t := v.Type()
 
 	var missing []string
@@ -92,10 +99,10 @@ func LoadConfig[T any]() (*T, error) {
 		problems = append(problems, "config parse errors: "+strings.Join(parseErrs, "; "))
 	}
 	if len(problems) > 0 {
-		return nil, fmt.Errorf("%s", strings.Join(problems, "; "))
+		return fmt.Errorf("%s", strings.Join(problems, "; "))
 	}
 
-	return &config, nil
+	return nil
 }
 
 func intBitSize(k reflect.Kind) int {
