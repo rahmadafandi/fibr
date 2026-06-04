@@ -33,7 +33,8 @@ func TestConfig(t *testing.T) {
 			LogLevel  string `mapstructure:"LOG_LEVEL"`
 		}
 
-		cfg, err := LoadConfig[Config]()
+		var cfg Config
+		err := LoadConfig(&cfg)
 		assert.NoError(t, err)
 		assert.Equal(t, "test_secret", cfg.JWTSecret)
 		assert.Equal(t, "debug", cfg.LogLevel)
@@ -57,7 +58,8 @@ func TestConfig(t *testing.T) {
 			Workers uint          `mapstructure:"WORKERS"`
 		}
 
-		cfg, err := LoadConfig[Config]()
+		var cfg Config
+		err := LoadConfig(&cfg)
 		assert.NoError(t, err)
 		assert.Equal(t, 8080, cfg.Port)
 		assert.Equal(t, 1.5, cfg.Rate)
@@ -73,7 +75,8 @@ func TestConfig(t *testing.T) {
 			Port int    `mapstructure:"PORT" default:"3000"`
 			Env  string `mapstructure:"ENV" default:"development"`
 		}
-		cfg, err := LoadConfig[Config]()
+		var cfg Config
+		err := LoadConfig(&cfg)
 		assert.NoError(t, err)
 		assert.Equal(t, 3000, cfg.Port)
 		assert.Equal(t, "development", cfg.Env)
@@ -84,7 +87,8 @@ func TestConfig(t *testing.T) {
 		type Config struct {
 			Secret string `mapstructure:"SECRET" required:"true"`
 		}
-		_, err := LoadConfig[Config]()
+		var cfg Config
+		err := LoadConfig(&cfg)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "SECRET")
 	})
@@ -95,7 +99,8 @@ func TestConfig(t *testing.T) {
 		type Config struct {
 			Port int `mapstructure:"PORT"`
 		}
-		_, err := LoadConfig[Config]()
+		var cfg Config
+		err := LoadConfig(&cfg)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "PORT")
 	})
@@ -106,8 +111,25 @@ func TestConfig(t *testing.T) {
 		type Config struct {
 			Small int8 `mapstructure:"SMALL"`
 		}
-		_, err := LoadConfig[Config]()
+		var cfg Config
+		err := LoadConfig(&cfg)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "SMALL")
+	})
+
+	t.Run("RejectsNonPointer", func(t *testing.T) {
+		os.Clearenv()
+		type Config struct {
+			X string `mapstructure:"X"`
+		}
+		var cfg Config
+		err := LoadConfig(cfg) // value, not pointer
+		assert.Error(t, err)
+	})
+
+	t.Run("RejectsNil", func(t *testing.T) {
+		os.Clearenv()
+		err := LoadConfig(nil)
+		assert.Error(t, err)
 	})
 }

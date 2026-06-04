@@ -19,36 +19,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/uptrace/bun"
 )
-
-// ParseBody parses the request body into the provided generic type T.
-func ParseBody[T any](c *fiber.Ctx) (*T, error) {
-	var body T
-	if err := c.BodyParser(&body); err != nil {
-		return nil, err
-	}
-	return &body, nil
-}
-
-// ParseParams parses the route parameters into the provided generic type T.
-func ParseParams[T any](c *fiber.Ctx) (*T, error) {
-	var params T
-	if err := c.ParamsParser(&params); err != nil {
-		return nil, err
-	}
-	return &params, nil
-}
-
-// ParseQuery parses the query parameters into the provided generic type T.
-func ParseQuery[T any](c *fiber.Ctx) (*T, error) {
-	var query T
-	if err := c.QueryParser(&query); err != nil {
-		return nil, err
-	}
-	return &query, nil
-}
 
 // PaginationQuery is a struct for holding pagination query parameters.
 type PaginationQuery struct {

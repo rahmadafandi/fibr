@@ -24,7 +24,6 @@ import (
 	"github.com/rahmadafandi/fiber-helpers/jwt"
 	"github.com/rahmadafandi/fiber-helpers/logger"
 	"github.com/rahmadafandi/fiber-helpers/middleware"
-	"github.com/rahmadafandi/fiber-helpers/parser"
 	"github.com/rahmadafandi/fiber-helpers/response"
 	"github.com/rahmadafandi/fiber-helpers/validator"
 	"github.com/rs/zerolog"
@@ -37,7 +36,8 @@ func main() {
 		LogLevel  string `mapstructure:"LOG_LEVEL"`
 	}
 
-	cfg, err := config.LoadConfig[Config]()
+	var cfg Config
+	err := config.LoadConfig(&cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -69,8 +69,8 @@ func main() {
 			Password string `json:"password" validate:"required"`
 		}
 
-		body, err := parser.ParseBody[LoginRequest](c)
-		if err != nil {
+		var body LoginRequest
+		if err := c.BodyParser(&body); err != nil {
 			return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
 		}
 
