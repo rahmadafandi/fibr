@@ -78,3 +78,13 @@ func TestMiddleware(t *testing.T) {
 		app.Test(req)
 	})
 }
+
+func TestContextMiddlewareSetsRequestIDHeader(t *testing.T) {
+	app := fiber.New()
+	app.Use(ContextMiddleware(time.Second))
+	app.Get("/", func(c *fiber.Ctx) error { return c.SendString("ok") })
+
+	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp.Header.Get("X-Request-ID"))
+}

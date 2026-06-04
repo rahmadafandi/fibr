@@ -1,3 +1,6 @@
 
 # test artifacts
 *.db
+
+# compiled example binary
+/examples/examples

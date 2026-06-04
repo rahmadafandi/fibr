@@ -235,3 +235,61 @@ app.Use(middleware.Auth(secret))
 // Context
 app.Use(middleware.ContextMiddleware(10 * time.Second))
 ```
+
+### `database`
+
+Opens a [Bun](https://bun.uptrace.dev/) database, picking the dialect from the DSN
+(`postgres://` → Postgres, `file:`/`:memory:`/path → SQLite).
+
+```go
+import "github.com/rahmadafandi/fiber-helpers/database"
+
+db, err := database.NewBun("postgres://localhost/app",
+    database.WithMaxOpenConns(20),
+    database.WithPingTimeout(3*time.Second),
+)
+```
+
+### `health`
+
+Liveness (`/livez`) and readiness (`/readyz`) endpoints with concurrent checks.
+
+```go
+import "github.com/rahmadafandi/fiber-helpers/health"
+
+health.Register(app, health.PingBun(db),
+    health.Check("cache", func(ctx context.Context) error { return rds.Ping(ctx) }),
+)
+// GET /livez  -> 200 {"status":"ok"}
+// GET /readyz -> 200/503 {"status":"...","checks":{...}}
+```
+
+### `server`
+
+Signal-based graceful shutdown.
+
+```go
+import "github.com/rahmadafandi/fiber-helpers/server"
+
+err := server.RunGraceful(app, ":3000", 10*time.Second, func(ctx context.Context) error {
+    return db.Close()
+})
+```
+
+### `bootstrap`
+
+Optional one-call wiring of recover, request id, logging, optional CORS / rate
+limit / health, and graceful shutdown.
+
+```go
+import "github.com/rahmadafandi/fiber-helpers/bootstrap"
+
+app := bootstrap.New(bootstrap.Options{
+    DB:           db,
+    EnableCORS:   true,
+    RateLimit:    100,
+    HealthChecks: []health.NamedCheck{health.PingBun(db)},
+})
+app.Get("/", handler)
+log.Fatal(app.Run(":3000")) // graceful shutdown + db.Close handled
+```
