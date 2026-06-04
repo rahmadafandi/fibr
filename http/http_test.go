@@ -84,6 +84,22 @@ func TestHttp(t *testing.T) {
 		assert.Equal(t, 200, code)
 		assert.Equal(t, "delete success", resp["message"])
 	})
+
+	t.Run("PUT", func(t *testing.T) {
+		var resp map[string]interface{}
+		code, err := h.Put(ctx, "/", map[string]interface{}{"data": "test"}, &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, 200, code)
+		assert.Equal(t, "put success", resp["message"])
+	})
+
+	t.Run("PATCH", func(t *testing.T) {
+		var resp map[string]interface{}
+		code, err := h.Patch(ctx, "/", map[string]interface{}{"data": "test"}, &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, 200, code)
+		assert.Equal(t, "patch success", resp["message"])
+	})
 }
 
 func TestHttpNon2xx(t *testing.T) {
@@ -108,6 +124,53 @@ func TestHttpNon2xx(t *testing.T) {
 	assert.ErrorAs(t, err, &httpErr)
 	assert.Equal(t, 404, httpErr.Code)
 	assert.Equal(t, "not found", string(httpErr.Body))
+}
+
+func TestHttpNoRetryOn4xx(t *testing.T) {
+	ln := fasthttputil.NewInmemoryListener()
+	defer ln.Close()
+
+	var hits int32
+	go func() {
+		_ = fasthttp.Serve(ln, func(ctx *fasthttp.RequestCtx) {
+			atomic.AddInt32(&hits, 1)
+			ctx.SetStatusCode(fasthttp.StatusBadRequest)
+			ctx.SetBody([]byte(`bad`))
+		})
+	}()
+
+	h := New("http://localhost", WithClient(dialClient(ln)), WithRetry(3, time.Millisecond))
+	code, err := h.Get(context.Background(), "/", nil)
+	assert.Equal(t, 400, code)
+	assert.Error(t, err)
+	assert.Equal(t, int32(1), atomic.LoadInt32(&hits)) // 4xx must not be retried
+}
+
+func TestFireAndForget(t *testing.T) {
+	ln := fasthttputil.NewInmemoryListener()
+	defer ln.Close()
+
+	got := make(chan string, 1)
+	go func() {
+		_ = fasthttp.Serve(ln, func(ctx *fasthttp.RequestCtx) {
+			got <- string(ctx.Method())
+			ctx.SetStatusCode(fasthttp.StatusOK)
+		})
+	}()
+
+	h := New("http://localhost", WithClient(dialClient(ln)))
+
+	// Cancel the caller context immediately; FireAndForget must still send.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	h.FireAndForget(ctx, Post, "/", map[string]interface{}{"data": "test"})
+
+	select {
+	case m := <-got:
+		assert.Equal(t, "POST", m)
+	case <-time.After(2 * time.Second):
+		t.Fatal("FireAndForget request never reached the server")
+	}
 }
 
 func TestHttpRetry(t *testing.T) {

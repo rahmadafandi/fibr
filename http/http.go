@@ -122,10 +122,12 @@ func (h *Http) Delete(ctx context.Context, path string, out interface{}) (int, e
 }
 
 // FireAndForget sends a request in the background, logging any error if a
-// logger was configured via WithLogger.
+// logger was configured via WithLogger. The caller's context values are kept
+// but its cancellation/deadline are dropped so the request outlives the caller.
 func (h *Http) FireAndForget(ctx context.Context, method, path string, body interface{}) {
+	bgCtx := context.WithoutCancel(ctx)
 	go func() {
-		if _, err := h.request(ctx, method, path, body, nil); err != nil && h.logger != nil {
+		if _, err := h.request(bgCtx, method, path, body, nil); err != nil && h.logger != nil {
 			h.logger.Error(err, "fire and forget request failed", "method", method, "path", path)
 		}
 	}()
@@ -143,7 +145,12 @@ func (h *Http) request(ctx context.Context, method, path string, body, out inter
 
 	headers := h.snapshotHeaders()
 	attempts := h.retries + 1
+	if attempts < 1 {
+		attempts = 1
+	}
+
 	var lastErr error
+	lastCode := 0
 
 	for i := 0; i < attempts; i++ {
 		if err := ctx.Err(); err != nil {
@@ -153,18 +160,27 @@ func (h *Http) request(ctx context.Context, method, path string, body, out inter
 		code, respBody, err := h.doOnce(ctx, method, path, payload, headers)
 		if err != nil {
 			lastErr = err
-			if i < attempts-1 && h.backoff > 0 {
-				time.Sleep(h.backoff)
+			lastCode = 0
+			if i < attempts-1 {
+				if serr := sleepWithContext(ctx, h.backoff); serr != nil {
+					return 0, serr
+				}
 			}
 			continue
 		}
 
 		if code < 200 || code >= 300 {
-			lastErr = &HTTPError{Code: code, Body: respBody}
-			if i < attempts-1 && h.backoff > 0 {
-				time.Sleep(h.backoff)
+			httpErr := &HTTPError{Code: code, Body: respBody}
+			// Retry only server errors (5xx). Client errors (4xx) are returned immediately.
+			if code >= 500 && i < attempts-1 {
+				lastErr = httpErr
+				lastCode = code
+				if serr := sleepWithContext(ctx, h.backoff); serr != nil {
+					return 0, serr
+				}
+				continue
 			}
-			continue
+			return code, httpErr
 		}
 
 		if out != nil {
@@ -178,7 +194,20 @@ func (h *Http) request(ctx context.Context, method, path string, body, out inter
 	if httpErr, ok := lastErr.(*HTTPError); ok {
 		return httpErr.Code, httpErr
 	}
-	return 0, lastErr
+	return lastCode, lastErr
+}
+
+// sleepWithContext waits for d or until ctx is done, whichever comes first.
+func sleepWithContext(ctx context.Context, d time.Duration) error {
+	if d <= 0 {
+		return nil
+	}
+	select {
+	case <-time.After(d):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (h *Http) doOnce(ctx context.Context, method, path string, payload []byte, headers map[string]string) (int, []byte, error) {
