@@ -9,7 +9,7 @@ import (
 	domain "{{.Module}}/internal/domain/user"
 )
 
-func registerUserRoutes(app *fiber.App, svc *appuser.Service) {
+func registerUserRoutes(app fiber.Router, svc *appuser.Service) {
 	g := app.Group("/users")
 	g.Get("/", func(c *fiber.Ctx) error {
 		users, err := svc.List(c.UserContext())
@@ -19,7 +19,10 @@ func registerUserRoutes(app *fiber.App, svc *appuser.Service) {
 		return response.SendSuccess(c, users, "ok")
 	})
 	g.Get("/:id", func(c *fiber.Ctx) error {
-		id, _ := strconv.ParseInt(c.Params("id"), 10, 64)
+		id, err := strconv.ParseInt(c.Params("id"), 10, 64)
+		if err != nil {
+			return response.SendError(c, nil, "invalid id", fiber.StatusBadRequest)
+		}
 		u, err := svc.Get(c.UserContext(), id)
 		if err != nil {
 			return response.SendError(c, nil, err.Error(), fiber.StatusNotFound)
