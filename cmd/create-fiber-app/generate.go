@@ -108,7 +108,9 @@ func Generate(o Options, out io.Writer) error {
 
 	if !o.NoTidy {
 		if o.Local == "" && o.HelpersVersion != "" {
-			_ = runCmd(out, o.Dir, "go", "get", "github.com/rahmadafandi/fiber-helpers@"+o.HelpersVersion)
+			if err := runCmd(out, o.Dir, "go", "get", "github.com/rahmadafandi/fiber-helpers@"+o.HelpersVersion); err != nil {
+				fmt.Fprintf(out, "warning: go get fiber-helpers@%s failed (%v); use --local for an unpublished library\n", o.HelpersVersion, err)
+			}
 		}
 		if err := runCmd(out, o.Dir, "go", "mod", "tidy"); err != nil {
 			fmt.Fprintf(out, "warning: go mod tidy failed (%v); project generated, resolve deps manually or use --local\n", err)
@@ -146,7 +148,7 @@ func renderFile(fsp fileSpec, d Data, root string) error {
 	}
 
 	full := filepath.Join(root, fsp.dest)
-	if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 		return err
 	}
 	return os.WriteFile(full, content, 0o644)
