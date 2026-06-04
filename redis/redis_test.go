@@ -22,12 +22,13 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func newTestRedis(t *testing.T) *Redis {
 	t.Helper()
 	mr, err := miniredis.Run()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	t.Cleanup(mr.Close)
 	client := goredis.NewClient(&goredis.Options{Addr: mr.Addr()})
 	return New(client)
