@@ -31,7 +31,9 @@ func TestLocals(t *testing.T) {
 			assert.Equal(t, "value", GetLocal[string](c, "k"))
 			return nil
 		})
-		_, _ = app.Test(httptest.NewRequest("GET", "/str", nil))
+		resp, err := app.Test(httptest.NewRequest("GET", "/str", nil))
+		assert.NoError(t, err)
+		assert.Equal(t, 200, resp.StatusCode)
 	})
 
 	t.Run("MissingReturnsZero", func(t *testing.T) {
@@ -40,7 +42,9 @@ func TestLocals(t *testing.T) {
 			assert.Equal(t, 0, GetLocal[int](c, "absent"))
 			return nil
 		})
-		_, _ = app.Test(httptest.NewRequest("GET", "/missing", nil))
+		resp, err := app.Test(httptest.NewRequest("GET", "/missing", nil))
+		assert.NoError(t, err)
+		assert.Equal(t, 200, resp.StatusCode)
 	})
 
 	t.Run("SetAndGetStruct", func(t *testing.T) {
@@ -50,6 +54,8 @@ func TestLocals(t *testing.T) {
 			assert.Equal(t, payload{Name: "x"}, GetLocal[payload](c, "p"))
 			return nil
 		})
-		_, _ = app.Test(httptest.NewRequest("GET", "/struct", nil))
+		resp, err := app.Test(httptest.NewRequest("GET", "/struct", nil))
+		assert.NoError(t, err)
+		assert.Equal(t, 200, resp.StatusCode)
 	})
 }
