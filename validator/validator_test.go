@@ -17,42 +17,51 @@ package validator
 import (
 	"testing"
 
+	govalidator "github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestValidateStruct(t *testing.T) {
 	type TestStruct struct {
-		Name  string `validate:"required"`
-		Email string `validate:"required,email"`
+		Name  string `json:"name" validate:"required"`
+		Email string `json:"email" validate:"required,email"`
 	}
 
 	t.Run("Valid", func(t *testing.T) {
-		payload := &TestStruct{
-			Name:  "test",
-			Email: "test@example.com",
-		}
-
-		errs := ValidateStruct(payload)
+		errs := ValidateStruct(&TestStruct{Name: "test", Email: "test@example.com"})
 		assert.Empty(t, errs)
 	})
 
-	t.Run("Invalid", func(t *testing.T) {
-		payload := &TestStruct{
-			Name:  "",
-			Email: "test",
-		}
-
-		errs := ValidateStruct(payload)
+	t.Run("InvalidUsesJSONFieldName", func(t *testing.T) {
+		errs := ValidateStruct(&TestStruct{Name: "", Email: "bad"})
 		assert.Len(t, errs, 2)
+		fields := map[string]bool{}
+		for _, e := range errs {
+			fields[e.Field] = true
+		}
+		assert.True(t, fields["name"])
+		assert.True(t, fields["email"])
 	})
 }
 
 func TestErrorsToString(t *testing.T) {
 	errs := []*ErrorResponse{
-		{Field: "Name", Tag: "required"},
-		{Field: "Email", Tag: "email"},
+		{Field: "name", Tag: "required"},
+		{Field: "email", Tag: "email"},
 	}
-
 	str := ErrorsToString(errs)
-	assert.Equal(t, "field 'Name' failed on the 'required' tag, field 'Email' failed on the 'email' tag", str)
+	assert.Equal(t, "field 'name' failed on the 'required' tag, field 'email' failed on the 'email' tag", str)
+}
+
+func TestRegisterCustomRule(t *testing.T) {
+	err := Register("is_awesome", func(fl govalidator.FieldLevel) bool {
+		return fl.Field().String() == "awesome"
+	})
+	assert.NoError(t, err)
+
+	type T struct {
+		Word string `json:"word" validate:"is_awesome"`
+	}
+	assert.Empty(t, ValidateStruct(&T{Word: "awesome"}))
+	assert.Len(t, ValidateStruct(&T{Word: "meh"}), 1)
 }

@@ -16,38 +16,59 @@ package validator
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
-	"github.com/go-playground/validator/v10"
+	govalidator "github.com/go-playground/validator/v10"
 )
 
-// a single instance of the validator
-var validate = validator.New()
+// Func is the signature for custom validation functions.
+type Func = govalidator.Func
 
-// ErrorResponse represents a single validation error
+// ErrorResponse represents a single validation error.
 type ErrorResponse struct {
 	Field string `json:"field"`
 	Tag   string `json:"tag"`
-	Value string `json:"value"`
+	Param string `json:"param,omitempty"`
+	Value string `json:"value,omitempty"`
 }
 
-// ValidateStruct validates a struct and returns a slice of ErrorResponse
+var validate = newValidate()
+
+func newValidate() *govalidator.Validate {
+	v := govalidator.New()
+	v.RegisterTagNameFunc(func(fld reflect.StructField) string {
+		name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
+		if name == "-" || name == "" {
+			return fld.Name
+		}
+		return name
+	})
+	return v
+}
+
+// ValidateStruct validates a struct and returns a slice of ErrorResponse.
 func ValidateStruct(payload interface{}) []*ErrorResponse {
 	var errors []*ErrorResponse
-	err := validate.Struct(payload)
-	if err != nil {
-		for _, err := range err.(validator.ValidationErrors) {
-			var element ErrorResponse
-			element.Field = err.StructNamespace()
-			element.Tag = err.Tag()
-			element.Value = err.Param()
-			errors = append(errors, &element)
+	if err := validate.Struct(payload); err != nil {
+		for _, e := range err.(govalidator.ValidationErrors) {
+			errors = append(errors, &ErrorResponse{
+				Field: e.Field(),
+				Tag:   e.Tag(),
+				Param: e.Param(),
+				Value: fmt.Sprintf("%v", e.Value()),
+			})
 		}
 	}
 	return errors
 }
 
-// ErrorsToString converts a slice of ErrorResponse to a single string
+// Register adds a custom validation rule to the default validator.
+func Register(tag string, fn Func) error {
+	return validate.RegisterValidation(tag, fn)
+}
+
+// ErrorsToString converts a slice of ErrorResponse to a single string.
 func ErrorsToString(errs []*ErrorResponse) string {
 	var s []string
 	for _, err := range errs {
