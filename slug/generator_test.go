@@ -154,3 +154,10 @@ func TestGenerateIntegration(t *testing.T) {
 	// 4. Verify the slug is unique and properly formatted
 	// 5. Clean up the test database
 }
+
+func TestGenerateNilDB(t *testing.T) {
+	// With a nil *gorm.DB the count query errors immediately, so Generate
+	// must return an error rather than panic or loop forever.
+	_, err := Generate(nil, "articles", "My Title")
+	assert.Error(t, err)
+}
