@@ -15,21 +15,22 @@
 package slug
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base32"
 	"fmt"
 	"strings"
 
 	"github.com/gosimple/slug"
-	"gorm.io/gorm"
+	"github.com/uptrace/bun"
 )
 
 const maxSlugAttempts = 10
 
-// Generate creates a unique slug for the given table.
-func Generate(db *gorm.DB, tableName string, title string) (string, error) {
+// Generate creates a unique slug for the given table using a Bun database.
+func Generate(ctx context.Context, db *bun.DB, tableName string, title string) (string, error) {
 	if db == nil {
-		return "", fmt.Errorf("db must not be nil")
+		return "", fmt.Errorf("slug: db must not be nil")
 	}
 
 	baseSlug := slug.Make(title)
@@ -37,14 +38,14 @@ func Generate(db *gorm.DB, tableName string, title string) (string, error) {
 	for attempt := 0; attempt < maxSlugAttempts; attempt++ {
 		randomBytes := make([]byte, 10)
 		if _, err := rand.Read(randomBytes); err != nil {
-			return "", err
+			return "", fmt.Errorf("slug: reading random bytes: %w", err)
 		}
 
 		uniqueID := strings.ToLower(strings.TrimRight(base32.StdEncoding.EncodeToString(randomBytes), "="))
 		slugCandidate := baseSlug + "-" + uniqueID
 
-		var count int64
-		if err := db.Table(tableName).Where("slug = ?", slugCandidate).Count(&count).Error; err != nil {
+		count, err := db.NewSelect().Table(tableName).Where("slug = ?", slugCandidate).Count(ctx)
+		if err != nil {
 			return "", fmt.Errorf("error checking slug uniqueness: %w", err)
 		}
 
