@@ -32,14 +32,16 @@ func main() {
 func newRootCmd() *cobra.Command {
 	var o Options
 	cmd := &cobra.Command{
-		Use:   "create-fiber-app [name]",
-		Short: "Generate a ready-to-run Fiber project wired with fiber-helpers",
-		Args:  cobra.MaximumNArgs(1),
+		Use:           "create-fiber-app [name]",
+		Short:         "Generate a ready-to-run Fiber project wired with fiber-helpers",
+		Args:          cobra.MaximumNArgs(1),
+		SilenceErrors: true,
+		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 1 {
 				o.Name = args[0]
 			}
-			if err := o.Resolve(os.Stdin, os.Stdout, isTTY(os.Stdin)); err != nil {
+			if err := o.Resolve(os.Stdin, os.Stdout, isTTY(os.Stdin), cmd.Flags().Changed); err != nil {
 				return err
 			}
 			return Generate(o, os.Stdout)

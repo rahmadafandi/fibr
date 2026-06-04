@@ -36,8 +36,13 @@ type Options struct {
 	Local          string
 }
 
-// Resolve fills missing fields from interactive prompts (when interactive) then validates.
-func (o *Options) Resolve(in io.Reader, out io.Writer, interactive bool) error {
+// Resolve fills missing fields from interactive prompts (when interactive) then
+// validates. changed reports whether a flag was explicitly set by the user;
+// fields whose flag was set are not re-prompted. changed may be nil.
+func (o *Options) Resolve(in io.Reader, out io.Writer, interactive bool, changed func(string) bool) error {
+	if changed == nil {
+		changed = func(string) bool { return false }
+	}
 	r := bufio.NewReader(in)
 	if interactive {
 		if o.Name == "" {
@@ -46,9 +51,13 @@ func (o *Options) Resolve(in io.Reader, out io.Writer, interactive bool) error {
 		if o.Module == "" {
 			o.Module = prompt(r, out, "Module path", "")
 		}
-		o.DB = prompt(r, out, "Database (postgres/sqlite)", o.DB)
-		o.Layout = prompt(r, out, "Layout (ddd/layered)", o.Layout)
-		if !o.Sample {
+		if !changed("db") {
+			o.DB = prompt(r, out, "Database (postgres/sqlite)", o.DB)
+		}
+		if !changed("layout") {
+			o.Layout = prompt(r, out, "Layout (ddd/layered)", o.Layout)
+		}
+		if !changed("sample") && !o.Sample {
 			o.Sample = yesNo(r, out, "Include sample CRUD?", false)
 		}
 	}

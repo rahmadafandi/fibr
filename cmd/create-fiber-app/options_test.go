@@ -49,7 +49,7 @@ func TestResolveInteractive(t *testing.T) {
 	in := strings.NewReader("myapp\ngithub.com/me/myapp\n\n\ny\n")
 	var out strings.Builder
 	o := Options{DB: "postgres", Layout: "ddd"}
-	err := o.Resolve(in, &out, true)
+	err := o.Resolve(in, &out, true, func(string) bool { return false })
 	assert.NoError(t, err)
 	assert.Equal(t, "myapp", o.Name)
 	assert.Equal(t, "github.com/me/myapp", o.Module)
@@ -59,6 +59,19 @@ func TestResolveInteractive(t *testing.T) {
 func TestResolveNonInteractiveMissingModule(t *testing.T) {
 	var out strings.Builder
 	o := Options{Name: "app", DB: "postgres", Layout: "ddd"}
-	err := o.Resolve(strings.NewReader(""), &out, false)
+	err := o.Resolve(strings.NewReader(""), &out, false, nil)
 	assert.Error(t, err)
+}
+
+func TestResolveSkipsSetFlags(t *testing.T) {
+	// name+module provided; db flag "changed" -> only sample/layout would prompt,
+	// db must keep its flag value without consuming input for it.
+	in := strings.NewReader("\nn\n") // layout: accept default, sample: no
+	var out strings.Builder
+	o := Options{Name: "app", Module: "m", DB: "sqlite", Layout: "ddd"}
+	changed := func(f string) bool { return f == "db" }
+	err := o.Resolve(in, &out, true, changed)
+	assert.NoError(t, err)
+	assert.Equal(t, "sqlite", o.DB)                   // kept from flag, not overwritten
+	assert.NotContains(t, out.String(), "Database (") // db prompt skipped
 }
