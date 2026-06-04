@@ -16,6 +16,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -134,4 +135,41 @@ func TestGenerateLayeredSample(t *testing.T) {
 	assertFileContains(t, filepath.Join(dir, "internal/service/user_service.go"), "func NewUserService")
 	assertFileContains(t, filepath.Join(dir, "internal/handler/user_handler.go"), "func NewUserHandler")
 	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "handler.NewUserHandler")
+}
+
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	return filepath.Clean(filepath.Join(wd, "..", ".."))
+}
+
+func TestMatrixCompiles(t *testing.T) {
+	if os.Getenv("RUN_E2E") != "1" {
+		t.Skip("set RUN_E2E=1 to run the matrix compile test (slow: runs go build x8)")
+	}
+	root := repoRoot(t)
+	for _, layout := range []string{"ddd", "layered"} {
+		for _, db := range []string{"postgres", "sqlite"} {
+			for _, sample := range []bool{false, true} {
+				name := layout + "-" + db
+				if sample {
+					name += "-sample"
+				}
+				t.Run(name, func(t *testing.T) {
+					dir := filepath.Join(t.TempDir(), "app")
+					o := Options{
+						Name: "app", Module: "example.com/app",
+						DB: db, Layout: layout, Sample: sample,
+						Dir: dir, NoGit: true, NoTidy: false, Local: root,
+					}
+					require.NoError(t, Generate(o, &strings.Builder{}))
+					cmd := exec.Command("go", "build", "./...")
+					cmd.Dir = dir
+					out, err := cmd.CombinedOutput()
+					require.NoError(t, err, "go build failed:\n%s", out)
+				})
+			}
+		}
+	}
 }
