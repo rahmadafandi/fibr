@@ -32,11 +32,17 @@ func RunGraceful(app *fiber.App, addr string, timeout time.Duration,
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(stop)
 
 	shutdown := make(chan struct{})
+	done := make(chan struct{})
+	defer close(done)
 	go func() {
-		<-stop
-		close(shutdown)
+		select {
+		case <-stop:
+			close(shutdown)
+		case <-done:
+		}
 	}()
 
 	return run(app, addr, timeout, shutdown, cleanup...)
