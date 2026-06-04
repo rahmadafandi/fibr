@@ -18,51 +18,76 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-// a dummy file for testing
-type dummyFile struct {
-	io.Reader
-	io.ReaderAt
-	io.Seeker
-	io.Closer
+// readSeekCloser adapts a *bytes.Reader to multipart.File for tests.
+type readSeekCloser struct {
+	*bytes.Reader
 }
 
-func (df *dummyFile) Close() error {
-	return nil
+func (readSeekCloser) Close() error { return nil }
+func (r readSeekCloser) ReadAt(p []byte, off int64) (int, error) {
+	return r.Reader.ReadAt(p, off)
 }
 
-func (df *dummyFile) ReadAt(p []byte, off int64) (n int, err error) {
-	return 0, nil
+func newFile(content []byte) *readSeekCloser {
+	return &readSeekCloser{bytes.NewReader(content)}
 }
 
-func (df *dummyFile) Seek(offset int64, whence int) (int64, error) {
-	return 0, nil
-}
+func TestLocalUploader(t *testing.T) {
+	path := "./test_uploads"
+	defer os.RemoveAll(path)
 
-func TestUploader(t *testing.T) {
-	t.Run("LocalUploader", func(t *testing.T) {
-		path := "./test_uploads"
-		uploader := NewLocalUploader(path)
-
-		// Create a dummy file
-		fileContent := []byte("test file")
-		file := &dummyFile{bytes.NewReader(fileContent), nil, nil, nil}
-		filename := "test.txt"
-
-		// Upload the file
-		filePath, err := uploader.Upload(file, filename)
+	t.Run("Basic", func(t *testing.T) {
+		u := NewLocalUploader(path)
+		filePath, err := u.Upload(newFile([]byte("test file")), "test.txt")
 		assert.NoError(t, err)
-		assert.Equal(t, path+"/"+filename, filePath)
-
-		// Check if the file exists
+		assert.Equal(t, filepath.Join(path, "test.txt"), filePath)
 		_, err = os.Stat(filePath)
 		assert.NoError(t, err)
+	})
 
-		// Clean up
-		os.RemoveAll(path)
+	t.Run("RejectsTraversal", func(t *testing.T) {
+		u := NewLocalUploader(path)
+		_, err := u.Upload(newFile([]byte("x")), "../../etc/evil")
+		assert.NoError(t, err) // filepath.Base strips the path...
+		// ...and the file lands inside path, named "evil".
+		_, statErr := os.Stat(filepath.Join(path, "evil"))
+		assert.NoError(t, statErr)
+		_, outsideErr := os.Stat("../../etc/evil")
+		assert.Error(t, outsideErr)
+	})
+
+	t.Run("RejectsEmptyName", func(t *testing.T) {
+		u := NewLocalUploader(path)
+		_, err := u.Upload(newFile([]byte("x")), "")
+		assert.Error(t, err)
+	})
+
+	t.Run("MaxSize", func(t *testing.T) {
+		u := NewLocalUploader(path, WithMaxSize(4))
+		_, err := u.Upload(newFile([]byte("too large")), "big.txt")
+		assert.Error(t, err)
+	})
+
+	t.Run("AllowedMime", func(t *testing.T) {
+		u := NewLocalUploader(path, WithAllowedMime([]string{"image/png"}))
+		_, err := u.Upload(newFile([]byte("plain text not png")), "x.txt")
+		assert.Error(t, err)
+	})
+
+	t.Run("FilePermissions", func(t *testing.T) {
+		u := NewLocalUploader(path)
+		fp, err := u.Upload(newFile([]byte("perm")), "perm.txt")
+		assert.NoError(t, err)
+		info, err := os.Stat(fp)
+		assert.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o640), info.Mode().Perm())
 	})
 }
+
+var _ io.ReaderAt = readSeekCloser{}
