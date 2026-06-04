@@ -1,0 +1,28 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+{{if eq .DB "postgres"}}      DATABASE_URL: postgres://app:app@db:5432/app?sslmode=disable
+{{else}}      DATABASE_URL: file:/data/app.db?cache=shared
+{{end}}      PORT: "3000"
+{{if eq .DB "postgres"}}    depends_on:
+      - db
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
+{{else}}    volumes:
+      - appdata:/data
+volumes:
+  appdata:
+{{end}}

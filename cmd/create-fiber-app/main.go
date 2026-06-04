@@ -16,7 +16,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -59,6 +58,3 @@ func newRootCmd() *cobra.Command {
 	f.StringVar(&o.Local, "local", "", "replace fiber-helpers with a local path")
 	return cmd
 }
-
-// Generate is implemented in generate.go (Task 2); temporary stub for Task 1.
-func Generate(o Options, out io.Writer) error { return nil }
