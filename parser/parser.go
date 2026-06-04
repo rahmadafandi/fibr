@@ -63,10 +63,10 @@ type PaginationQuery struct {
 func (p *PaginationQuery) Validate(sortOptions []string) error {
 	var errs []string
 	if p.Page < 0 {
-		errs = append(errs, "page must be greater than 0")
+		errs = append(errs, "page must not be negative")
 	}
 	if p.Limit < 0 {
-		errs = append(errs, "limit must be greater than 0")
+		errs = append(errs, "limit must not be negative")
 	}
 	if p.Sort != "" && !slices.Contains(sortOptions, p.Sort) {
 		errs = append(errs, fmt.Sprintf("sort must be one of %s", strings.Join(sortOptions, ", ")))
@@ -112,13 +112,13 @@ func applySearch(db *gorm.DB, search string, columnsSearchable []string) *gorm.D
 	if search == "" {
 		return db
 	}
-	searchPattern := "%%" + search + "%%"
+	searchPattern := "%" + search + "%"
 	searchCondition := strings.Join(columnsSearchable, " ILIKE ? OR ") + " ILIKE ?"
 
 	// Example:
 	// If columnsSearchable = []string{"name", "slug"} and search = "test"
 	// Will generate SQL query:
-	// WHERE name ILIKE '%%test%%' OR slug ILIKE '%%test%%'
+	// WHERE name ILIKE '%test%' OR slug ILIKE '%test%'
 
 	args := make([]interface{}, len(columnsSearchable))
 	for i := range columnsSearchable {
