@@ -24,8 +24,12 @@ import (
 )
 
 type (
+	// MapClaims is re-exported from golang-jwt so callers need not import that
+	// package directly.
 	MapClaims = jwt.MapClaims
-	Token     = jwt.Token
+	// Token is re-exported from golang-jwt so callers need not import that
+	// package directly.
+	Token = jwt.Token
 )
 
 // GenerateToken generates a new JWT token.
@@ -56,6 +60,8 @@ func ValidateToken(tokenString string, secret string) (*Token, error) {
 	})
 }
 
+// ExtractClaimsFromJwt extracts the MapClaims from a parsed JWT token.
+// It returns an error if the token's Claims field is not a MapClaims value.
 func ExtractClaimsFromJwt(jwtToken *Token) (MapClaims, error) {
 	claims, ok := jwtToken.Claims.(MapClaims)
 	if !ok {

@@ -20,6 +20,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// GetContext retrieves the context stored by ContextMiddleware from the Fiber
+// request locals. It falls back to context.Background if no context was set.
 func GetContext(c *fiber.Ctx) context.Context {
 	if ctx, ok := c.Locals("ctx").(context.Context); ok {
 		return ctx
@@ -27,6 +29,8 @@ func GetContext(c *fiber.Ctx) context.Context {
 	return context.Background()
 }
 
+// GetRequestID retrieves the request ID stored by ContextMiddleware from the
+// Fiber request locals. It returns an empty string if no request ID was set.
 func GetRequestID(c *fiber.Ctx) string {
 	if requestID, ok := c.Locals("requestid").(string); ok {
 		return requestID

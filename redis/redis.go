@@ -24,6 +24,8 @@ import (
 )
 
 type (
+	// Client is re-exported from go-redis so callers need not import that package
+	// directly.
 	Client = redis.Client
 )
 
