@@ -15,6 +15,7 @@
 package validator
 
 import (
+	stderrors "errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -24,6 +25,10 @@ import (
 
 // Func is the signature for custom validation functions.
 type Func = govalidator.Func
+
+// FieldLevel is re-exported so callers can write custom rules without importing
+// the underlying validator library directly.
+type FieldLevel = govalidator.FieldLevel
 
 // ErrorResponse represents a single validation error.
 type ErrorResponse struct {
@@ -48,22 +53,35 @@ func newValidate() *govalidator.Validate {
 }
 
 // ValidateStruct validates a struct and returns a slice of ErrorResponse.
+// If payload is nil or not a struct, it returns a single ErrorResponse with
+// Tag "invalid" rather than panicking.
 func ValidateStruct(payload interface{}) []*ErrorResponse {
-	var errors []*ErrorResponse
-	if err := validate.Struct(payload); err != nil {
-		for _, e := range err.(govalidator.ValidationErrors) {
-			errors = append(errors, &ErrorResponse{
-				Field: e.Field(),
-				Tag:   e.Tag(),
-				Param: e.Param(),
-				Value: fmt.Sprintf("%v", e.Value()),
-			})
-		}
+	var result []*ErrorResponse
+	err := validate.Struct(payload)
+	if err == nil {
+		return result
 	}
-	return errors
+
+	var ve govalidator.ValidationErrors
+	if !stderrors.As(err, &ve) {
+		return []*ErrorResponse{{Tag: "invalid", Value: err.Error()}}
+	}
+
+	for _, e := range ve {
+		result = append(result, &ErrorResponse{
+			Field: e.Field(),
+			Tag:   e.Tag(),
+			Param: e.Param(),
+			Value: fmt.Sprintf("%v", e.Value()),
+		})
+	}
+	return result
 }
 
 // Register adds a custom validation rule to the default validator.
+//
+// Register is NOT thread-safe and must be called during application startup,
+// before any concurrent calls to ValidateStruct.
 func Register(tag string, fn Func) error {
 	return validate.RegisterValidation(tag, fn)
 }

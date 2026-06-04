@@ -17,7 +17,6 @@ package validator
 import (
 	"testing"
 
-	govalidator "github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -54,7 +53,7 @@ func TestErrorsToString(t *testing.T) {
 }
 
 func TestRegisterCustomRule(t *testing.T) {
-	err := Register("is_awesome", func(fl govalidator.FieldLevel) bool {
+	err := Register("is_awesome", func(fl FieldLevel) bool {
 		return fl.Field().String() == "awesome"
 	})
 	assert.NoError(t, err)
@@ -64,4 +63,12 @@ func TestRegisterCustomRule(t *testing.T) {
 	}
 	assert.Empty(t, ValidateStruct(&T{Word: "awesome"}))
 	assert.Len(t, ValidateStruct(&T{Word: "meh"}), 1)
+}
+
+func TestValidateNonStructDoesNotPanic(t *testing.T) {
+	assert.NotPanics(t, func() {
+		errs := ValidateStruct(nil)
+		assert.NotEmpty(t, errs)
+		assert.Equal(t, "invalid", errs[0].Tag)
+	})
 }
