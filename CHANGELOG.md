@@ -9,6 +9,11 @@ This project has not yet had a stable release; all changes are listed under **Un
 
 ### Added
 
+- `auth` package: bcrypt `Hash`/`Compare`, JWT bearer middleware
+  (`RequireAuth`/`Optional`), claims accessors (`Claims`/`Subject`), and scope
+  checks (`RequireScope`/`HasScope`/`Scopes`).
+- `create-fiber-app --auth`: scaffolds an auth module (Account, register/login/me
+  + scope-gated route, accounts migration) and generates a random `JWT_SECRET`.
 - `migrate` package: `bun/migrate` wrapper (`Up`/`Down`/`Status`/`Create`) plus a
   ready cobra `NewCommand` (up/down/status/create).
 - Generated projects are now a single cobra binary with `serve` + `migrate`

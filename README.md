@@ -76,6 +76,7 @@ func main() {
 - [`context`](#context) — Request context, request-id, and type-safe local accessors.
 - [`database`](#database) — Bun connector with Postgres/SQLite dialect auto-detection.
 - [`migrate`](#migrate) — Versioned migrations with `bun/migrate` and a ready cobra command.
+- [`auth`](#auth) — JWT bearer authentication and bcrypt password hashing for Fiber.
 - [`health`](#health) — Liveness (`/livez`) and readiness (`/readyz`) endpoints.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
 - [`bootstrap`](#bootstrap) — One-call app wiring: middleware, health, DB, and graceful shutdown.
@@ -377,6 +378,27 @@ subcommands. The core funcs `Up`/`Down`/`Status`/`Create` are also usable
 directly. Each migration file registers itself in `init()` via
 `Migrations.MustRegister(up, down)`; the version comes from the filename
 (`<timestamp>_<name>.go`).
+
+### `auth`
+
+JWT bearer authentication and bcrypt password hashing for Fiber.
+
+```go
+hash, _ := auth.Hash(password)          // bcrypt
+err := auth.Compare(hash, password)     // nil = match
+
+app.Get("/me", auth.RequireAuth(secret), handler)            // 401 if no/invalid token
+app.Get("/admin", auth.RequireAuth(secret),
+    auth.RequireScope("admin"), handler)                     // 403 if scope missing
+
+claims, ok := auth.Claims(c)            // jwt.MapClaims stored by the middleware
+sub := auth.Subject(c)                  // claims["sub"]
+scopes := auth.Scopes(c)                // normalized []string
+```
+
+`Optional(secret)` validates a token when present but never rejects. Scopes are a
+`scopes` JWT claim (`[]string`). Tokens are minted with the `jwt` package
+(`jwt.GenerateTokenWithExpiry`).
 
 ### `health`
 
