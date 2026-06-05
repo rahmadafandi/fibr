@@ -8,7 +8,8 @@ type Config struct {
 	Port        string `mapstructure:"PORT" default:"3000"`
 	LogLevel    string `mapstructure:"LOG_LEVEL" default:"info"`
 	AutoMigrate bool   `mapstructure:"AUTO_MIGRATE" default:"false"`
-}
+{{if .Auth}}	JWTSecret string `mapstructure:"JWT_SECRET" required:"true"`
+{{end}}}
 
 // Load reads configuration from environment variables and defaults.
 func Load() (*Config, error) {

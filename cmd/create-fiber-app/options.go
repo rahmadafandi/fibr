@@ -17,6 +17,7 @@ type Options struct {
 	DB             string
 	Layout         string
 	Sample         bool
+	Auth           bool
 	Dir            string
 	NoGit          bool
 	NoTidy         bool
@@ -47,6 +48,9 @@ func (o *Options) Resolve(in io.Reader, out io.Writer, interactive bool, changed
 		}
 		if !changed("sample") && !o.Sample {
 			o.Sample = yesNo(r, out, "Include sample CRUD?", false)
+		}
+		if !changed("auth") && !o.Auth {
+			o.Auth = yesNo(r, out, "Include auth (JWT + accounts)?", false)
 		}
 	}
 	return o.Validate()

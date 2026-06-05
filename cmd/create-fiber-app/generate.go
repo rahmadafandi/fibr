@@ -3,6 +3,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"go/format"
 	"io"
@@ -24,8 +26,19 @@ type Data struct {
 	DB             string
 	Layout         string
 	Sample         bool
+	Auth           bool
+	JWTSecret      string
 	HelpersVersion string
 	LocalReplace   string
+}
+
+// randHex returns a hex string of n random bytes.
+func randHex(n int) (string, error) {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }
 
 type fileSpec struct {
@@ -75,6 +88,15 @@ func Generate(o Options, out io.Writer) error {
 	d := Data{
 		Name: o.Name, Module: o.Module, DB: o.DB, Layout: o.Layout,
 		Sample: o.Sample, HelpersVersion: o.HelpersVersion, LocalReplace: o.Local,
+	}
+
+	if o.Auth {
+		secret, err := randHex(32)
+		if err != nil {
+			return err
+		}
+		d.Auth = true
+		d.JWTSecret = secret
 	}
 
 	for _, fsp := range plan(d) {
