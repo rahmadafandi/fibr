@@ -37,7 +37,7 @@ type refreshRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-// RegisterRoutes mounts the /auth and /teams routes.
+// RegisterRoutes mounts the /auth, /permissions, and /teams routes.
 func (h *AuthHandler) RegisterRoutes(r fiber.Router) {
 	g := r.Group("/auth")
 	g.Post("/register", h.register)
@@ -47,22 +47,35 @@ func (h *AuthHandler) RegisterRoutes(r fiber.Router) {
 	g.Post("/switch-team", auth.RequireAuth(h.secret, auth.WithBlocklist(h.store)), h.switchTeam)
 	g.Get("/me", auth.RequireAuth(h.secret, auth.WithBlocklist(h.store)), h.me)
 
+	r.Get("/permissions", auth.RequireAuth(h.secret, auth.WithBlocklist(h.store)), h.permissions)
+
 	t := r.Group("/teams", auth.RequireAuth(h.secret, auth.WithBlocklist(h.store)))
 	t.Get("/", h.listTeams)
 	t.Post("/", h.createTeam)
 	t.Post("/:id/members", auth.RequireScope("member:manage"), h.addMember)
+	t.Put("/:id/members", auth.RequireScope("member:manage"), h.changeMemberRole)
+	t.Get("/:id/roles", auth.RequireScope("role:manage"), h.listRoles)
+	t.Post("/:id/roles", auth.RequireScope("role:manage"), h.createRole)
+	t.Put("/:id/roles/:name", auth.RequireScope("role:manage"), h.updateRole)
+	t.Delete("/:id/roles/:name", auth.RequireScope("role:manage"), h.deleteRole)
 	t.Get("/:id/manage", auth.RequireScope("team:manage"), h.manage)
 }
 
-// teamClaims builds JWT claims for an account active in a membership.
-func teamClaims(sub, email string, m *model.Membership) jwt.MapClaims {
+// teamClaims builds JWT claims for an account active in a membership with the
+// resolved permission set.
+func teamClaims(sub, email string, m *model.Membership, perms []string) jwt.MapClaims {
 	return jwt.MapClaims{
 		"sub":    sub,
 		"email":  email,
 		"team":   strconv.FormatInt(m.TeamID, 10),
 		"role":   m.Role,
-		"scopes": service.PermissionsFor(m.Role),
+		"scopes": perms,
 	}
+}
+
+// sameTeam reports whether the caller's active team matches the path :id team.
+func (h *AuthHandler) sameTeam(c *fiber.Ctx) bool {
+	return auth.ActiveTeam(c) == c.Params("id")
 }
 
 func (h *AuthHandler) register(c *fiber.Ctx) error {
@@ -113,7 +126,11 @@ func (h *AuthHandler) login(c *fiber.Ctx) error {
 		}
 		m = &model.Membership{AccountID: a.ID, TeamID: t.ID, Role: "owner"}
 	}
-	pair, err := h.issuer.Issue(c.UserContext(), teamClaims(strconv.FormatInt(a.ID, 10), a.Email, m))
+	perms, err := h.teams.PermissionsForRole(c.UserContext(), m.TeamID, m.Role)
+	if err != nil {
+		return response.SendError(c, nil, "could not resolve permissions", fiber.StatusInternalServerError)
+	}
+	pair, err := h.issuer.Issue(c.UserContext(), teamClaims(strconv.FormatInt(a.ID, 10), a.Email, m, perms))
 	if err != nil {
 		return response.SendError(c, nil, "could not issue token", fiber.StatusInternalServerError)
 	}
@@ -169,11 +186,15 @@ func (h *AuthHandler) switchTeam(c *fiber.Ctx) error {
 	if err != nil {
 		return response.SendError(c, nil, "not a member of that team", fiber.StatusForbidden)
 	}
+	perms, err := h.teams.PermissionsForRole(c.UserContext(), m.TeamID, m.Role)
+	if err != nil {
+		return response.SendError(c, nil, "could not resolve permissions", fiber.StatusInternalServerError)
+	}
 	email := ""
 	if claims, ok := auth.Claims(c); ok {
 		email, _ = claims["email"].(string)
 	}
-	pair, err := h.issuer.Issue(c.UserContext(), teamClaims(auth.Subject(c), email, m))
+	pair, err := h.issuer.Issue(c.UserContext(), teamClaims(auth.Subject(c), email, m, perms))
 	if err != nil {
 		return response.SendError(c, nil, "could not issue token", fiber.StatusInternalServerError)
 	}
@@ -192,6 +213,10 @@ func (h *AuthHandler) me(c *fiber.Ctx) error {
 		"role":        auth.TeamRole(c),
 		"permissions": auth.Scopes(c),
 	}, "ok")
+}
+
+func (h *AuthHandler) permissions(c *fiber.Ctx) error {
+	return response.SendSuccess(c, service.AllPermissions, "ok")
 }
 
 func (h *AuthHandler) listTeams(c *fiber.Ctx) error {
@@ -228,8 +253,7 @@ func (h *AuthHandler) createTeam(c *fiber.Ctx) error {
 }
 
 func (h *AuthHandler) addMember(c *fiber.Ctx) error {
-	// The permission is team-scoped: the caller's active team must be the target.
-	if auth.ActiveTeam(c) != c.Params("id") {
+	if !h.sameTeam(c) {
 		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
 	}
 	teamID, err := strconv.ParseInt(c.Params("id"), 10, 64)
@@ -249,8 +273,8 @@ func (h *AuthHandler) addMember(c *fiber.Ctx) error {
 	m, err := h.teams.AddMemberByEmail(c.UserContext(), teamID, in.Email, in.Role)
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrUnknownRole):
-			return response.SendError(c, nil, "unknown role", fiber.StatusBadRequest)
+		case errors.Is(err, service.ErrRoleNotFound):
+			return response.SendError(c, nil, "unknown role", fiber.StatusNotFound)
 		case errors.Is(err, service.ErrAccountNotFound):
 			return response.SendError(c, nil, "account not found", fiber.StatusNotFound)
 		case errors.Is(err, service.ErrAlreadyMember):
@@ -262,8 +286,140 @@ func (h *AuthHandler) addMember(c *fiber.Ctx) error {
 	return response.SendSuccess(c, fiber.Map{"id": m.ID, "account_id": m.AccountID, "team_id": m.TeamID, "role": m.Role}, "added", fiber.StatusCreated)
 }
 
+func (h *AuthHandler) changeMemberRole(c *fiber.Ctx) error {
+	if !h.sameTeam(c) {
+		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
+	}
+	teamID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid team id", fiber.StatusBadRequest)
+	}
+	var in struct {
+		Email string `json:"email"`
+		Role  string `json:"role"`
+	}
+	if err := c.BodyParser(&in); err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	}
+	if in.Email == "" || in.Role == "" {
+		return response.SendError(c, nil, "email and role are required", fiber.StatusBadRequest)
+	}
+	m, err := h.teams.ChangeMemberRole(c.UserContext(), teamID, in.Email, in.Role)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrRoleNotFound):
+			return response.SendError(c, nil, "unknown role", fiber.StatusNotFound)
+		case errors.Is(err, service.ErrAccountNotFound):
+			return response.SendError(c, nil, "account not found", fiber.StatusNotFound)
+		case errors.Is(err, service.ErrNotAMember):
+			return response.SendError(c, nil, "not a member", fiber.StatusNotFound)
+		default:
+			return response.SendError(c, nil, "could not change role", fiber.StatusInternalServerError)
+		}
+	}
+	return response.SendSuccess(c, fiber.Map{"id": m.ID, "account_id": m.AccountID, "team_id": m.TeamID, "role": m.Role}, "updated", fiber.StatusOK)
+}
+
+func (h *AuthHandler) listRoles(c *fiber.Ctx) error {
+	if !h.sameTeam(c) {
+		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
+	}
+	teamID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid team id", fiber.StatusBadRequest)
+	}
+	roles, err := h.teams.ListRoles(c.UserContext(), teamID)
+	if err != nil {
+		return response.SendError(c, nil, "could not list roles", fiber.StatusInternalServerError)
+	}
+	return response.SendSuccess(c, roles, "ok")
+}
+
+func (h *AuthHandler) createRole(c *fiber.Ctx) error {
+	if !h.sameTeam(c) {
+		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
+	}
+	teamID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid team id", fiber.StatusBadRequest)
+	}
+	var in struct {
+		Name        string   `json:"name"`
+		Permissions []string `json:"permissions"`
+	}
+	if err := c.BodyParser(&in); err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	}
+	if in.Name == "" {
+		return response.SendError(c, nil, "name is required", fiber.StatusBadRequest)
+	}
+	role, err := h.teams.CreateRole(c.UserContext(), teamID, in.Name, in.Permissions)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidPermission):
+			return response.SendError(c, nil, "unknown permission", fiber.StatusBadRequest)
+		case errors.Is(err, service.ErrRoleExists):
+			return response.SendError(c, nil, "role already exists", fiber.StatusConflict)
+		default:
+			return response.SendError(c, nil, "could not create role", fiber.StatusInternalServerError)
+		}
+	}
+	return response.SendSuccess(c, role, "created", fiber.StatusCreated)
+}
+
+func (h *AuthHandler) updateRole(c *fiber.Ctx) error {
+	if !h.sameTeam(c) {
+		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
+	}
+	teamID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid team id", fiber.StatusBadRequest)
+	}
+	var in struct {
+		Permissions []string `json:"permissions"`
+	}
+	if err := c.BodyParser(&in); err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	}
+	role, err := h.teams.UpdateRolePermissions(c.UserContext(), teamID, c.Params("name"), in.Permissions)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidPermission):
+			return response.SendError(c, nil, "unknown permission", fiber.StatusBadRequest)
+		case errors.Is(err, service.ErrRoleNotFound):
+			return response.SendError(c, nil, "role not found", fiber.StatusNotFound)
+		default:
+			return response.SendError(c, nil, "could not update role", fiber.StatusInternalServerError)
+		}
+	}
+	return response.SendSuccess(c, role, "updated", fiber.StatusOK)
+}
+
+func (h *AuthHandler) deleteRole(c *fiber.Ctx) error {
+	if !h.sameTeam(c) {
+		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
+	}
+	teamID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid team id", fiber.StatusBadRequest)
+	}
+	if err := h.teams.DeleteRole(c.UserContext(), teamID, c.Params("name")); err != nil {
+		switch {
+		case errors.Is(err, service.ErrProtectedRole):
+			return response.SendError(c, nil, "role is protected", fiber.StatusBadRequest)
+		case errors.Is(err, service.ErrRoleNotFound):
+			return response.SendError(c, nil, "role not found", fiber.StatusNotFound)
+		case errors.Is(err, service.ErrRoleInUse):
+			return response.SendError(c, nil, "role is assigned to members", fiber.StatusConflict)
+		default:
+			return response.SendError(c, nil, "could not delete role", fiber.StatusInternalServerError)
+		}
+	}
+	return response.SendSuccess(c, fiber.Map{"ok": true}, "deleted", fiber.StatusOK)
+}
+
 func (h *AuthHandler) manage(c *fiber.Ctx) error {
-	if auth.ActiveTeam(c) != c.Params("id") {
+	if !h.sameTeam(c) {
 		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
 	}
 	return response.SendSuccess(c, fiber.Map{"ok": true}, "team management area")

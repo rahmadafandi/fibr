@@ -23,8 +23,22 @@ type membershipModel struct {
 	Role          string `bun:"role"`
 }
 
-// MigrateTeam creates the teams and memberships tables (and the membership
-// unique index) if they do not exist.
+type roleModel struct {
+	bun.BaseModel `bun:"table:roles,alias:role"`
+	ID            int64  `bun:"id,pk,autoincrement"`
+	TeamID        int64  `bun:"team_id"`
+	Name          string `bun:"name"`
+}
+
+type rolePermissionModel struct {
+	bun.BaseModel `bun:"table:role_permissions,alias:role_permission"`
+	ID            int64  `bun:"id,pk,autoincrement"`
+	RoleID        int64  `bun:"role_id"`
+	Permission    string `bun:"permission"`
+}
+
+// MigrateTeam creates the teams, memberships, roles, and role_permissions
+// tables (and their unique indexes) if they do not exist.
 func MigrateTeam(ctx context.Context, db *bun.DB) error {
 	if _, err := db.NewCreateTable().Model((*teamModel)(nil)).IfNotExists().Exec(ctx); err != nil {
 		return err
@@ -32,9 +46,25 @@ func MigrateTeam(ctx context.Context, db *bun.DB) error {
 	if _, err := db.NewCreateTable().Model((*membershipModel)(nil)).IfNotExists().Exec(ctx); err != nil {
 		return err
 	}
-	_, err := db.NewCreateIndex().Model((*membershipModel)(nil)).
+	if _, err := db.NewCreateIndex().Model((*membershipModel)(nil)).
 		IfNotExists().Index("memberships_account_team_uq").Unique().
-		Column("account_id", "team_id").Exec(ctx)
+		Column("account_id", "team_id").Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := db.NewCreateTable().Model((*roleModel)(nil)).IfNotExists().Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := db.NewCreateIndex().Model((*roleModel)(nil)).
+		IfNotExists().Index("roles_team_name_uq").Unique().
+		Column("team_id", "name").Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := db.NewCreateTable().Model((*rolePermissionModel)(nil)).IfNotExists().Exec(ctx); err != nil {
+		return err
+	}
+	_, err := db.NewCreateIndex().Model((*rolePermissionModel)(nil)).
+		IfNotExists().Index("role_permissions_role_perm_uq").Unique().
+		Column("role_id", "permission").Exec(ctx)
 	return err
 }
 
@@ -106,4 +136,115 @@ func (r *TeamRepository) FirstMembership(ctx context.Context, accountID int64) (
 		return nil, err
 	}
 	return &domain.Membership{ID: m.ID, AccountID: m.AccountID, TeamID: m.TeamID, Role: m.Role}, nil
+}
+
+// UpdateMembershipRole changes an account's role in a team.
+func (r *TeamRepository) UpdateMembershipRole(ctx context.Context, accountID, teamID int64, role string) error {
+	_, err := r.db.NewUpdate().Model((*membershipModel)(nil)).
+		Set("role = ?", role).
+		Where("account_id = ?", accountID).Where("team_id = ?", teamID).Exec(ctx)
+	return err
+}
+
+// CountMembersWithRole counts memberships in a team holding the named role.
+func (r *TeamRepository) CountMembersWithRole(ctx context.Context, teamID int64, name string) (int, error) {
+	return r.db.NewSelect().Model((*membershipModel)(nil)).
+		Where("team_id = ?", teamID).Where("role = ?", name).Count(ctx)
+}
+
+func (r *TeamRepository) permsForRoleID(ctx context.Context, roleID int64) ([]string, error) {
+	var perms []string
+	err := r.db.NewSelect().Model((*rolePermissionModel)(nil)).
+		Column("permission").Where("role_id = ?", roleID).Order("permission ASC").Scan(ctx, &perms)
+	if err != nil {
+		return nil, err
+	}
+	return perms, nil
+}
+
+func insertPerms(ctx context.Context, db bun.IDB, roleID int64, perms []string) error {
+	for _, p := range perms {
+		if _, err := db.NewInsert().Model(&rolePermissionModel{RoleID: roleID, Permission: p}).Exec(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// CreateRole inserts a role and its permissions in one transaction.
+func (r *TeamRepository) CreateRole(ctx context.Context, role *domain.Role) error {
+	return r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		rm := &roleModel{TeamID: role.TeamID, Name: role.Name}
+		if _, err := tx.NewInsert().Model(rm).Exec(ctx); err != nil {
+			return err
+		}
+		role.ID = rm.ID
+		return insertPerms(ctx, tx, rm.ID, role.Permissions)
+	})
+}
+
+// RolesForTeam returns the team's roles with their permissions.
+func (r *TeamRepository) RolesForTeam(ctx context.Context, teamID int64) ([]domain.Role, error) {
+	var rows []roleModel
+	if err := r.db.NewSelect().Model(&rows).Where("team_id = ?", teamID).Order("id ASC").Scan(ctx); err != nil {
+		return nil, err
+	}
+	out := make([]domain.Role, len(rows))
+	for i, rm := range rows {
+		perms, err := r.permsForRoleID(ctx, rm.ID)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = domain.Role{ID: rm.ID, TeamID: rm.TeamID, Name: rm.Name, Permissions: perms}
+	}
+	return out, nil
+}
+
+// FindRole returns a team's role by name, or an error if absent.
+func (r *TeamRepository) FindRole(ctx context.Context, teamID int64, name string) (*domain.Role, error) {
+	rm := new(roleModel)
+	if err := r.db.NewSelect().Model(rm).Where("team_id = ?", teamID).Where("name = ?", name).Scan(ctx); err != nil {
+		return nil, err
+	}
+	perms, err := r.permsForRoleID(ctx, rm.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &domain.Role{ID: rm.ID, TeamID: rm.TeamID, Name: rm.Name, Permissions: perms}, nil
+}
+
+// SetRolePermissions replaces a role's permissions atomically.
+func (r *TeamRepository) SetRolePermissions(ctx context.Context, roleID int64, perms []string) error {
+	return r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		if _, err := tx.NewDelete().Model((*rolePermissionModel)(nil)).Where("role_id = ?", roleID).Exec(ctx); err != nil {
+			return err
+		}
+		return insertPerms(ctx, tx, roleID, perms)
+	})
+}
+
+// DeleteRole removes a role and its permissions atomically.
+func (r *TeamRepository) DeleteRole(ctx context.Context, roleID int64) error {
+	return r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		if _, err := tx.NewDelete().Model((*rolePermissionModel)(nil)).Where("role_id = ?", roleID).Exec(ctx); err != nil {
+			return err
+		}
+		_, err := tx.NewDelete().Model((*roleModel)(nil)).Where("id = ?", roleID).Exec(ctx)
+		return err
+	})
+}
+
+// PermissionsForRole returns the permission keys granted by a team's named role.
+func (r *TeamRepository) PermissionsForRole(ctx context.Context, teamID int64, name string) ([]string, error) {
+	var perms []string
+	err := r.db.NewSelect().Model((*rolePermissionModel)(nil)).
+		Column("role_permission.permission").
+		Join("JOIN roles AS role ON role.id = role_permission.role_id").
+		Where("role.team_id = ?", teamID).Where("role.name = ?", name).
+		Order("role_permission.permission ASC").
+		Scan(ctx, &perms)
+	if err != nil {
+		return nil, err
+	}
+	return perms, nil
 }

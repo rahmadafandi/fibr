@@ -31,6 +31,14 @@ This project has not yet had a stable release; all changes are listed under **Un
   entities + migrations, `POST /auth/switch-team`, `GET /teams`, `POST /teams`,
   `POST /teams/:id/members` (gated by `member:manage`), team-aware `/me`, and a
   `team:manage` example route; register auto-creates a personal team.
+- `create-fiber-app --auth-with-team` dynamic roles: each team owns its roles in
+  the database (`roles` + `role_permissions` tables, seeded with
+  owner/admin/member/viewer on team creation) instead of a static code map.
+  Permissions are drawn from a fixed code catalog (`GET /permissions`) and
+  resolved into the JWT at login/switch-team. Adds role management —
+  `GET/POST /teams/:id/roles`, `PUT/DELETE /teams/:id/roles/:name` (owner-
+  protected, in-use 409), and `PUT /teams/:id/members` (change a member's role) —
+  all gated by `role:manage`/`member:manage` and scoped to the active team.
 - `migrate` package: `bun/migrate` wrapper (`Up`/`Down`/`Status`/`Create`) plus a
   ready cobra `NewCommand` (up/down/status/create).
 - Generated projects are now a single cobra binary with `serve` + `migrate`
