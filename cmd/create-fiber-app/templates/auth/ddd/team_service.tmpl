@@ -1,0 +1,130 @@
+package team
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+
+	accountdomain "{{.Module}}/internal/domain/account"
+	domain "{{.Module}}/internal/domain/team"
+)
+
+// ErrUnknownRole is returned when a role is not in the permission map.
+var ErrUnknownRole = errors.New("unknown role")
+
+// ErrAccountNotFound is returned when adding a member whose email has no account.
+var ErrAccountNotFound = errors.New("account not found")
+
+// ErrAlreadyMember is returned when adding an account that is already a member.
+var ErrAlreadyMember = errors.New("already a member")
+
+// rolePermissions maps a team role to the permissions it grants. Edit freely.
+var rolePermissions = map[string][]string{
+	"owner":  {"team:manage", "member:manage", "post:read", "post:write"},
+	"admin":  {"member:manage", "post:read", "post:write"},
+	"member": {"post:read", "post:write"},
+	"viewer": {"post:read"},
+}
+
+// PermissionsFor returns the permissions granted by role (nil if unknown).
+func PermissionsFor(role string) []string { return rolePermissions[role] }
+
+// Service holds team use cases.
+type Service struct {
+	repo     domain.Repository
+	accounts accountdomain.Repository
+}
+
+// NewService creates a team Service.
+func NewService(repo domain.Repository, accounts accountdomain.Repository) *Service {
+	return &Service{repo: repo, accounts: accounts}
+}
+
+// CreatePersonalTeam creates a starter team owned by the account.
+func (s *Service) CreatePersonalTeam(ctx context.Context, accountID int64, email string) (*domain.Team, error) {
+	name := email
+	if i := strings.IndexByte(email, '@'); i > 0 {
+		name = email[:i]
+	}
+	t := &domain.Team{
+		Name:           name + "'s team",
+		Slug:           fmt.Sprintf("team-%d", accountID),
+		OwnerAccountID: accountID,
+	}
+	if err := s.repo.CreateTeam(ctx, t); err != nil {
+		return nil, err
+	}
+	if err := s.repo.CreateMembership(ctx, &domain.Membership{AccountID: accountID, TeamID: t.ID, Role: "owner"}); err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
+// CreateTeam creates a team; the caller becomes its owner.
+func (s *Service) CreateTeam(ctx context.Context, accountID int64, name string) (*domain.Team, error) {
+	t := &domain.Team{
+		Name:           name,
+		Slug:           fmt.Sprintf("team-%d-%s", accountID, slugify(name)),
+		OwnerAccountID: accountID,
+	}
+	if err := s.repo.CreateTeam(ctx, t); err != nil {
+		return nil, err
+	}
+	if err := s.repo.CreateMembership(ctx, &domain.Membership{AccountID: accountID, TeamID: t.ID, Role: "owner"}); err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
+// Teams returns the teams the account belongs to.
+func (s *Service) Teams(ctx context.Context, accountID int64) ([]domain.Team, error) {
+	return s.repo.TeamsForAccount(ctx, accountID)
+}
+
+// Membership returns the account's membership in a team (error if not a member).
+func (s *Service) Membership(ctx context.Context, accountID, teamID int64) (*domain.Membership, error) {
+	return s.repo.FindMembership(ctx, accountID, teamID)
+}
+
+// DefaultMembership returns the account's default (first) membership.
+func (s *Service) DefaultMembership(ctx context.Context, accountID int64) (*domain.Membership, error) {
+	return s.repo.FirstMembership(ctx, accountID)
+}
+
+// AddMemberByEmail adds the account with the given email to a team with role.
+func (s *Service) AddMemberByEmail(ctx context.Context, teamID int64, email, role string) (*domain.Membership, error) {
+	if _, ok := rolePermissions[role]; !ok {
+		return nil, ErrUnknownRole
+	}
+	a, err := s.accounts.FindByEmail(ctx, email)
+	if err != nil || a == nil {
+		return nil, ErrAccountNotFound
+	}
+	if existing, _ := s.repo.FindMembership(ctx, a.ID, teamID); existing != nil {
+		return nil, ErrAlreadyMember
+	}
+	m := &domain.Membership{AccountID: a.ID, TeamID: teamID, Role: role}
+	if err := s.repo.CreateMembership(ctx, m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func slugify(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == ' ' || r == '-' || r == '_':
+			b.WriteByte('-')
+		}
+	}
+	out := b.String()
+	if out == "" {
+		out = "team"
+	}
+	return out
+}

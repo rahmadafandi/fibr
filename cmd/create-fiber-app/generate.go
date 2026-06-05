@@ -27,6 +27,7 @@ type Data struct {
 	Layout         string
 	Sample         bool
 	Auth           bool
+	Team           bool
 	JWTSecret      string
 	HelpersVersion string
 	LocalReplace   string
@@ -79,6 +80,9 @@ func plan(d Data) []fileSpec {
 
 // Generate renders all planned templates into o.Dir and runs post-gen steps.
 func Generate(o Options, out io.Writer) error {
+	if o.Team {
+		o.Auth = true
+	}
 	if nonEmpty, err := dirNonEmpty(o.Dir); err != nil {
 		return err
 	} else if nonEmpty {
@@ -96,6 +100,7 @@ func Generate(o Options, out io.Writer) error {
 			return err
 		}
 		d.Auth = true
+		d.Team = o.Team
 		d.JWTSecret = secret
 	}
 
@@ -133,7 +138,12 @@ func Generate(o Options, out io.Writer) error {
 				return fmt.Errorf("render %s: %w", fsp.tmpl, err)
 			}
 		}
-		if _, err := renderAuthMigration(o.Dir); err != nil {
+		if o.Team {
+			if err := renderTeamMigrations(o.Dir); err != nil {
+				_ = os.RemoveAll(o.Dir)
+				return fmt.Errorf("render team migrations: %w", err)
+			}
+		} else if _, err := renderAuthMigration(o.Dir); err != nil {
 			_ = os.RemoveAll(o.Dir)
 			return fmt.Errorf("render auth migration: %w", err)
 		}
@@ -157,26 +167,51 @@ func Generate(o Options, out io.Writer) error {
 	return nil
 }
 
-// planAuth returns the auth scaffold template->dest specs for the layout.
+// planAuth returns the auth scaffold template->dest specs for the layout. When
+// d.Team is set it emits the team entities and the team variants of the
+// handler/module; otherwise the plain auth handler/module.
 func planAuth(d Data) []fileSpec {
 	switch d.Layout {
 	case "ddd":
-		return []fileSpec{
+		specs := []fileSpec{
 			{"auth/ddd/account.tmpl", "internal/domain/account/account.go"},
 			{"auth/ddd/repository.tmpl", "internal/domain/account/repository.go"},
 			{"auth/ddd/service.tmpl", "internal/application/account/service.go"},
 			{"auth/ddd/persistence.tmpl", "internal/infrastructure/persistence/account_repository_bun.go"},
-			{"auth/ddd/handler.tmpl", "internal/interface/http/auth_handler.go"},
-			{"auth/ddd/module.tmpl", "internal/interface/http/auth_module.go"},
 		}
+		if d.Team {
+			return append(specs,
+				fileSpec{"auth/ddd/team.tmpl", "internal/domain/team/team.go"},
+				fileSpec{"auth/ddd/team_repository.tmpl", "internal/domain/team/repository.go"},
+				fileSpec{"auth/ddd/team_persistence.tmpl", "internal/infrastructure/persistence/team_repository_bun.go"},
+				fileSpec{"auth/ddd/team_service.tmpl", "internal/application/team/service.go"},
+				fileSpec{"auth/ddd/handler_team.tmpl", "internal/interface/http/auth_handler.go"},
+				fileSpec{"auth/ddd/module_team.tmpl", "internal/interface/http/auth_module.go"},
+			)
+		}
+		return append(specs,
+			fileSpec{"auth/ddd/handler.tmpl", "internal/interface/http/auth_handler.go"},
+			fileSpec{"auth/ddd/module.tmpl", "internal/interface/http/auth_module.go"},
+		)
 	case "layered":
-		return []fileSpec{
+		specs := []fileSpec{
 			{"auth/layered/model.tmpl", "internal/model/account.go"},
 			{"auth/layered/repository.tmpl", "internal/repository/account_repo.go"},
 			{"auth/layered/service.tmpl", "internal/service/auth_service.go"},
-			{"auth/layered/handler.tmpl", "internal/handler/auth_handler.go"},
-			{"auth/layered/module.tmpl", "internal/handler/auth_module.go"},
 		}
+		if d.Team {
+			return append(specs,
+				fileSpec{"auth/layered/team_model.tmpl", "internal/model/team.go"},
+				fileSpec{"auth/layered/team_repository.tmpl", "internal/repository/team_repo.go"},
+				fileSpec{"auth/layered/team_service.tmpl", "internal/service/team_service.go"},
+				fileSpec{"auth/layered/handler_team.tmpl", "internal/handler/auth_handler.go"},
+				fileSpec{"auth/layered/module_team.tmpl", "internal/handler/auth_module.go"},
+			)
+		}
+		return append(specs,
+			fileSpec{"auth/layered/handler.tmpl", "internal/handler/auth_handler.go"},
+			fileSpec{"auth/layered/module.tmpl", "internal/handler/auth_module.go"},
+		)
 	}
 	return nil
 }
@@ -192,6 +227,31 @@ func renderAuthMigration(root string) (string, error) {
 		return "", err
 	}
 	return dest, nil
+}
+
+// renderTeamMigrations writes the accounts, teams, and memberships migrations
+// with one-second-apart timestamps so each gets a distinct migration version.
+func renderTeamMigrations(root string) error {
+	base := now().UTC()
+	steps := []struct {
+		tmpl, name string
+		off        time.Duration
+	}{
+		{"auth/migration_accounts.tmpl", "create_accounts", 0},
+		{"auth/migration_teams.tmpl", "create_teams", time.Second},
+		{"auth/migration_memberships.tmpl", "create_memberships", 2 * time.Second},
+	}
+	for _, s := range steps {
+		ts := base.Add(s.off).Format("20060102150405")
+		dest := filepath.Join("internal", "migrations", ts+"_"+s.name+".go")
+		if _, err := os.Stat(filepath.Join(root, dest)); err == nil {
+			return fmt.Errorf("migration %s already exists (same-second collision; retry in a moment)", dest)
+		}
+		if err := renderFile(fileSpec{s.tmpl, dest}, nil, root); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // renderMigration writes a timestamped create-table migration for md into root.

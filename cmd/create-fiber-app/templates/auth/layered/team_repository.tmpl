@@ -1,0 +1,78 @@
+package repository
+
+import (
+	"context"
+
+	"{{.Module}}/internal/model"
+	"github.com/uptrace/bun"
+)
+
+// TeamRepository is the Bun-backed team/membership store.
+type TeamRepository struct {
+	db *bun.DB
+}
+
+// NewTeamRepository creates a TeamRepository.
+func NewTeamRepository(db *bun.DB) *TeamRepository {
+	return &TeamRepository{db: db}
+}
+
+// MigrateTeam creates the teams and memberships tables (and the membership
+// unique index) if they do not exist.
+func MigrateTeam(ctx context.Context, db *bun.DB) error {
+	if _, err := db.NewCreateTable().Model((*model.Team)(nil)).IfNotExists().Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := db.NewCreateTable().Model((*model.Membership)(nil)).IfNotExists().Exec(ctx); err != nil {
+		return err
+	}
+	_, err := db.NewCreateIndex().Model((*model.Membership)(nil)).
+		IfNotExists().Index("memberships_account_team_uq").Unique().
+		Column("account_id", "team_id").Exec(ctx)
+	return err
+}
+
+// CreateTeam inserts a new team.
+func (r *TeamRepository) CreateTeam(ctx context.Context, t *model.Team) error {
+	_, err := r.db.NewInsert().Model(t).Exec(ctx)
+	return err
+}
+
+// CreateMembership inserts a new membership.
+func (r *TeamRepository) CreateMembership(ctx context.Context, m *model.Membership) error {
+	_, err := r.db.NewInsert().Model(m).Exec(ctx)
+	return err
+}
+
+// TeamsForAccount returns the teams the account belongs to.
+func (r *TeamRepository) TeamsForAccount(ctx context.Context, accountID int64) ([]model.Team, error) {
+	var teams []model.Team
+	err := r.db.NewSelect().Model(&teams).
+		Join("JOIN memberships AS m ON m.team_id = team.id").
+		Where("m.account_id = ?", accountID).
+		Order("team.id ASC").
+		Scan(ctx)
+	return teams, err
+}
+
+// FindMembership returns the account's membership in a team, or an error if absent.
+func (r *TeamRepository) FindMembership(ctx context.Context, accountID, teamID int64) (*model.Membership, error) {
+	m := new(model.Membership)
+	err := r.db.NewSelect().Model(m).
+		Where("account_id = ?", accountID).Where("team_id = ?", teamID).Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// FirstMembership returns the account's earliest membership (its default team).
+func (r *TeamRepository) FirstMembership(ctx context.Context, accountID int64) (*model.Membership, error) {
+	m := new(model.Membership)
+	err := r.db.NewSelect().Model(m).
+		Where("account_id = ?", accountID).Order("id ASC").Limit(1).Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}

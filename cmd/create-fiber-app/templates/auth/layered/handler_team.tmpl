@@ -1,0 +1,270 @@
+package handler
+
+import (
+	"errors"
+	"strconv"
+	"strings"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/rahmadafandi/fiber-helpers/auth"
+	"github.com/rahmadafandi/fiber-helpers/jwt"
+	"github.com/rahmadafandi/fiber-helpers/response"
+	"github.com/rs/zerolog/log"
+	"{{.Module}}/internal/model"
+	"{{.Module}}/internal/service"
+)
+
+// AuthHandler exposes the auth and team routes.
+type AuthHandler struct {
+	accounts *service.AuthService
+	teams    *service.TeamService
+	secret   string
+	issuer   *auth.Issuer
+	store    auth.TokenStore
+}
+
+// NewAuthHandler creates an AuthHandler.
+func NewAuthHandler(accounts *service.AuthService, teams *service.TeamService, secret string, store auth.TokenStore) *AuthHandler {
+	return &AuthHandler{accounts: accounts, teams: teams, secret: secret, issuer: auth.NewIssuer(secret, store), store: store}
+}
+
+type credentials struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type refreshRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+// RegisterRoutes mounts the /auth and /teams routes.
+func (h *AuthHandler) RegisterRoutes(r fiber.Router) {
+	g := r.Group("/auth")
+	g.Post("/register", h.register)
+	g.Post("/login", h.login)
+	g.Post("/refresh", h.refresh)
+	g.Post("/logout", auth.RequireAuth(h.secret, auth.WithBlocklist(h.store)), h.logout)
+	g.Post("/switch-team", auth.RequireAuth(h.secret, auth.WithBlocklist(h.store)), h.switchTeam)
+	g.Get("/me", auth.RequireAuth(h.secret, auth.WithBlocklist(h.store)), h.me)
+
+	t := r.Group("/teams", auth.RequireAuth(h.secret, auth.WithBlocklist(h.store)))
+	t.Get("/", h.listTeams)
+	t.Post("/", h.createTeam)
+	t.Post("/:id/members", auth.RequireScope("member:manage"), h.addMember)
+	t.Get("/:id/manage", auth.RequireScope("team:manage"), h.manage)
+}
+
+// teamClaims builds JWT claims for an account active in a membership.
+func teamClaims(sub, email string, m *model.Membership) jwt.MapClaims {
+	return jwt.MapClaims{
+		"sub":    sub,
+		"email":  email,
+		"team":   strconv.FormatInt(m.TeamID, 10),
+		"role":   m.Role,
+		"scopes": service.PermissionsFor(m.Role),
+	}
+}
+
+func (h *AuthHandler) register(c *fiber.Ctx) error {
+	var in credentials
+	if err := c.BodyParser(&in); err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	}
+	if in.Email == "" || in.Password == "" {
+		return response.SendError(c, nil, "email and password are required", fiber.StatusBadRequest)
+	}
+	a, err := h.accounts.Register(c.UserContext(), in.Email, in.Password)
+	if err != nil {
+		if errors.Is(err, service.ErrEmailTaken) {
+			return response.SendError(c, nil, "email already registered", fiber.StatusConflict)
+		}
+		return response.SendError(c, nil, "could not create account", fiber.StatusInternalServerError)
+	}
+	team, err := h.teams.CreatePersonalTeam(c.UserContext(), a.ID, a.Email)
+	if err != nil {
+		return response.SendError(c, nil, "could not create team", fiber.StatusInternalServerError)
+	}
+	return response.SendSuccess(c, fiber.Map{
+		"id":    a.ID,
+		"email": a.Email,
+		"team":  fiber.Map{"id": team.ID, "name": team.Name, "slug": team.Slug, "role": "owner"},
+	}, "created", fiber.StatusCreated)
+}
+
+func (h *AuthHandler) login(c *fiber.Ctx) error {
+	var in credentials
+	if err := c.BodyParser(&in); err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	}
+	if in.Email == "" || in.Password == "" {
+		return response.SendError(c, nil, "email and password are required", fiber.StatusBadRequest)
+	}
+	a, err := h.accounts.Authenticate(c.UserContext(), in.Email, in.Password)
+	if err != nil {
+		return response.SendError(c, nil, "invalid credentials", fiber.StatusUnauthorized)
+	}
+	m, err := h.teams.DefaultMembership(c.UserContext(), a.ID)
+	if err != nil {
+		// Self-heal: an account with no team (e.g. team creation failed at
+		// register) gets a personal team on first successful login.
+		t, cerr := h.teams.CreatePersonalTeam(c.UserContext(), a.ID, a.Email)
+		if cerr != nil {
+			return response.SendError(c, nil, "could not create team", fiber.StatusInternalServerError)
+		}
+		m = &model.Membership{AccountID: a.ID, TeamID: t.ID, Role: "owner"}
+	}
+	pair, err := h.issuer.Issue(c.UserContext(), teamClaims(strconv.FormatInt(a.ID, 10), a.Email, m))
+	if err != nil {
+		return response.SendError(c, nil, "could not issue token", fiber.StatusInternalServerError)
+	}
+	return response.SendSuccess(c, pair, "ok")
+}
+
+func (h *AuthHandler) refresh(c *fiber.Ctx) error {
+	var in refreshRequest
+	if err := c.BodyParser(&in); err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	}
+	if in.RefreshToken == "" {
+		return response.SendError(c, nil, "refresh_token is required", fiber.StatusBadRequest)
+	}
+	pair, err := h.issuer.Refresh(c.UserContext(), in.RefreshToken)
+	if err != nil {
+		if errors.Is(err, auth.ErrTokenReuse) {
+			log.Warn().Str("event", "refresh_reuse").Msg("refresh token reuse detected")
+		}
+		return response.SendError(c, nil, "invalid refresh token", fiber.StatusUnauthorized)
+	}
+	return response.SendSuccess(c, pair, "ok")
+}
+
+func (h *AuthHandler) logout(c *fiber.Ctx) error {
+	// Strip the bearer prefix case-insensitively, matching auth.RequireAuth.
+	const bearerPrefix = "Bearer "
+	authz := c.Get("Authorization")
+	var access string
+	if len(authz) > len(bearerPrefix) && strings.EqualFold(authz[:len(bearerPrefix)], bearerPrefix) {
+		access = authz[len(bearerPrefix):]
+	}
+	var in refreshRequest
+	_ = c.BodyParser(&in)
+	if err := h.issuer.Logout(c.UserContext(), access, in.RefreshToken); err != nil {
+		return response.SendError(c, nil, "could not log out", fiber.StatusInternalServerError)
+	}
+	return response.SendSuccess(c, fiber.Map{"ok": true}, "logged out")
+}
+
+func (h *AuthHandler) switchTeam(c *fiber.Ctx) error {
+	var in struct {
+		TeamID int64 `json:"team_id"`
+	}
+	if err := c.BodyParser(&in); err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	}
+	accountID, err := strconv.ParseInt(auth.Subject(c), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid subject", fiber.StatusUnauthorized)
+	}
+	m, err := h.teams.Membership(c.UserContext(), accountID, in.TeamID)
+	if err != nil {
+		return response.SendError(c, nil, "not a member of that team", fiber.StatusForbidden)
+	}
+	email := ""
+	if claims, ok := auth.Claims(c); ok {
+		email, _ = claims["email"].(string)
+	}
+	pair, err := h.issuer.Issue(c.UserContext(), teamClaims(auth.Subject(c), email, m))
+	if err != nil {
+		return response.SendError(c, nil, "could not issue token", fiber.StatusInternalServerError)
+	}
+	return response.SendSuccess(c, pair, "ok")
+}
+
+func (h *AuthHandler) me(c *fiber.Ctx) error {
+	email := ""
+	if claims, ok := auth.Claims(c); ok {
+		email, _ = claims["email"].(string)
+	}
+	return response.SendSuccess(c, fiber.Map{
+		"sub":         auth.Subject(c),
+		"email":       email,
+		"team":        auth.ActiveTeam(c),
+		"role":        auth.TeamRole(c),
+		"permissions": auth.Scopes(c),
+	}, "ok")
+}
+
+func (h *AuthHandler) listTeams(c *fiber.Ctx) error {
+	accountID, err := strconv.ParseInt(auth.Subject(c), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid subject", fiber.StatusUnauthorized)
+	}
+	teams, err := h.teams.Teams(c.UserContext(), accountID)
+	if err != nil {
+		return response.SendError(c, nil, "could not list teams", fiber.StatusInternalServerError)
+	}
+	return response.SendSuccess(c, teams, "ok")
+}
+
+func (h *AuthHandler) createTeam(c *fiber.Ctx) error {
+	var in struct {
+		Name string `json:"name"`
+	}
+	if err := c.BodyParser(&in); err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	}
+	if in.Name == "" {
+		return response.SendError(c, nil, "name is required", fiber.StatusBadRequest)
+	}
+	accountID, err := strconv.ParseInt(auth.Subject(c), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid subject", fiber.StatusUnauthorized)
+	}
+	team, err := h.teams.CreateTeam(c.UserContext(), accountID, in.Name)
+	if err != nil {
+		return response.SendError(c, nil, "could not create team", fiber.StatusInternalServerError)
+	}
+	return response.SendSuccess(c, team, "created", fiber.StatusCreated)
+}
+
+func (h *AuthHandler) addMember(c *fiber.Ctx) error {
+	// The permission is team-scoped: the caller's active team must be the target.
+	if auth.ActiveTeam(c) != c.Params("id") {
+		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
+	}
+	teamID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid team id", fiber.StatusBadRequest)
+	}
+	var in struct {
+		Email string `json:"email"`
+		Role  string `json:"role"`
+	}
+	if err := c.BodyParser(&in); err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	}
+	if in.Email == "" || in.Role == "" {
+		return response.SendError(c, nil, "email and role are required", fiber.StatusBadRequest)
+	}
+	m, err := h.teams.AddMemberByEmail(c.UserContext(), teamID, in.Email, in.Role)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrUnknownRole):
+			return response.SendError(c, nil, "unknown role", fiber.StatusBadRequest)
+		case errors.Is(err, service.ErrAccountNotFound):
+			return response.SendError(c, nil, "account not found", fiber.StatusNotFound)
+		case errors.Is(err, service.ErrAlreadyMember):
+			return response.SendError(c, nil, "already a member", fiber.StatusConflict)
+		default:
+			return response.SendError(c, nil, "could not add member", fiber.StatusInternalServerError)
+		}
+	}
+	return response.SendSuccess(c, fiber.Map{"id": m.ID, "account_id": m.AccountID, "team_id": m.TeamID, "role": m.Role}, "added", fiber.StatusCreated)
+}
+
+func (h *AuthHandler) manage(c *fiber.Ctx) error {
+	if auth.ActiveTeam(c) != c.Params("id") {
+		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
+	}
+	return response.SendSuccess(c, fiber.Map{"ok": true}, "team management area")
+}

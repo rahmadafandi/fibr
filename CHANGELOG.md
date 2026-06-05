@@ -22,6 +22,15 @@ This project has not yet had a stable release; all changes are listed under **Un
   Login returns an access+refresh `TokenPair`; adds `/auth/refresh` and
   `/auth/logout`; wires a redis-backed token store when `REDIS_URL` is set,
   falling back to an in-memory store otherwise.
+- `auth` team/workspace helpers: `ActiveTeam`, `TeamRole`, `RequireTeam`, and
+  `RequireRole` read the active team carried in the JWT (`team`/`role` claims);
+  the `Issuer` now propagates `team`/`role` through refresh.
+- `create-fiber-app --auth-with-team` (implies `--auth`): multi-tenant scaffold
+  where one account belongs to many teams via memberships, each team role maps to
+  a permission set (carried as the active team's `scopes`). Adds Team/Membership
+  entities + migrations, `POST /auth/switch-team`, `GET /teams`, `POST /teams`,
+  `POST /teams/:id/members` (gated by `member:manage`), team-aware `/me`, and a
+  `team:manage` example route; register auto-creates a personal team.
 - `migrate` package: `bun/migrate` wrapper (`Up`/`Down`/`Status`/`Create`) plus a
   ready cobra `NewCommand` (up/down/status/create).
 - Generated projects are now a single cobra binary with `serve` + `migrate`

@@ -18,6 +18,7 @@ type Options struct {
 	Layout         string
 	Sample         bool
 	Auth           bool
+	Team           bool
 	Dir            string
 	NoGit          bool
 	NoTidy         bool
@@ -52,12 +53,18 @@ func (o *Options) Resolve(in io.Reader, out io.Writer, interactive bool, changed
 		if !changed("auth") && !o.Auth {
 			o.Auth = yesNo(r, out, "Include auth (JWT + accounts)?", false)
 		}
+		if o.Auth && !changed("auth-with-team") && !o.Team {
+			o.Team = yesNo(r, out, "Include teams/workspaces?", false)
+		}
 	}
 	return o.Validate()
 }
 
 // Validate checks required fields and allowed values; it also defaults Dir.
 func (o *Options) Validate() error {
+	if o.Team {
+		o.Auth = true
+	}
 	if o.Name == "" {
 		return fmt.Errorf("project name is required")
 	}

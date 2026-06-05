@@ -152,7 +152,7 @@ func (i *Issuer) mint(ctx context.Context, base jwt.MapClaims, fid string) (Toke
 
 	access := jwt.MapClaims{"sub": base["sub"], "type": "access", "jti": accessJti}
 	refresh := jwt.MapClaims{"sub": base["sub"], "type": "refresh", "fid": fid, "jti": refreshJti}
-	for _, k := range []string{"email", "scopes"} {
+	for _, k := range []string{"email", "scopes", "team", "role"} {
 		if v, ok := base[k]; ok {
 			access[k] = v
 			refresh[k] = v

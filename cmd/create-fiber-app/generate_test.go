@@ -302,3 +302,50 @@ func TestAuthScaffoldRefreshArtifacts(t *testing.T) {
 	env := read(".env.example")
 	require.Contains(t, env, "# REDIS_URL=redis://localhost:6379/0")
 }
+
+func TestTeamImpliesAuthAndArtifacts(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "ddd", Team: true,
+		Dir: dir, NoGit: true, NoTidy: true, Local: repoRoot(t),
+	}, &strings.Builder{}))
+
+	read := func(rel string) string {
+		b, err := os.ReadFile(filepath.Join(dir, rel))
+		require.NoError(t, err)
+		return string(b)
+	}
+
+	// Team implies auth: the auth handler + accounts migration exist.
+	handler := read("internal/interface/http/auth_handler.go")
+	require.Contains(t, handler, `g.Post("/switch-team"`)
+	require.Contains(t, handler, `t.Post("/:id/members", auth.RequireScope("member:manage")`)
+	require.Contains(t, handler, "h.teams.CreatePersonalTeam(")
+
+	// Team entities + service exist.
+	require.Contains(t, read("internal/domain/team/team.go"), "type Membership struct")
+	require.Contains(t, read("internal/application/team/service.go"), "rolePermissions")
+
+	// Migrations for teams + memberships exist (find by suffix).
+	migs, err := filepath.Glob(filepath.Join(dir, "internal/migrations/*.go"))
+	require.NoError(t, err)
+	var names string
+	for _, m := range migs {
+		names += filepath.Base(m) + "\n"
+	}
+	require.Contains(t, names, "_create_accounts.go")
+	require.Contains(t, names, "_create_teams.go")
+	require.Contains(t, names, "_create_memberships.go")
+}
+
+func TestNonTeamAuthHasNoTeamFiles(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "ddd", Auth: true,
+		Dir: dir, NoGit: true, NoTidy: true, Local: repoRoot(t),
+	}, &strings.Builder{}))
+	_, err := os.Stat(filepath.Join(dir, "internal/domain/team/team.go"))
+	require.True(t, os.IsNotExist(err), "non-team --auth must not emit team files")
+}

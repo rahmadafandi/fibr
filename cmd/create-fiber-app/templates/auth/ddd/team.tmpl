@@ -1,0 +1,17 @@
+package team
+
+// Team is a workspace that accounts belong to via memberships.
+type Team struct {
+	ID             int64  `json:"id"`
+	Name           string `json:"name"`
+	Slug           string `json:"slug"`
+	OwnerAccountID int64  `json:"owner_account_id"`
+}
+
+// Membership links an account to a team with a role.
+type Membership struct {
+	ID        int64  `json:"id"`
+	AccountID int64  `json:"account_id"`
+	TeamID    int64  `json:"team_id"`
+	Role      string `json:"role"`
+}
