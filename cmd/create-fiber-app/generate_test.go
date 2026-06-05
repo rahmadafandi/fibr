@@ -349,3 +349,21 @@ func TestNonTeamAuthHasNoTeamFiles(t *testing.T) {
 	_, err := os.Stat(filepath.Join(dir, "internal/domain/team/team.go"))
 	require.True(t, os.IsNotExist(err), "non-team --auth must not emit team files")
 }
+
+func TestTeamRoleMigrationsEmitted(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "ddd", Team: true,
+		Dir: dir, NoGit: true, NoTidy: true, Local: repoRoot(t),
+	}, &strings.Builder{}))
+
+	migs, err := filepath.Glob(filepath.Join(dir, "internal/migrations/*.go"))
+	require.NoError(t, err)
+	var names string
+	for _, m := range migs {
+		names += filepath.Base(m) + "\n"
+	}
+	require.Contains(t, names, "_create_roles.go")
+	require.Contains(t, names, "_create_role_permissions.go")
+}

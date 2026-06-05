@@ -1,0 +1,27 @@
+package migrations
+
+import (
+	"context"
+
+	"github.com/uptrace/bun"
+)
+
+func init() {
+	type rolePermission struct {
+		bun.BaseModel `bun:"table:role_permissions"`
+		ID            int64  `bun:"id,pk,autoincrement"`
+		RoleID        int64  `bun:"role_id"`
+		Permission    string `bun:"permission"`
+	}
+	Migrations.MustRegister(func(ctx context.Context, db *bun.DB) error {
+		if _, err := db.NewCreateTable().Model((*rolePermission)(nil)).Exec(ctx); err != nil {
+			return err
+		}
+		_, err := db.NewCreateIndex().Model((*rolePermission)(nil)).
+			Index("role_permissions_role_perm_uq").Unique().Column("role_id", "permission").Exec(ctx)
+		return err
+	}, func(ctx context.Context, db *bun.DB) error {
+		_, err := db.NewDropTable().Model((*rolePermission)(nil)).IfExists().Exec(ctx)
+		return err
+	})
+}
