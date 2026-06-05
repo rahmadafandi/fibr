@@ -1,0 +1,24 @@
+package migrations
+
+import (
+	"context"
+
+	"github.com/uptrace/bun"
+)
+
+func init() {
+	type account struct {
+		bun.BaseModel `bun:"table:accounts"`
+		ID            int64  `bun:"id,pk,autoincrement"`
+		Email         string `bun:"email,unique"`
+		PasswordHash  string `bun:"password_hash"`
+		Scopes        string `bun:"scopes"`
+	}
+	Migrations.MustRegister(func(ctx context.Context, db *bun.DB) error {
+		_, err := db.NewCreateTable().Model((*account)(nil)).Exec(ctx)
+		return err
+	}, func(ctx context.Context, db *bun.DB) error {
+		_, err := db.NewDropTable().Model((*account)(nil)).IfExists().Exec(ctx)
+		return err
+	})
+}

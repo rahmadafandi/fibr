@@ -1,0 +1,9 @@
+package account
+
+// Account is the authentication entity.
+type Account struct {
+	ID           int64  `json:"id"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"-"`
+	Scopes       string `json:"scopes"`
+}

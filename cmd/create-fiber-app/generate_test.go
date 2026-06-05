@@ -185,6 +185,19 @@ func TestGenerateNoAuthNoSecret(t *testing.T) {
 	assert.NotContains(t, string(cfg), "JWTSecret")
 }
 
+func TestGenerateAuthDDD(t *testing.T) {
+	dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "sqlite", Layout: "ddd", Auth: true})
+	assertFileContains(t, filepath.Join(dir, "internal/domain/account/account.go"), "type Account struct")
+	assertFileContains(t, filepath.Join(dir, "internal/domain/account/repository.go"), "FindByEmail")
+	assertFileContains(t, filepath.Join(dir, "internal/application/account/service.go"), "func (s *Service) Register")
+	assertFileContains(t, filepath.Join(dir, "internal/infrastructure/persistence/account_repository_bun.go"), "func NewAccountRepository")
+	assertFileContains(t, filepath.Join(dir, "internal/interface/http/auth_handler.go"), "/auth")
+	assertFileContains(t, filepath.Join(dir, "internal/interface/http/auth_module.go"), "func NewAuthModule(db *bun.DB, secret string) bootstrap.Module")
+	m := globOne(t, filepath.Join(dir, "internal/migrations/*_create_accounts.go"))
+	assertFileContains(t, m, `bun:"table:accounts"`)
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "httpiface.NewAuthModule(db, cfg.JWTSecret)")
+}
+
 func TestMatrixCompiles(t *testing.T) {
 	if os.Getenv("RUN_E2E") != "1" {
 		t.Skip("set RUN_E2E=1 to run the matrix compile test (slow: runs go build x8)")
