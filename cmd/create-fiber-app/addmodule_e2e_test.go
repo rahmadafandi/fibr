@@ -281,6 +281,93 @@ func TestAuthRefreshFlowE2E(t *testing.T) {
 	require.Equal(t, 401, code)
 }
 
+func TestTeamFlowE2E(t *testing.T) {
+	if os.Getenv("RUN_E2E") != "1" {
+		t.Skip("set RUN_E2E=1 to run the team runtime test (slow: go run)")
+	}
+	root := repoRoot(t)
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "ddd", Team: true,
+		Dir: dir, NoGit: true, NoTidy: false, Local: root,
+	}, &strings.Builder{}))
+
+	dbPath := filepath.Join(t.TempDir(), "team.db")
+	port := "39519"
+	env := append(os.Environ(),
+		"DATABASE_URL=file:"+dbPath+"?cache=shared",
+		"PORT="+port,
+		"JWT_SECRET="+strings.Repeat("c", 64),
+	)
+
+	mig := exec.Command("go", "run", "./cmd/api", "migrate", "up")
+	mig.Dir, mig.Env = dir, env
+	if out, err := mig.CombinedOutput(); err != nil {
+		t.Fatalf("migrate up failed:\n%s", out)
+	}
+
+	srv := exec.Command("go", "run", "./cmd/api")
+	srv.Dir, srv.Env = dir, env
+	srv.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	require.NoError(t, srv.Start())
+	defer func() { _ = syscall.Kill(-srv.Process.Pid, syscall.SIGKILL) }()
+
+	base := "http://127.0.0.1:" + port
+	waitReady(t, base+"/livez")
+
+	// owner registers (personal team auto-created) + logs in
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/auth/register", `{"email":"owner@b.com","password":"secret123"}`, "")))
+	_, body := postJSON(t, base+"/auth/login", `{"email":"owner@b.com","password":"secret123"}`, "")
+	ownerTok := dataField(t, body, "access_token")
+	require.NotEmpty(t, ownerTok)
+
+	// /me shows an active team + owner role
+	_, meBody := postGet(t, base+"/auth/me", ownerTok)
+	team1 := dataField(t, meBody, "team")
+	require.NotEmpty(t, team1)
+	require.Equal(t, "owner", dataField(t, meBody, "role"))
+
+	// owner creates a second team, then lists teams (2)
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/teams/", `{"name":"Acme"}`, ownerTok)))
+	require.Equal(t, 200, getCode(t, base+"/teams/", ownerTok))
+
+	// a member registers
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/auth/register", `{"email":"member@b.com","password":"secret123"}`, "")))
+
+	// owner adds the member to the active (personal) team as "member"
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/teams/"+team1+"/members", `{"email":"member@b.com","role":"member"}`, ownerTok)))
+
+	// owner can reach the team:manage route for the active team; ...
+	require.Equal(t, 200, getCode(t, base+"/teams/"+team1+"/manage", ownerTok))
+
+	// ... the member cannot (role "member" lacks team:manage) after switching into it
+	_, mBody := postJSON(t, base+"/auth/login", `{"email":"member@b.com","password":"secret123"}`, "")
+	memberTok := dataField(t, mBody, "access_token")
+	swCode, swBody := postJSON(t, base+"/auth/switch-team", `{"team_id":`+team1+`}`, memberTok)
+	require.Equal(t, 200, swCode)
+	memberTeamTok := dataField(t, swBody, "access_token")
+	require.Equal(t, 403, getCode(t, base+"/teams/"+team1+"/manage", memberTeamTok))
+}
+
+// mustCode returns just the status code from a postJSON result tuple.
+func mustCode(code int, _ string) int { return code }
+
+// postGet issues a GET with a bearer and returns code + body.
+func postGet(t *testing.T, url, bearer string) (int, string) {
+	t.Helper()
+	req, err := http.NewRequest("GET", url, nil)
+	require.NoError(t, err)
+	if bearer != "" {
+		req.Header.Set("Authorization", "Bearer "+bearer)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(resp.Body)
+	return resp.StatusCode, string(b)
+}
+
 func waitReady(t *testing.T, url string) {
 	t.Helper()
 	for i := 0; i < 100; i++ {
