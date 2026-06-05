@@ -24,6 +24,7 @@ type App struct {
 	shutdownTimeout time.Duration
 	mu              sync.Mutex
 	healthChecks    []health.NamedCheck
+	autoMigrate     bool
 }
 
 // Options configures the bootstrapped app. All fields are optional.
@@ -34,6 +35,7 @@ type Options struct {
 	DB              *bun.DB
 	EnableCORS      bool
 	RateLimit       int
+	AutoMigrate     bool
 	HealthChecks    []health.NamedCheck
 	FiberConfig     fiber.Config
 }
@@ -56,7 +58,7 @@ func New(o Options) *App {
 	f.Use(middleware.ContextMiddleware(o.RequestTimeout))
 	f.Use(middleware.RequestLogger(o.Logger))
 
-	app := &App{App: f, shutdownTimeout: o.ShutdownTimeout}
+	app := &App{App: f, shutdownTimeout: o.ShutdownTimeout, autoMigrate: o.AutoMigrate}
 	app.healthChecks = append(app.healthChecks, o.HealthChecks...)
 
 	// Register health endpoints BEFORE rate limiting / CORS so liveness and
