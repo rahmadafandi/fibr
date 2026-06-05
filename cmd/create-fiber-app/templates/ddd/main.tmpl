@@ -29,6 +29,7 @@ func main() {
 		HealthChecks: []health.NamedCheck{health.PingBun(db)},
 	})
 
+	// app.App is the embedded *fiber.App; app.Mount (below) is bootstrap.App's module-aware method.
 	httpiface.Register(app.App)
 {{if .Sample}}	if err := app.Mount(httpiface.NewUserModule(db)); err != nil {
 		log.Fatal(err)

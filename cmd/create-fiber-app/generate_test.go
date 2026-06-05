@@ -100,6 +100,7 @@ func TestGenerateDDDNoSample(t *testing.T) {
 
 func TestGenerateDDDSample(t *testing.T) {
 	dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "sqlite", Layout: "ddd", Sample: true})
+	assertFileContains(t, filepath.Join(dir, "internal/domain/user/user.go"), "type User struct")
 	assertFileContains(t, filepath.Join(dir, "internal/domain/user/repository.go"), "type Repository interface")
 	assertFileContains(t, filepath.Join(dir, "internal/infrastructure/persistence/user_repository_bun.go"), "func NewUserRepository")
 	assertFileContains(t, filepath.Join(dir, "internal/interface/http/user_handler.go"), "/users")
