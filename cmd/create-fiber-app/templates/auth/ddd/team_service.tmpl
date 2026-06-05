@@ -10,25 +10,43 @@ import (
 	domain "{{.Module}}/internal/domain/team"
 )
 
-// ErrUnknownRole is returned when a role is not in the permission map.
-var ErrUnknownRole = errors.New("unknown role")
+// Service errors.
+var (
+	ErrAccountNotFound   = errors.New("account not found")
+	ErrAlreadyMember     = errors.New("already a member")
+	ErrNotAMember        = errors.New("not a member")
+	ErrRoleExists        = errors.New("role already exists")
+	ErrRoleNotFound      = errors.New("role not found")
+	ErrRoleInUse         = errors.New("role is assigned to members")
+	ErrProtectedRole     = errors.New("role is protected")
+	ErrInvalidPermission = errors.New("unknown permission")
+)
 
-// ErrAccountNotFound is returned when adding a member whose email has no account.
-var ErrAccountNotFound = errors.New("account not found")
+// AllPermissions is the catalog of permissions roles may grant. Edit freely.
+var AllPermissions = []string{
+	"team:manage",
+	"member:manage",
+	"role:manage",
+	"post:read",
+	"post:write",
+}
 
-// ErrAlreadyMember is returned when adding an account that is already a member.
-var ErrAlreadyMember = errors.New("already a member")
-
-// rolePermissions maps a team role to the permissions it grants. Edit freely.
-var rolePermissions = map[string][]string{
-	"owner":  {"team:manage", "member:manage", "post:read", "post:write"},
-	"admin":  {"member:manage", "post:read", "post:write"},
+// defaultRoles seeds a new team's roles. Edit freely.
+var defaultRoles = map[string][]string{
+	"owner":  {"team:manage", "member:manage", "role:manage", "post:read", "post:write"},
+	"admin":  {"member:manage", "role:manage", "post:read", "post:write"},
 	"member": {"post:read", "post:write"},
 	"viewer": {"post:read"},
 }
 
-// PermissionsFor returns the permissions granted by role (nil if unknown).
-func PermissionsFor(role string) []string { return rolePermissions[role] }
+func validPermission(p string) bool {
+	for _, a := range AllPermissions {
+		if a == p {
+			return true
+		}
+	}
+	return false
+}
 
 // Service holds team use cases.
 type Service struct {
@@ -41,18 +59,28 @@ func NewService(repo domain.Repository, accounts accountdomain.Repository) *Serv
 	return &Service{repo: repo, accounts: accounts}
 }
 
-// CreatePersonalTeam creates a starter team owned by the account.
+// seedRoles creates the default roles for a freshly created team.
+func (s *Service) seedRoles(ctx context.Context, teamID int64) error {
+	for name, perms := range defaultRoles {
+		if err := s.repo.CreateRole(ctx, &domain.Role{TeamID: teamID, Name: name, Permissions: perms}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// CreatePersonalTeam creates a starter team (seeded with default roles) owned by
+// the account.
 func (s *Service) CreatePersonalTeam(ctx context.Context, accountID int64, email string) (*domain.Team, error) {
 	name := email
 	if i := strings.IndexByte(email, '@'); i > 0 {
 		name = email[:i]
 	}
-	t := &domain.Team{
-		Name:           name + "'s team",
-		Slug:           fmt.Sprintf("team-%d", accountID),
-		OwnerAccountID: accountID,
-	}
+	t := &domain.Team{Name: name + "'s team", Slug: fmt.Sprintf("team-%d", accountID), OwnerAccountID: accountID}
 	if err := s.repo.CreateTeam(ctx, t); err != nil {
+		return nil, err
+	}
+	if err := s.seedRoles(ctx, t.ID); err != nil {
 		return nil, err
 	}
 	if err := s.repo.CreateMembership(ctx, &domain.Membership{AccountID: accountID, TeamID: t.ID, Role: "owner"}); err != nil {
@@ -61,14 +89,13 @@ func (s *Service) CreatePersonalTeam(ctx context.Context, accountID int64, email
 	return t, nil
 }
 
-// CreateTeam creates a team; the caller becomes its owner.
+// CreateTeam creates a team (seeded with default roles); the caller becomes owner.
 func (s *Service) CreateTeam(ctx context.Context, accountID int64, name string) (*domain.Team, error) {
-	t := &domain.Team{
-		Name:           name,
-		Slug:           fmt.Sprintf("team-%d-%s", accountID, slugify(name)),
-		OwnerAccountID: accountID,
-	}
+	t := &domain.Team{Name: name, Slug: fmt.Sprintf("team-%d-%s", accountID, slugify(name)), OwnerAccountID: accountID}
 	if err := s.repo.CreateTeam(ctx, t); err != nil {
+		return nil, err
+	}
+	if err := s.seedRoles(ctx, t.ID); err != nil {
 		return nil, err
 	}
 	if err := s.repo.CreateMembership(ctx, &domain.Membership{AccountID: accountID, TeamID: t.ID, Role: "owner"}); err != nil {
@@ -92,10 +119,15 @@ func (s *Service) DefaultMembership(ctx context.Context, accountID int64) (*doma
 	return s.repo.FirstMembership(ctx, accountID)
 }
 
+// PermissionsForRole returns the permissions granted by a team's named role.
+func (s *Service) PermissionsForRole(ctx context.Context, teamID int64, roleName string) ([]string, error) {
+	return s.repo.PermissionsForRole(ctx, teamID, roleName)
+}
+
 // AddMemberByEmail adds the account with the given email to a team with role.
 func (s *Service) AddMemberByEmail(ctx context.Context, teamID int64, email, role string) (*domain.Membership, error) {
-	if _, ok := rolePermissions[role]; !ok {
-		return nil, ErrUnknownRole
+	if _, err := s.repo.FindRole(ctx, teamID, role); err != nil {
+		return nil, ErrRoleNotFound
 	}
 	a, err := s.accounts.FindByEmail(ctx, email)
 	if err != nil || a == nil {
@@ -109,6 +141,86 @@ func (s *Service) AddMemberByEmail(ctx context.Context, teamID int64, email, rol
 		return nil, err
 	}
 	return m, nil
+}
+
+// ChangeMemberRole reassigns an existing member to a different (existing) role.
+func (s *Service) ChangeMemberRole(ctx context.Context, teamID int64, email, role string) (*domain.Membership, error) {
+	if _, err := s.repo.FindRole(ctx, teamID, role); err != nil {
+		return nil, ErrRoleNotFound
+	}
+	a, err := s.accounts.FindByEmail(ctx, email)
+	if err != nil || a == nil {
+		return nil, ErrAccountNotFound
+	}
+	m, err := s.repo.FindMembership(ctx, a.ID, teamID)
+	if err != nil || m == nil {
+		return nil, ErrNotAMember
+	}
+	if err := s.repo.UpdateMembershipRole(ctx, a.ID, teamID, role); err != nil {
+		return nil, err
+	}
+	m.Role = role
+	return m, nil
+}
+
+// ListRoles returns the team's roles with their permissions.
+func (s *Service) ListRoles(ctx context.Context, teamID int64) ([]domain.Role, error) {
+	return s.repo.RolesForTeam(ctx, teamID)
+}
+
+// CreateRole creates a custom role after validating its permissions.
+func (s *Service) CreateRole(ctx context.Context, teamID int64, name string, perms []string) (*domain.Role, error) {
+	for _, p := range perms {
+		if !validPermission(p) {
+			return nil, ErrInvalidPermission
+		}
+	}
+	if existing, _ := s.repo.FindRole(ctx, teamID, name); existing != nil {
+		return nil, ErrRoleExists
+	}
+	role := &domain.Role{TeamID: teamID, Name: name, Permissions: perms}
+	if err := s.repo.CreateRole(ctx, role); err != nil {
+		return nil, err
+	}
+	return role, nil
+}
+
+// UpdateRolePermissions replaces a role's permission set.
+func (s *Service) UpdateRolePermissions(ctx context.Context, teamID int64, name string, perms []string) (*domain.Role, error) {
+	for _, p := range perms {
+		if !validPermission(p) {
+			return nil, ErrInvalidPermission
+		}
+	}
+	role, err := s.repo.FindRole(ctx, teamID, name)
+	if err != nil {
+		return nil, ErrRoleNotFound
+	}
+	if err := s.repo.SetRolePermissions(ctx, role.ID, perms); err != nil {
+		return nil, err
+	}
+	role.Permissions = perms
+	return role, nil
+}
+
+// DeleteRole removes a custom role. The "owner" role is protected, and a role
+// still assigned to members cannot be deleted.
+func (s *Service) DeleteRole(ctx context.Context, teamID int64, name string) error {
+	if name == "owner" {
+		return ErrProtectedRole
+	}
+	role, err := s.repo.FindRole(ctx, teamID, name)
+	if err != nil {
+		return ErrRoleNotFound
+	}
+	n, err := s.repo.CountMembersWithRole(ctx, teamID, name)
+	if err != nil {
+		return err
+	}
+	if n > 0 {
+		return ErrRoleInUse
+	}
+	return s.repo.DeleteRole(ctx, role.ID)
 }
 
 func slugify(s string) string {
