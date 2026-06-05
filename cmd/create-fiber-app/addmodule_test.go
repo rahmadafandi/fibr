@@ -58,14 +58,18 @@ func TestAddModuleDDD(t *testing.T) {
 	assertFileContains(t, filepath.Join(dir, "internal/interface/http/product_module.go"), "func NewProductModule(db *bun.DB) bootstrap.Module")
 	assertFileContains(t, filepath.Join(dir, "internal/domain/product/product.go"), "type Product struct")
 	assert.Contains(t, out.String(), "app.Mount(httpiface.NewProductModule(db))")
+	assert.Contains(t, out.String(), "internal/interface/http")
 }
 
 func TestAddModuleLayoutFlagOverrides(t *testing.T) {
 	dir := t.TempDir()
 	writeGoMod(t, dir, "github.com/me/app")
 	// no layout dirs present; flag forces layered
-	require.NoError(t, AddModule(AddModuleOptions{Name: "product", Dir: dir, Layout: "layered"}, &strings.Builder{}))
+	var out strings.Builder
+	require.NoError(t, AddModule(AddModuleOptions{Name: "product", Dir: dir, Layout: "layered"}, &out))
 	assertFileContains(t, filepath.Join(dir, "internal/handler/product_module.go"), "func NewProductModule(db *bun.DB) bootstrap.Module")
+	assert.Contains(t, out.String(), "app.Mount(handler.NewProductModule(db))")
+	assert.Contains(t, out.String(), "internal/handler")
 }
 
 func TestAddModuleRefusesExisting(t *testing.T) {

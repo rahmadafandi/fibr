@@ -97,16 +97,21 @@ func AddModule(o AddModuleOptions, out io.Writer) error {
 			return fmt.Errorf("module file already exists: %s (refusing to overwrite)", s.dest)
 		}
 	}
+	var written []string
 	for _, s := range specs {
 		if err := renderFile(s, md, o.Dir); err != nil {
+			for _, w := range written {
+				_ = os.Remove(w)
+			}
 			return fmt.Errorf("render %s: %w", s.tmpl, err)
 		}
+		written = append(written, filepath.Join(o.Dir, s.dest))
 	}
 
 	importLine, mountLine := mountHint(layout, modulePath, md)
 	fmt.Fprintf(out, "added module %q (%s).\n\n", md.Pkg, layout)
 	fmt.Fprintf(out, "Wire it in cmd/api/main.go:\n")
-	fmt.Fprintf(out, "  1. ensure this import is present:\n%s\n", importLine)
+	fmt.Fprintf(out, "  1. ensure this import is present in the import block:\n%s\n", importLine)
 	fmt.Fprintf(out, "  2. after bootstrap.New(...), add:\n    if err := %s; err != nil {\n        log.Fatal(err)\n    }\n", mountLine)
 	return nil
 }
