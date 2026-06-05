@@ -31,7 +31,9 @@ type HealthChecker interface {
 }
 
 // Mount wires each module into the app. For every module it, in order:
-//  1. runs Migrate(ctx) if the module implements Migrator,
+//  1. runs Migrate(ctx) if the module implements Migrator AND the app was
+//     built with Options{AutoMigrate: true}; when AutoMigrate is false the
+//     schema is expected to be managed by external migration tooling,
 //  2. calls Register to mount routes,
 //  3. collects Checks() if the module implements HealthChecker (they then
 //     appear in /readyz).
@@ -40,9 +42,11 @@ type HealthChecker interface {
 func (a *App) Mount(mods ...Module) error {
 	ctx := context.Background()
 	for _, m := range mods {
-		if mg, ok := m.(Migrator); ok {
-			if err := mg.Migrate(ctx); err != nil {
-				return fmt.Errorf("mount %s: migrate: %w", m.Name(), err)
+		if a.autoMigrate {
+			if mg, ok := m.(Migrator); ok {
+				if err := mg.Migrate(ctx); err != nil {
+					return fmt.Errorf("mount %s: migrate: %w", m.Name(), err)
+				}
 			}
 		}
 		if err := m.Register(a.App); err != nil {

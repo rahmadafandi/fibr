@@ -108,10 +108,19 @@ func AddModule(o AddModuleOptions, out io.Writer) error {
 		written = append(written, filepath.Join(o.Dir, s.dest))
 	}
 
+	migPath, err := renderMigration(md, o.Dir)
+	if err != nil {
+		for _, w := range written {
+			_ = os.Remove(w)
+		}
+		return fmt.Errorf("render migration: %w", err)
+	}
+
 	importLine, mountLine := mountHint(layout, modulePath, md)
 	fmt.Fprintf(out, "added module %q (%s).\n\n", md.Pkg, layout)
 	fmt.Fprintf(out, "Wire it in cmd/api/main.go:\n")
 	fmt.Fprintf(out, "  1. ensure this import is present in the import block:\n%s\n", importLine)
-	fmt.Fprintf(out, "  2. after bootstrap.New(...), add:\n    if err := %s; err != nil {\n        log.Fatal(err)\n    }\n", mountLine)
+	fmt.Fprintf(out, "  2. inside runServe in cmd/api/main.go, after bootstrap.New(...), add:\n       if err := %s; err != nil {\n           return err\n       }\n", mountLine)
+	fmt.Fprintf(out, "  3. run \"go run ./cmd/api migrate up\" to apply the new migration (%s)\n", filepath.Base(migPath))
 	return nil
 }

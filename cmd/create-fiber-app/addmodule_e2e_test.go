@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -38,6 +39,42 @@ func patchMainForModule(t *testing.T, dir, layout, typeName string) {
 	}
 	src = strings.Replace(src, anchor, mount+anchor, 1)
 	require.NoError(t, os.WriteFile(mainPath, []byte(src), 0o644))
+}
+
+func TestMigrateRunsE2E(t *testing.T) {
+	if os.Getenv("RUN_E2E") != "1" {
+		t.Skip("set RUN_E2E=1 to run the migrate runtime test (slow: go run)")
+	}
+	root := repoRoot(t)
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "ddd", Sample: true,
+		Dir: dir, NoGit: true, NoTidy: false, Local: root,
+	}, &strings.Builder{}))
+
+	dbPath := filepath.Join(t.TempDir(), "e2e.db")
+	env := append(os.Environ(), "DATABASE_URL=file:"+dbPath+"?cache=shared")
+
+	runApp := func(args ...string) (string, error) {
+		cmd := exec.Command("go", append([]string{"run", "./cmd/api"}, args...)...)
+		cmd.Dir = dir
+		cmd.Env = env
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+
+	out, err := runApp("migrate", "up")
+	require.NoError(t, err, "migrate up failed:\n%s", out)
+	assert.Contains(t, out, "migrated")
+
+	out, err = runApp("migrate", "up")
+	require.NoError(t, err, "second migrate up failed:\n%s", out)
+	assert.Contains(t, out, "no new migrations")
+
+	out, err = runApp("migrate", "status")
+	require.NoError(t, err, "migrate status failed:\n%s", out)
+	assert.Contains(t, out, "applied")
 }
 
 func TestAddModuleE2ECompiles(t *testing.T) {

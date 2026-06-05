@@ -1,0 +1,22 @@
+package migrations
+
+import (
+	"context"
+
+	"github.com/uptrace/bun"
+)
+
+func init() {
+	type {{.Pkg}} struct {
+		bun.BaseModel `bun:"table:{{.Plural}}"`
+		ID            int64  `bun:"id,pk,autoincrement"`
+		Name          string `bun:"name"`
+	}
+	Migrations.MustRegister(func(ctx context.Context, db *bun.DB) error {
+		_, err := db.NewCreateTable().Model((*{{.Pkg}})(nil)).Exec(ctx)
+		return err
+	}, func(ctx context.Context, db *bun.DB) error {
+		_, err := db.NewDropTable().Model((*{{.Pkg}})(nil)).IfExists().Exec(ctx)
+		return err
+	})
+}

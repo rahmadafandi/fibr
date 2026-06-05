@@ -38,7 +38,7 @@ func (m *fakeModule) Checks() []health.NamedCheck {
 }
 
 func TestMountRegistersAndMigrates(t *testing.T) {
-	app := New(Options{})
+	app := New(Options{AutoMigrate: true})
 	m := &fakeModule{name: "widget"}
 	require.NoError(t, app.Mount(m))
 	assert.True(t, m.migrated, "Migrate should be called")
@@ -59,11 +59,23 @@ func TestMountChecksReachReadyz(t *testing.T) {
 }
 
 func TestMountMigrateErrorWrapped(t *testing.T) {
-	app := New(Options{})
+	app := New(Options{AutoMigrate: true})
 	err := app.Mount(&fakeModule{name: "broke", migrateErr: assert.AnError})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "broke")
 	assert.ErrorIs(t, err, assert.AnError)
+}
+
+func TestMountSkipsMigrateWhenDisabled(t *testing.T) {
+	app := New(Options{}) // AutoMigrate defaults false
+	m := &fakeModule{name: "widget"}
+	require.NoError(t, app.Mount(m))
+	assert.False(t, m.migrated, "Migrate must NOT run when AutoMigrate is false")
+	assert.True(t, m.registered, "Register must still run")
+
+	resp, err := app.Test(httptest.NewRequest("GET", "/widget", nil))
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
 }
 
 func TestMountRegisterErrorWrapped(t *testing.T) {

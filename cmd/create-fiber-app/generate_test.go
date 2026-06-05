@@ -48,6 +48,7 @@ func TestGenerateCommonFiles(t *testing.T) {
 	assert.Contains(t, string(gomod), "module github.com/me/app")
 	env, _ := os.ReadFile(filepath.Join(target, ".env.example"))
 	assert.Contains(t, string(env), "postgres://")
+	assert.Contains(t, string(env), "AUTO_MIGRATE=false")
 	compose, _ := os.ReadFile(filepath.Join(target, "docker-compose.yml"))
 	assert.Contains(t, string(compose), "postgres:16")
 }
@@ -92,7 +93,9 @@ func assertFileContains(t *testing.T, path, want string) {
 func TestGenerateDDDNoSample(t *testing.T) {
 	dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "postgres", Layout: "ddd"})
 	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "bootstrap.New")
-	assertFileContains(t, filepath.Join(dir, "internal/infrastructure/config/config.go"), "func Load")
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "migrate.NewCommand")
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), `Use:   "serve"`)
+	assertFileContains(t, filepath.Join(dir, "internal/infrastructure/config/config.go"), "AutoMigrate")
 	assertFileContains(t, filepath.Join(dir, "internal/interface/http/router.go"), "func Register")
 	_, err := os.Stat(filepath.Join(dir, "internal/domain/user/user.go"))
 	assert.True(t, os.IsNotExist(err))
@@ -110,8 +113,9 @@ func TestGenerateDDDSample(t *testing.T) {
 
 func TestGenerateLayeredNoSample(t *testing.T) {
 	dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "postgres", Layout: "layered"})
-	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "router.Register")
-	assertFileContains(t, filepath.Join(dir, "internal/config/config.go"), "func Load")
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "migrate.NewCommand")
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), `Use:   "serve"`)
+	assertFileContains(t, filepath.Join(dir, "internal/config/config.go"), "AutoMigrate")
 	assertFileContains(t, filepath.Join(dir, "internal/router/router.go"), "func Register")
 	_, err := os.Stat(filepath.Join(dir, "internal/model/user.go"))
 	assert.True(t, os.IsNotExist(err))
@@ -132,6 +136,26 @@ func repoRoot(t *testing.T) string {
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 	return filepath.Clean(filepath.Join(wd, "..", ".."))
+}
+
+func globOne(t *testing.T, pattern string) string {
+	t.Helper()
+	matches, err := filepath.Glob(pattern)
+	require.NoError(t, err)
+	require.Len(t, matches, 1, "expected exactly one match for %s, got %v", pattern, matches)
+	return matches[0]
+}
+
+func TestGenerateAlwaysHasMigrationsPkg(t *testing.T) {
+	dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "sqlite", Layout: "ddd"})
+	assertFileContains(t, filepath.Join(dir, "internal/migrations/migrations.go"), "var Migrations = migrate.NewMigrations")
+}
+
+func TestGenerateSampleEmitsUserMigration(t *testing.T) {
+	dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "sqlite", Layout: "ddd", Sample: true})
+	m := globOne(t, filepath.Join(dir, "internal/migrations/*_create_users.go"))
+	assertFileContains(t, m, "Migrations.MustRegister")
+	assertFileContains(t, m, `bun:"table:users"`)
 }
 
 func TestMatrixCompiles(t *testing.T) {

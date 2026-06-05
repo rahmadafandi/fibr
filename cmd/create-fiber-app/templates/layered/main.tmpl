@@ -1,31 +1,62 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
-	"{{.Module}}/internal/config"
-	"{{.Module}}/internal/router"
-{{if .Sample}}	"{{.Module}}/internal/handler"
-{{end}}
 	"github.com/rahmadafandi/fiber-helpers/bootstrap"
 	fhdatabase "github.com/rahmadafandi/fiber-helpers/database"
 	"github.com/rahmadafandi/fiber-helpers/health"
-)
+	fhmigrate "github.com/rahmadafandi/fiber-helpers/migrate"
+	"github.com/spf13/cobra"
+	"github.com/uptrace/bun"
+
+	"{{.Module}}/internal/config"
+	"{{.Module}}/internal/migrations"
+	"{{.Module}}/internal/router"
+{{if .Sample}}	"{{.Module}}/internal/handler"
+{{end}})
 
 func main() {
-	cfg, err := config.Load()
-	if err != nil {
+	root := &cobra.Command{
+		Use:          "{{.Name}}",
+		Short:        "{{.Name}} server",
+		Long:         "Run without a subcommand (or with \"serve\") to start the HTTP server. Use \"migrate\" for database migrations.",
+		SilenceUsage: true,
+	}
+	root.RunE = func(cmd *cobra.Command, args []string) error { return runServe(false) }
+	root.AddCommand(serveCmd())
+	root.AddCommand(fhmigrate.NewCommand(openDB, migrations.Migrations))
+	if err := root.Execute(); err != nil {
 		log.Fatal(err)
 	}
+}
 
+func serveCmd() *cobra.Command {
+	var autoMigrate bool
+	cmd := &cobra.Command{
+		Use:   "serve",
+		Short: "run the HTTP server",
+		RunE:  func(cmd *cobra.Command, args []string) error { return runServe(autoMigrate) },
+	}
+	cmd.Flags().BoolVar(&autoMigrate, "auto-migrate", false, "create tables at startup (dev)")
+	return cmd
+}
+
+func runServe(autoMigrate bool) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
 	db, err := fhdatabase.NewBun(cfg.DatabaseURL)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	app := bootstrap.New(bootstrap.Options{
 		DB:           db,
+		AutoMigrate:  cfg.AutoMigrate || autoMigrate,
 		EnableCORS:   true,
 		RateLimit:    100,
 		HealthChecks: []health.NamedCheck{health.PingBun(db)},
@@ -34,9 +65,17 @@ func main() {
 	// app.App is the embedded *fiber.App; app.Mount (below) is bootstrap.App's module-aware method.
 	router.Register(app.App)
 {{if .Sample}}	if err := app.Mount(handler.NewUserModule(db)); err != nil {
-		log.Fatal(err)
+		return err
 	}
 {{end}}
 	fmt.Printf("listening on :%s\n", cfg.Port)
-	log.Fatal(app.Run(":" + cfg.Port))
+	return app.Run(":" + cfg.Port)
+}
+
+func openDB(ctx context.Context) (*bun.DB, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, err
+	}
+	return fhdatabase.NewBun(cfg.DatabaseURL)
 }
