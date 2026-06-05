@@ -11,7 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 )
+
+// now is the clock used for migration version stamps; overridable in tests.
+var now = time.Now
 
 // Data is the render context passed to every template.
 type Data struct {
@@ -40,6 +44,7 @@ func plan(d Data) []fileSpec {
 		{"common/compose.tmpl", "docker-compose.yml"},
 		{"common/makefile.tmpl", "Makefile"},
 		{"common/readme.tmpl", "README.md"},
+		{"common/migrations.tmpl", "internal/migrations/migrations.go"},
 	}
 	switch d.Layout {
 	case "ddd":
@@ -93,6 +98,10 @@ func Generate(o Options, out io.Writer) error {
 				return fmt.Errorf("render %s: %w", fsp.tmpl, err)
 			}
 		}
+		if _, err := renderMigration(md, o.Dir); err != nil {
+			_ = os.RemoveAll(o.Dir)
+			return fmt.Errorf("render migration: %w", err)
+		}
 	}
 
 	if !o.NoTidy {
@@ -111,6 +120,19 @@ func Generate(o Options, out io.Writer) error {
 
 	fmt.Fprintf(out, "created %s (%s, %s)\n", o.Dir, o.Layout, o.DB)
 	return nil
+}
+
+// renderMigration writes a timestamped create-table migration for md into root.
+func renderMigration(md ModuleData, root string) (string, error) {
+	dest := filepath.Join("internal", "migrations",
+		now().UTC().Format("20060102150405")+"_create_"+md.Plural+".go")
+	if _, err := os.Stat(filepath.Join(root, dest)); err == nil {
+		return "", fmt.Errorf("migration %s already exists (same-second collision; retry in a moment)", dest)
+	}
+	if err := renderFile(fileSpec{"migration/create_table.tmpl", dest}, md, root); err != nil {
+		return "", err
+	}
+	return dest, nil
 }
 
 func renderFile(fsp fileSpec, data any, root string) error {

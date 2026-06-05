@@ -134,6 +134,26 @@ func repoRoot(t *testing.T) string {
 	return filepath.Clean(filepath.Join(wd, "..", ".."))
 }
 
+func globOne(t *testing.T, pattern string) string {
+	t.Helper()
+	matches, err := filepath.Glob(pattern)
+	require.NoError(t, err)
+	require.Len(t, matches, 1, "expected exactly one match for %s, got %v", pattern, matches)
+	return matches[0]
+}
+
+func TestGenerateAlwaysHasMigrationsPkg(t *testing.T) {
+	dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "sqlite", Layout: "ddd"})
+	assertFileContains(t, filepath.Join(dir, "internal/migrations/migrations.go"), "var Migrations = migrate.NewMigrations")
+}
+
+func TestGenerateSampleEmitsUserMigration(t *testing.T) {
+	dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "sqlite", Layout: "ddd", Sample: true})
+	m := globOne(t, filepath.Join(dir, "internal/migrations/*_create_users.go"))
+	assertFileContains(t, m, "Migrations.MustRegister")
+	assertFileContains(t, m, `bun:"table:users"`)
+}
+
 func TestMatrixCompiles(t *testing.T) {
 	if os.Getenv("RUN_E2E") != "1" {
 		t.Skip("set RUN_E2E=1 to run the matrix compile test (slow: runs go build x8)")
