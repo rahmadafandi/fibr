@@ -29,7 +29,8 @@ type fileSpec struct {
 	dest string // path relative to the output directory
 }
 
-// plan returns the list of templates to render for the given options.
+// plan returns the skeleton templates to render for the given options. Sample
+// module files are rendered separately by Generate via planModule.
 func plan(d Data) []fileSpec {
 	specs := []fileSpec{
 		{"common/gomod.tmpl", "go.mod"},
@@ -48,29 +49,12 @@ func plan(d Data) []fileSpec {
 			fileSpec{"ddd/database.tmpl", "internal/infrastructure/database/database.go"},
 			fileSpec{"ddd/router.tmpl", "internal/interface/http/router.go"},
 		)
-		if d.Sample {
-			specs = append(specs,
-				fileSpec{"ddd/domain_user.tmpl", "internal/domain/user/user.go"},
-				fileSpec{"ddd/domain_repository.tmpl", "internal/domain/user/repository.go"},
-				fileSpec{"ddd/application_service.tmpl", "internal/application/user/service.go"},
-				fileSpec{"ddd/persistence_repository.tmpl", "internal/infrastructure/persistence/user_repository_bun.go"},
-				fileSpec{"ddd/user_handler.tmpl", "internal/interface/http/user_handler.go"},
-			)
-		}
 	case "layered":
 		specs = append(specs,
 			fileSpec{"layered/main.tmpl", "cmd/api/main.go"},
 			fileSpec{"layered/config.tmpl", "internal/config/config.go"},
 			fileSpec{"layered/router.tmpl", "internal/router/router.go"},
 		)
-		if d.Sample {
-			specs = append(specs,
-				fileSpec{"layered/model.tmpl", "internal/model/user.go"},
-				fileSpec{"layered/repository.tmpl", "internal/repository/user_repo.go"},
-				fileSpec{"layered/service.tmpl", "internal/service/user_service.go"},
-				fileSpec{"layered/handler.tmpl", "internal/handler/user_handler.go"},
-			)
-		}
 	}
 	return specs
 }
@@ -95,6 +79,22 @@ func Generate(o Options, out io.Writer) error {
 		}
 	}
 
+	if o.Sample {
+		md, err := deriveModuleNames("user")
+		if err != nil {
+			_ = os.RemoveAll(o.Dir)
+			return err
+		}
+		md.Module = o.Module
+		md.Layout = o.Layout
+		for _, fsp := range planModule(md) {
+			if err := renderFile(fsp, md, o.Dir); err != nil {
+				_ = os.RemoveAll(o.Dir)
+				return fmt.Errorf("render %s: %w", fsp.tmpl, err)
+			}
+		}
+	}
+
 	if !o.NoTidy {
 		if o.Local == "" && o.HelpersVersion != "" {
 			if err := runCmd(out, o.Dir, "go", "get", "github.com/rahmadafandi/fiber-helpers@"+o.HelpersVersion); err != nil {
@@ -113,7 +113,7 @@ func Generate(o Options, out io.Writer) error {
 	return nil
 }
 
-func renderFile(fsp fileSpec, d Data, root string) error {
+func renderFile(fsp fileSpec, data any, root string) error {
 	raw, err := templatesFS.ReadFile("templates/" + fsp.tmpl)
 	if err != nil {
 		return err
@@ -123,7 +123,7 @@ func renderFile(fsp fileSpec, d Data, root string) error {
 		return err
 	}
 	var buf strings.Builder
-	if err := tmpl.Execute(&buf, d); err != nil {
+	if err := tmpl.Execute(&buf, data); err != nil {
 		return err
 	}
 

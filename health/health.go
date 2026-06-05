@@ -45,14 +45,31 @@ func Register(app *fiber.App, checks ...NamedCheck) {
 	RegisterAt(app, defaultLivez, defaultReadyz, checks...)
 }
 
-// RegisterAt mounts liveness and readiness endpoints at custom paths.
+// RegisterAt mounts liveness and readiness endpoints at custom paths. The checks
+// are captured at call time and do not change after registration; use
+// RegisterProvider for checks that change at runtime.
 func RegisterAt(app *fiber.App, livez, readyz string, checks ...NamedCheck) {
+	RegisterProviderAt(app, livez, readyz, func() []NamedCheck { return checks })
+}
+
+// RegisterProvider mounts /livez and /readyz, resolving the readiness checks via
+// provider on EACH request. This lets checks added after registration (e.g. by
+// modules mounted later) be included without re-registering the route.
+func RegisterProvider(app *fiber.App, provider func() []NamedCheck) {
+	RegisterProviderAt(app, defaultLivez, defaultReadyz, provider)
+}
+
+// RegisterProviderAt mounts liveness and readiness endpoints at custom paths.
+// The livez handler always returns 200. The readyz handler calls provider() on
+// each request to obtain the current checks, runs them, and returns 200 when all
+// pass or 503 when any fails. provider may be called concurrently.
+func RegisterProviderAt(app *fiber.App, livez, readyz string, provider func() []NamedCheck) {
 	app.Get(livez, func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
 
 	app.Get(readyz, func(c *fiber.Ctx) error {
-		ok, detail := runChecks(c.UserContext(), checks)
+		ok, detail := runChecks(c.UserContext(), provider())
 		status := "ok"
 		code := fiber.StatusOK
 		if !ok {

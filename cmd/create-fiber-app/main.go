@@ -10,10 +10,38 @@ import (
 )
 
 func main() {
-	if err := newRootCmd().Execute(); err != nil {
+	root := newRootCmd()
+	root.AddCommand(newAddCmd())
+	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
 	}
+}
+
+func newAddCmd() *cobra.Command {
+	add := &cobra.Command{
+		Use:   "add",
+		Short: "Add components to an existing generated project",
+	}
+	add.AddCommand(newAddModuleCmd())
+	return add
+}
+
+func newAddModuleCmd() *cobra.Command {
+	var dir, layout string
+	cmd := &cobra.Command{
+		Use:           "module <name>",
+		Short:         "Scaffold a new feature module (model, repo, service, handler, wiring)",
+		Args:          cobra.ExactArgs(1),
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return AddModule(AddModuleOptions{Name: args[0], Dir: dir, Layout: layout}, os.Stdout)
+		},
+	}
+	cmd.Flags().StringVar(&dir, "dir", ".", "project directory")
+	cmd.Flags().StringVar(&layout, "layout", "", "layout: ddd|layered (auto-detected if empty)")
+	return cmd
 }
 
 func newRootCmd() *cobra.Command {

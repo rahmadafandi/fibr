@@ -81,6 +81,31 @@ func TestRegisterAtCustomPaths(t *testing.T) {
 	assert.Equal(t, 200, code)
 }
 
+func TestRegisterProviderLiveChecks(t *testing.T) {
+	app := fiber.New()
+	checks := []NamedCheck{}
+	// NOTE: closing over a local slice is fine here because the test is
+	// single-goroutine. Real callers whose checks change at runtime must make
+	// the provider safe for concurrent use — /readyz may call it from many
+	// request goroutines at once.
+	RegisterProvider(app, func() []NamedCheck { return checks })
+
+	// No checks yet -> ok.
+	code, body := doGet(t, app, "/readyz")
+	assert.Equal(t, 200, code)
+	assert.Equal(t, "ok", body["status"])
+
+	// Add a failing check AFTER registration -> reflected live.
+	checks = append(checks, Check("late", func(ctx context.Context) error { return assert.AnError }))
+	code, body = doGet(t, app, "/readyz")
+	assert.Equal(t, 503, code)
+	assert.Equal(t, "error", body["status"])
+
+	// /livez still works.
+	code, _ = doGet(t, app, "/livez")
+	assert.Equal(t, 200, code)
+}
+
 func TestReadyzTimesOutSlowCheck(t *testing.T) {
 	old := defaultCheckTimeout
 	defaultCheckTimeout = 100 * time.Millisecond

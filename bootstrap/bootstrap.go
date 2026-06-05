@@ -4,6 +4,7 @@ package bootstrap
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -21,6 +22,8 @@ type App struct {
 	*fiber.App
 	cleanup         []func(ctx context.Context) error
 	shutdownTimeout time.Duration
+	mu              sync.Mutex
+	healthChecks    []health.NamedCheck
 }
 
 // Options configures the bootstrapped app. All fields are optional.
@@ -53,11 +56,13 @@ func New(o Options) *App {
 	f.Use(middleware.ContextMiddleware(o.RequestTimeout))
 	f.Use(middleware.RequestLogger(o.Logger))
 
+	app := &App{App: f, shutdownTimeout: o.ShutdownTimeout}
+	app.healthChecks = append(app.healthChecks, o.HealthChecks...)
+
 	// Register health endpoints BEFORE rate limiting / CORS so liveness and
-	// readiness probes are never throttled.
-	if len(o.HealthChecks) > 0 {
-		health.Register(f, o.HealthChecks...)
-	}
+	// readiness probes are never throttled. Use a provider so checks added
+	// later by Mount are included live.
+	health.RegisterProvider(f, app.snapshotChecks)
 
 	if o.EnableCORS {
 		f.Use(cors.New())
@@ -65,8 +70,6 @@ func New(o Options) *App {
 	if o.RateLimit > 0 {
 		f.Use(limiter.New(limiter.Config{Max: o.RateLimit, Expiration: time.Minute}))
 	}
-
-	app := &App{App: f, shutdownTimeout: o.ShutdownTimeout}
 
 	if o.DB != nil {
 		db := o.DB
@@ -76,6 +79,16 @@ func New(o Options) *App {
 	}
 
 	return app
+}
+
+// snapshotChecks returns a copy of the current readiness checks, safe to read
+// concurrently with Mount appending.
+func (a *App) snapshotChecks() []health.NamedCheck {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	out := make([]health.NamedCheck, len(a.healthChecks))
+	copy(out, a.healthChecks)
+	return out
 }
 
 // Run starts the app and blocks until shutdown, then runs cleanup hooks.

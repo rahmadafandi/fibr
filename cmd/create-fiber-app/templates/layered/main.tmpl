@@ -7,8 +7,6 @@ import (
 	"{{.Module}}/internal/config"
 	"{{.Module}}/internal/router"
 {{if .Sample}}	"{{.Module}}/internal/handler"
-	"{{.Module}}/internal/repository"
-	"{{.Module}}/internal/service"
 {{end}}
 	"github.com/rahmadafandi/fiber-helpers/bootstrap"
 	fhdatabase "github.com/rahmadafandi/fiber-helpers/database"
@@ -33,14 +31,11 @@ func main() {
 		HealthChecks: []health.NamedCheck{health.PingBun(db)},
 	})
 
-{{if .Sample}}	if err := repository.AutoMigrate(db); err != nil {
+	// app.App is the embedded *fiber.App; app.Mount (below) is bootstrap.App's module-aware method.
+	router.Register(app.App)
+{{if .Sample}}	if err := app.Mount(handler.NewUserModule(db)); err != nil {
 		log.Fatal(err)
 	}
-	userRepo := repository.NewUserRepository(db)
-	userSvc := service.NewUserService(userRepo)
-	userHandler := handler.NewUserHandler(userSvc)
-	router.Register(app, userHandler)
-{{else}}	router.Register(app)
 {{end}}
 	fmt.Printf("listening on :%s\n", cfg.Port)
 	log.Fatal(app.Run(":" + cfg.Port))

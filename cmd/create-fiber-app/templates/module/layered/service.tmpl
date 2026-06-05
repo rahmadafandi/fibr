@@ -1,0 +1,30 @@
+package service
+
+import (
+	"context"
+
+	"{{.Module}}/internal/model"
+	"{{.Module}}/internal/repository"
+)
+
+// {{.Type}}Service holds {{.Pkg}} business logic.
+type {{.Type}}Service struct {
+	repo *repository.{{.Type}}Repository
+}
+
+// New{{.Type}}Service creates a {{.Type}}Service.
+func New{{.Type}}Service(repo *repository.{{.Type}}Repository) *{{.Type}}Service {
+	return &{{.Type}}Service{repo: repo}
+}
+
+func (s *{{.Type}}Service) List(ctx context.Context) ([]model.{{.Type}}, error) {
+	return s.repo.List(ctx)
+}
+
+func (s *{{.Type}}Service) Get(ctx context.Context, id int64) (*model.{{.Type}}, error) {
+	return s.repo.Get(ctx, id)
+}
+
+func (s *{{.Type}}Service) Create(ctx context.Context, e *model.{{.Type}}) error {
+	return s.repo.Create(ctx, e)
+}

@@ -402,6 +402,33 @@ app.Get("/", handler)
 log.Fatal(app.Run(":3000")) // graceful shutdown + db.Close handled
 ```
 
+### Modules
+
+A `Module` is a self-contained feature that registers its own routes. Mount it
+in one line; it can optionally migrate its tables and report health.
+
+```go
+type Module interface {
+    Name() string
+    Register(r fiber.Router) error
+}
+// optional, detected via type assertion:
+type Migrator      interface{ Migrate(ctx context.Context) error }
+type HealthChecker interface{ Checks() []health.NamedCheck }
+
+app := bootstrap.New(bootstrap.Options{DB: db})
+if err := app.Mount(user.NewUserModule(db), product.NewProductModule(db)); err != nil {
+    log.Fatal(err)
+}
+```
+
+`Mount` runs each module's `Migrate` (if implemented), registers its routes, and
+adds its `Checks()` to `/readyz`.
+
+> Note: `*bootstrap.App.Mount` is the module-aware method and shadows Fiber's
+> `Mount`. Where a `fiber.Router` is needed (e.g. passing the app to a route
+> registrar), use the embedded `app.App`.
+
 ## License
 
 [MIT](LICENSE) © 2026 Rahmad Afandi
