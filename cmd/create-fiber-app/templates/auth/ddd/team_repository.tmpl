@@ -2,11 +2,20 @@ package team
 
 import "context"
 
-// Repository is the team/membership persistence port.
+// Repository is the team/membership/role persistence port.
 type Repository interface {
 	CreateTeam(ctx context.Context, t *Team) error
 	CreateMembership(ctx context.Context, m *Membership) error
 	TeamsForAccount(ctx context.Context, accountID int64) ([]Team, error)
 	FindMembership(ctx context.Context, accountID, teamID int64) (*Membership, error)
 	FirstMembership(ctx context.Context, accountID int64) (*Membership, error)
+	UpdateMembershipRole(ctx context.Context, accountID, teamID int64, role string) error
+	CountMembersWithRole(ctx context.Context, teamID int64, name string) (int, error)
+
+	CreateRole(ctx context.Context, role *Role) error
+	RolesForTeam(ctx context.Context, teamID int64) ([]Role, error)
+	FindRole(ctx context.Context, teamID int64, name string) (*Role, error)
+	SetRolePermissions(ctx context.Context, roleID int64, perms []string) error
+	DeleteRole(ctx context.Context, roleID int64) error
+	PermissionsForRole(ctx context.Context, teamID int64, name string) ([]string, error)
 }

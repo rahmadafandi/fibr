@@ -15,3 +15,11 @@ type Membership struct {
 	TeamID    int64  `json:"team_id"`
 	Role      string `json:"role"`
 }
+
+// Role is a named, team-scoped set of permissions.
+type Role struct {
+	ID          int64    `json:"id"`
+	TeamID      int64    `json:"team_id"`
+	Name        string   `json:"name"`
+	Permissions []string `json:"permissions"`
+}
