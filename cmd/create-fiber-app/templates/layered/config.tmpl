@@ -9,6 +9,7 @@ type Config struct {
 	LogLevel    string `mapstructure:"LOG_LEVEL" default:"info"`
 	AutoMigrate bool   `mapstructure:"AUTO_MIGRATE" default:"false"`
 {{if .Auth}}	JWTSecret string `mapstructure:"JWT_SECRET" required:"true"`
+	RedisURL  string `mapstructure:"REDIS_URL"`
 {{end}}}
 
 // Load reads configuration from environment variables and defaults.

@@ -189,12 +189,96 @@ func TestAuthFlowE2E(t *testing.T) {
 
 	code, body := postJSON(t, base+"/auth/login", `{"email":"a@b.com","password":"secret123"}`, "")
 	require.Equal(t, 200, code)
-	token := extractToken(t, body)
+	token := dataField(t, body, "access_token")
 	require.NotEmpty(t, token)
 
 	assert.Equal(t, 200, getCode(t, base+"/auth/me", token))
 	assert.Equal(t, 401, getCode(t, base+"/auth/me", ""))
 	assert.Equal(t, 403, getCode(t, base+"/auth/admin", token))
+}
+
+func TestAuthRefreshFlowE2E(t *testing.T) {
+	if os.Getenv("RUN_E2E") != "1" {
+		t.Skip("set RUN_E2E=1 to run the auth refresh runtime test (slow: go run)")
+	}
+	root := repoRoot(t)
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "ddd", Auth: true,
+		Dir: dir, NoGit: true, NoTidy: false, Local: root,
+	}, &strings.Builder{}))
+
+	dbPath := filepath.Join(t.TempDir(), "refresh.db")
+	port := "39518"
+	env := append(os.Environ(),
+		"DATABASE_URL=file:"+dbPath+"?cache=shared",
+		"PORT="+port,
+		"JWT_SECRET="+strings.Repeat("b", 64),
+	)
+
+	mig := exec.Command("go", "run", "./cmd/api", "migrate", "up")
+	mig.Dir, mig.Env = dir, env
+	if out, err := mig.CombinedOutput(); err != nil {
+		t.Fatalf("migrate up failed:\n%s", out)
+	}
+
+	srv := exec.Command("go", "run", "./cmd/api")
+	srv.Dir, srv.Env = dir, env
+	srv.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	require.NoError(t, srv.Start())
+	defer func() { _ = syscall.Kill(-srv.Process.Pid, syscall.SIGKILL) }()
+
+	base := "http://127.0.0.1:" + port
+	waitReady(t, base+"/livez")
+
+	// register
+	code, _ := postJSON(t, base+"/auth/register", `{"email":"r@b.com","password":"secret123"}`, "")
+	require.Equal(t, 201, code)
+
+	// login -> access + refresh pair
+	code, body := postJSON(t, base+"/auth/login", `{"email":"r@b.com","password":"secret123"}`, "")
+	require.Equal(t, 200, code)
+	access := dataField(t, body, "access_token")
+	refresh := dataField(t, body, "refresh_token")
+	require.NotEmpty(t, access)
+	require.NotEmpty(t, refresh)
+
+	// /me works with access token
+	require.Equal(t, 200, getCode(t, base+"/auth/me", access))
+
+	// refresh -> new pair
+	code, body = postJSON(t, base+"/auth/refresh", `{"refresh_token":"`+refresh+`"}`, "")
+	require.Equal(t, 200, code)
+	newRefresh := dataField(t, body, "refresh_token")
+	newAccess := dataField(t, body, "access_token")
+	require.NotEmpty(t, newRefresh)
+	require.NotEmpty(t, newAccess)
+	require.NotEqual(t, refresh, newRefresh)
+	require.NotEqual(t, access, newAccess)
+
+	// old refresh now rejected; reuse kills the family so the new one dies too
+	code, _ = postJSON(t, base+"/auth/refresh", `{"refresh_token":"`+refresh+`"}`, "")
+	require.Equal(t, 401, code)
+	code, _ = postJSON(t, base+"/auth/refresh", `{"refresh_token":"`+newRefresh+`"}`, "")
+	require.Equal(t, 401, code)
+
+	// fresh login, then logout blocklists the access token
+	code, body = postJSON(t, base+"/auth/login", `{"email":"r@b.com","password":"secret123"}`, "")
+	require.Equal(t, 200, code)
+	access2 := dataField(t, body, "access_token")
+	refresh2 := dataField(t, body, "refresh_token")
+	require.Equal(t, 200, getCode(t, base+"/auth/me", access2))
+
+	code, _ = postJSON(t, base+"/auth/logout", `{"refresh_token":"`+refresh2+`"}`, access2)
+	require.Equal(t, 200, code)
+
+	// access2 now blocklisted -> /me 401
+	require.Equal(t, 401, getCode(t, base+"/auth/me", access2))
+
+	// logout also revoked the refresh family -> refresh2 is dead
+	code, _ = postJSON(t, base+"/auth/refresh", `{"refresh_token":"`+refresh2+`"}`, "")
+	require.Equal(t, 401, code)
 }
 
 func waitReady(t *testing.T, url string) {
@@ -240,13 +324,13 @@ func getCode(t *testing.T, url, bearer string) int {
 	return resp.StatusCode
 }
 
-func extractToken(t *testing.T, body string) string {
+func dataField(t *testing.T, body, field string) string {
 	t.Helper()
 	var parsed struct {
-		Data struct {
-			Token string `json:"token"`
-		} `json:"data"`
+		Data map[string]any `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(body), &parsed))
-	return parsed.Data.Token
+	s, ok := parsed.Data[field].(string)
+	require.Truef(t, ok, "field %q missing or not a string in body: %s", field, body)
+	return s
 }
