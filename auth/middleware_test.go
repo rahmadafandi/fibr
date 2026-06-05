@@ -14,11 +14,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testSecret = "test-secret"
+const middlewareTestSecret = "test-secret"
 
 func mintToken(t *testing.T, claims jwt.MapClaims, ttl time.Duration) string {
 	t.Helper()
-	tok, err := jwt.GenerateTokenWithExpiry(claims, testSecret, ttl)
+	tok, err := jwt.GenerateTokenWithExpiry(claims, middlewareTestSecret, ttl)
 	require.NoError(t, err)
 	return tok
 }
@@ -48,7 +48,7 @@ func doBody(t *testing.T, app *fiber.App, method, path, bearer string) (int, str
 
 func TestRequireAuth(t *testing.T) {
 	app := fiber.New()
-	app.Get("/p", RequireAuth(testSecret), func(c *fiber.Ctx) error {
+	app.Get("/p", RequireAuth(middlewareTestSecret), func(c *fiber.Ctx) error {
 		return c.SendString(Subject(c))
 	})
 
@@ -65,7 +65,7 @@ func TestRequireAuth(t *testing.T) {
 
 func TestOptional(t *testing.T) {
 	app := fiber.New()
-	app.Get("/o", Optional(testSecret), func(c *fiber.Ctx) error {
+	app.Get("/o", Optional(middlewareTestSecret), func(c *fiber.Ctx) error {
 		if _, ok := Claims(c); ok {
 			return c.SendString("authed")
 		}
@@ -81,7 +81,7 @@ func TestOptional(t *testing.T) {
 
 func TestRequireScope(t *testing.T) {
 	app := fiber.New()
-	app.Get("/admin", RequireAuth(testSecret), RequireScope("admin"), func(c *fiber.Ctx) error {
+	app.Get("/admin", RequireAuth(middlewareTestSecret), RequireScope("admin"), func(c *fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 	tok := mintToken(t, jwt.MapClaims{"sub": "u1", "scopes": []string{"user", "admin"}}, time.Hour)
@@ -105,7 +105,7 @@ func TestScopesNormalization(t *testing.T) {
 
 func TestHasScopeAfterRoundTrip(t *testing.T) {
 	app := fiber.New()
-	app.Get("/r", RequireAuth(testSecret), func(c *fiber.Ctx) error {
+	app.Get("/r", RequireAuth(middlewareTestSecret), func(c *fiber.Ctx) error {
 		assert.True(t, HasScope(c, "admin"))
 		assert.False(t, HasScope(c, "nope"))
 		return c.SendString("ok")
