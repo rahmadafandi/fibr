@@ -68,6 +68,7 @@ func newRootCmd() *cobra.Command {
 	f.StringVar(&o.Layout, "layout", "ddd", "project layout: ddd|layered")
 	f.BoolVar(&o.Sample, "sample", false, "include a sample CRUD domain")
 	f.BoolVar(&o.Auth, "auth", false, "include auth scaffold (JWT + accounts)")
+	f.BoolVar(&o.Team, "auth-with-team", false, "include teams/workspaces scaffold (implies --auth)")
 	f.StringVar(&o.Dir, "dir", "", "output directory (default ./<name>)")
 	f.BoolVar(&o.NoGit, "no-git", false, "skip git init")
 	f.BoolVar(&o.NoTidy, "no-tidy", false, "skip go mod tidy")
