@@ -192,10 +192,10 @@ func TestGenerateAuthDDD(t *testing.T) {
 	assertFileContains(t, filepath.Join(dir, "internal/application/account/service.go"), "func (s *Service) Register")
 	assertFileContains(t, filepath.Join(dir, "internal/infrastructure/persistence/account_repository_bun.go"), "func NewAccountRepository")
 	assertFileContains(t, filepath.Join(dir, "internal/interface/http/auth_handler.go"), "/auth")
-	assertFileContains(t, filepath.Join(dir, "internal/interface/http/auth_module.go"), "func NewAuthModule(db *bun.DB, secret string) bootstrap.Module")
+	assertFileContains(t, filepath.Join(dir, "internal/interface/http/auth_module.go"), "func NewAuthModule(db *bun.DB, secret string, store auth.TokenStore) bootstrap.Module")
 	m := globOne(t, filepath.Join(dir, "internal/migrations/*_create_accounts.go"))
 	assertFileContains(t, m, `bun:"table:accounts"`)
-	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "httpiface.NewAuthModule(db, cfg.JWTSecret)")
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "httpiface.NewAuthModule(db, cfg.JWTSecret, authStore)")
 }
 
 func TestGenerateAuthLayered(t *testing.T) {
@@ -204,10 +204,10 @@ func TestGenerateAuthLayered(t *testing.T) {
 	assertFileContains(t, filepath.Join(dir, "internal/repository/account_repo.go"), "func NewAccountRepository")
 	assertFileContains(t, filepath.Join(dir, "internal/service/auth_service.go"), "func (s *AuthService) Register")
 	assertFileContains(t, filepath.Join(dir, "internal/handler/auth_handler.go"), "/auth")
-	assertFileContains(t, filepath.Join(dir, "internal/handler/auth_module.go"), "func NewAuthModule(db *bun.DB, secret string) bootstrap.Module")
+	assertFileContains(t, filepath.Join(dir, "internal/handler/auth_module.go"), "func NewAuthModule(db *bun.DB, secret string, store auth.TokenStore) bootstrap.Module")
 	m := globOne(t, filepath.Join(dir, "internal/migrations/*_create_accounts.go"))
 	assertFileContains(t, m, `bun:"table:accounts"`)
-	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "handler.NewAuthModule(db, cfg.JWTSecret)")
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "handler.NewAuthModule(db, cfg.JWTSecret, authStore)")
 }
 
 func TestGenerateAuthAndSampleCoexist(t *testing.T) {
@@ -231,7 +231,7 @@ func TestGenerateAuthAndSampleCoexistLayered(t *testing.T) {
 	_ = globOne(t, filepath.Join(dir, "internal/migrations/*_create_accounts.go"))
 	// main mounts both
 	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "handler.NewUserModule(db)")
-	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "handler.NewAuthModule(db, cfg.JWTSecret)")
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "handler.NewAuthModule(db, cfg.JWTSecret, authStore)")
 }
 
 func TestMatrixCompiles(t *testing.T) {
@@ -262,4 +262,43 @@ func TestMatrixCompiles(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestAuthScaffoldRefreshArtifacts(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "ddd", Auth: true,
+		Dir: dir, NoGit: true, NoTidy: true, Local: repoRoot(t),
+	}, &strings.Builder{}))
+
+	read := func(rel string) string {
+		b, err := os.ReadFile(filepath.Join(dir, rel))
+		require.NoError(t, err)
+		return string(b)
+	}
+
+	handler := read("internal/interface/http/auth_handler.go")
+	require.Contains(t, handler, `g.Post("/refresh", h.refresh)`)
+	require.Contains(t, handler, `g.Post("/logout"`)
+	require.Contains(t, handler, "auth.WithBlocklist(h.store)")
+	require.Contains(t, handler, "h.issuer.Issue(")
+	require.Contains(t, handler, "h.issuer.Refresh(")
+	require.Contains(t, handler, "h.issuer.Logout(")
+
+	module := read("internal/interface/http/auth_module.go")
+	require.Contains(t, module, "store auth.TokenStore")
+
+	cfg := read("internal/infrastructure/config/config.go")
+	require.Contains(t, cfg, "RedisURL")
+	require.Contains(t, cfg, `mapstructure:"REDIS_URL"`)
+	require.NotContains(t, cfg, `mapstructure:"REDIS_URL" required`)
+
+	mainGo := read("cmd/api/main.go")
+	require.Contains(t, mainGo, "NewMemoryStore()")
+	require.Contains(t, mainGo, "NewRedisStore(")
+	require.Contains(t, mainGo, "NewAuthModule(db, cfg.JWTSecret, authStore)")
+
+	env := read(".env.example")
+	require.Contains(t, env, "# REDIS_URL=redis://localhost:6379/0")
 }
