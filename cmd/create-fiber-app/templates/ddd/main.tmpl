@@ -10,7 +10,11 @@ import (
 	fhmigrate "github.com/rahmadafandi/fiber-helpers/migrate"
 	"github.com/spf13/cobra"
 	"github.com/uptrace/bun"
-
+{{if .Auth}}	fhauth "github.com/rahmadafandi/fiber-helpers/auth"
+	fhredis "github.com/rahmadafandi/fiber-helpers/redis"
+	redislib "github.com/redis/go-redis/v9"
+	zlog "github.com/rs/zerolog/log"
+{{end}}
 	"{{.Module}}/internal/infrastructure/config"
 	"{{.Module}}/internal/infrastructure/database"
 	httpiface "{{.Module}}/internal/interface/http"
@@ -66,7 +70,18 @@ func runServe(autoMigrate bool) error {
 {{if .Sample}}	if err := app.Mount(httpiface.NewUserModule(db)); err != nil {
 		return err
 	}
-{{end}}{{if .Auth}}	if err := app.Mount(httpiface.NewAuthModule(db, cfg.JWTSecret)); err != nil {
+{{end}}{{if .Auth}}	var authStore fhauth.TokenStore
+	if cfg.RedisURL != "" {
+		opt, err := fhredis.ParseRedisOptions(cfg.RedisURL)
+		if err != nil {
+			return err
+		}
+		authStore = fhauth.NewRedisStore(fhredis.New(redislib.NewClient(opt)))
+	} else {
+		zlog.Warn().Msg("auth revocation using in-memory store — set REDIS_URL for production")
+		authStore = fhauth.NewMemoryStore()
+	}
+	if err := app.Mount(httpiface.NewAuthModule(db, cfg.JWTSecret, authStore)); err != nil {
 		return err
 	}
 {{end}}

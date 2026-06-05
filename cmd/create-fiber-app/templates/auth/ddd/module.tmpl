@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/rahmadafandi/fiber-helpers/auth"
 	"github.com/rahmadafandi/fiber-helpers/bootstrap"
 	"github.com/uptrace/bun"
 
@@ -18,10 +19,10 @@ type AuthModule struct {
 }
 
 // NewAuthModule builds the auth module. Pass the result to app.Mount.
-func NewAuthModule(db *bun.DB, secret string) bootstrap.Module {
+func NewAuthModule(db *bun.DB, secret string, store auth.TokenStore) bootstrap.Module {
 	repo := persistence.NewAccountRepository(db)
 	svc := appaccount.NewService(repo)
-	return &AuthModule{db: db, handler: NewAuthHandler(svc, secret)}
+	return &AuthModule{db: db, handler: NewAuthHandler(svc, secret, store)}
 }
 
 // Name identifies the module.
