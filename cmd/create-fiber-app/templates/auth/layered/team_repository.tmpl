@@ -7,7 +7,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// TeamRepository is the Bun-backed team/membership store.
+// TeamRepository is the Bun-backed team/membership/role store.
 type TeamRepository struct {
 	db *bun.DB
 }
@@ -17,8 +17,8 @@ func NewTeamRepository(db *bun.DB) *TeamRepository {
 	return &TeamRepository{db: db}
 }
 
-// MigrateTeam creates the teams and memberships tables (and the membership
-// unique index) if they do not exist.
+// MigrateTeam creates the teams, memberships, roles, and role_permissions tables
+// (and their unique indexes) if they do not exist.
 func MigrateTeam(ctx context.Context, db *bun.DB) error {
 	if _, err := db.NewCreateTable().Model((*model.Team)(nil)).IfNotExists().Exec(ctx); err != nil {
 		return err
@@ -26,9 +26,25 @@ func MigrateTeam(ctx context.Context, db *bun.DB) error {
 	if _, err := db.NewCreateTable().Model((*model.Membership)(nil)).IfNotExists().Exec(ctx); err != nil {
 		return err
 	}
-	_, err := db.NewCreateIndex().Model((*model.Membership)(nil)).
+	if _, err := db.NewCreateIndex().Model((*model.Membership)(nil)).
 		IfNotExists().Index("memberships_account_team_uq").Unique().
-		Column("account_id", "team_id").Exec(ctx)
+		Column("account_id", "team_id").Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := db.NewCreateTable().Model((*model.RoleModel)(nil)).IfNotExists().Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := db.NewCreateIndex().Model((*model.RoleModel)(nil)).
+		IfNotExists().Index("roles_team_name_uq").Unique().
+		Column("team_id", "name").Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := db.NewCreateTable().Model((*model.RolePermission)(nil)).IfNotExists().Exec(ctx); err != nil {
+		return err
+	}
+	_, err := db.NewCreateIndex().Model((*model.RolePermission)(nil)).
+		IfNotExists().Index("role_permissions_role_perm_uq").Unique().
+		Column("role_id", "permission").Exec(ctx)
 	return err
 }
 
@@ -75,4 +91,109 @@ func (r *TeamRepository) FirstMembership(ctx context.Context, accountID int64) (
 		return nil, err
 	}
 	return m, nil
+}
+
+// UpdateMembershipRole changes an account's role in a team.
+func (r *TeamRepository) UpdateMembershipRole(ctx context.Context, accountID, teamID int64, role string) error {
+	_, err := r.db.NewUpdate().Model((*model.Membership)(nil)).
+		Set("role = ?", role).
+		Where("account_id = ?", accountID).Where("team_id = ?", teamID).Exec(ctx)
+	return err
+}
+
+// CountMembersWithRole counts memberships in a team holding the named role.
+func (r *TeamRepository) CountMembersWithRole(ctx context.Context, teamID int64, name string) (int, error) {
+	return r.db.NewSelect().Model((*model.Membership)(nil)).
+		Where("team_id = ?", teamID).Where("role = ?", name).Count(ctx)
+}
+
+func (r *TeamRepository) permsForRoleID(ctx context.Context, roleID int64) ([]string, error) {
+	var perms []string
+	err := r.db.NewSelect().Model((*model.RolePermission)(nil)).
+		Column("permission").Where("role_id = ?", roleID).Order("permission ASC").Scan(ctx, &perms)
+	if err != nil {
+		return nil, err
+	}
+	return perms, nil
+}
+
+func (r *TeamRepository) insertPerms(ctx context.Context, roleID int64, perms []string) error {
+	for _, p := range perms {
+		if _, err := r.db.NewInsert().Model(&model.RolePermission{RoleID: roleID, Permission: p}).Exec(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// CreateRole inserts a role and its permissions.
+func (r *TeamRepository) CreateRole(ctx context.Context, role *model.Role) error {
+	rm := &model.RoleModel{TeamID: role.TeamID, Name: role.Name}
+	if _, err := r.db.NewInsert().Model(rm).Exec(ctx); err != nil {
+		return err
+	}
+	role.ID = rm.ID
+	return r.insertPerms(ctx, rm.ID, role.Permissions)
+}
+
+// RolesForTeam returns the team's roles with their permissions.
+func (r *TeamRepository) RolesForTeam(ctx context.Context, teamID int64) ([]model.Role, error) {
+	var rows []model.RoleModel
+	if err := r.db.NewSelect().Model(&rows).Where("team_id = ?", teamID).Order("id ASC").Scan(ctx); err != nil {
+		return nil, err
+	}
+	out := make([]model.Role, len(rows))
+	for i, rm := range rows {
+		perms, err := r.permsForRoleID(ctx, rm.ID)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = model.Role{ID: rm.ID, TeamID: rm.TeamID, Name: rm.Name, Permissions: perms}
+	}
+	return out, nil
+}
+
+// FindRole returns a team's role by name, or an error if absent.
+func (r *TeamRepository) FindRole(ctx context.Context, teamID int64, name string) (*model.Role, error) {
+	rm := new(model.RoleModel)
+	if err := r.db.NewSelect().Model(rm).Where("team_id = ?", teamID).Where("name = ?", name).Scan(ctx); err != nil {
+		return nil, err
+	}
+	perms, err := r.permsForRoleID(ctx, rm.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &model.Role{ID: rm.ID, TeamID: rm.TeamID, Name: rm.Name, Permissions: perms}, nil
+}
+
+// SetRolePermissions replaces a role's permissions.
+func (r *TeamRepository) SetRolePermissions(ctx context.Context, roleID int64, perms []string) error {
+	if _, err := r.db.NewDelete().Model((*model.RolePermission)(nil)).Where("role_id = ?", roleID).Exec(ctx); err != nil {
+		return err
+	}
+	return r.insertPerms(ctx, roleID, perms)
+}
+
+// DeleteRole removes a role and its permissions.
+func (r *TeamRepository) DeleteRole(ctx context.Context, roleID int64) error {
+	if _, err := r.db.NewDelete().Model((*model.RolePermission)(nil)).Where("role_id = ?", roleID).Exec(ctx); err != nil {
+		return err
+	}
+	_, err := r.db.NewDelete().Model((*model.RoleModel)(nil)).Where("id = ?", roleID).Exec(ctx)
+	return err
+}
+
+// PermissionsForRole returns the permission keys granted by a team's named role.
+func (r *TeamRepository) PermissionsForRole(ctx context.Context, teamID int64, name string) ([]string, error) {
+	var perms []string
+	err := r.db.NewSelect().Model((*model.RolePermission)(nil)).
+		Column("role_permission.permission").
+		Join("JOIN roles AS role ON role.id = role_permission.role_id").
+		Where("role.team_id = ?", teamID).Where("role.name = ?", name).
+		Order("role_permission.permission ASC").
+		Scan(ctx, &perms)
+	if err != nil {
+		return nil, err
+	}
+	return perms, nil
 }

@@ -19,3 +19,27 @@ type Membership struct {
 	TeamID        int64  `bun:"team_id" json:"team_id"`
 	Role          string `bun:"role" json:"role"`
 }
+
+// RoleModel is a team-scoped role row.
+type RoleModel struct {
+	bun.BaseModel `bun:"table:roles,alias:role" json:"-"`
+	ID            int64  `bun:"id,pk,autoincrement" json:"id"`
+	TeamID        int64  `bun:"team_id" json:"team_id"`
+	Name          string `bun:"name" json:"name"`
+}
+
+// RolePermission grants a permission to a role.
+type RolePermission struct {
+	bun.BaseModel `bun:"table:role_permissions,alias:role_permission" json:"-"`
+	ID            int64  `bun:"id,pk,autoincrement" json:"id"`
+	RoleID        int64  `bun:"role_id" json:"role_id"`
+	Permission    string `bun:"permission" json:"permission"`
+}
+
+// Role is the API view of a role with its permissions.
+type Role struct {
+	ID          int64    `json:"id"`
+	TeamID      int64    `json:"team_id"`
+	Name        string   `json:"name"`
+	Permissions []string `json:"permissions"`
+}
