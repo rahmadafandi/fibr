@@ -4,9 +4,12 @@ package auth
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
+	fhredis "github.com/rahmadafandi/fiber-helpers/redis"
+	redislib "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 
@@ -68,3 +71,42 @@ func TestMemoryStoreFamilyExpiry(t *testing.T) {
 
 // Compile-time assertion that MemoryStore satisfies TokenStore.
 var _ TokenStore = (*MemoryStore)(nil)
+
+func TestRedisStore(t *testing.T) {
+	url := os.Getenv("REDIS_URL")
+	if url == "" {
+		t.Skip("REDIS_URL not set; skipping RedisStore integration test")
+	}
+	opt, err := fhredis.ParseRedisOptions(url)
+	require.NoError(t, err)
+	r := fhredis.New(redislib.NewClient(opt))
+	ctx := context.Background()
+	require.NoError(t, r.Client.Ping(ctx).Err())
+
+	s := NewRedisStore(r, WithStorePrefix("test:auth:"))
+	t.Cleanup(func() {
+		_ = r.Client.Del(context.Background(), s.blockKey("jti-r1"), s.familyKey("fid-r1")).Err()
+	})
+
+	require.NoError(t, s.Block(ctx, "jti-r1", time.Minute))
+	blocked, err := s.IsBlocked(ctx, "jti-r1")
+	require.NoError(t, err)
+	require.True(t, blocked)
+
+	notBlocked, err := s.IsBlocked(ctx, "jti-absent")
+	require.NoError(t, err)
+	require.False(t, notBlocked)
+
+	require.NoError(t, s.SetFamily(ctx, "fid-r1", "jti-a", time.Minute))
+	jti, ok, err := s.Family(ctx, "fid-r1")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "jti-a", jti)
+
+	require.NoError(t, s.RevokeFamily(ctx, "fid-r1"))
+	_, ok, err = s.Family(ctx, "fid-r1")
+	require.NoError(t, err)
+	require.False(t, ok)
+}
+
+var _ TokenStore = (*RedisStore)(nil)
