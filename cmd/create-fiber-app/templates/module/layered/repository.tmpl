@@ -1,0 +1,43 @@
+package repository
+
+import (
+	"context"
+
+	"{{.Module}}/internal/model"
+	"github.com/uptrace/bun"
+)
+
+// {{.Type}}Repository is the Bun-backed {{.Pkg}} store.
+type {{.Type}}Repository struct {
+	db *bun.DB
+}
+
+// New{{.Type}}Repository creates a {{.Type}}Repository.
+func New{{.Type}}Repository(db *bun.DB) *{{.Type}}Repository {
+	return &{{.Type}}Repository{db: db}
+}
+
+// Migrate{{.Type}} creates the {{.Plural}} table if it does not exist.
+func Migrate{{.Type}}(ctx context.Context, db *bun.DB) error {
+	_, err := db.NewCreateTable().Model((*model.{{.Type}})(nil)).IfNotExists().Exec(ctx)
+	return err
+}
+
+func (r *{{.Type}}Repository) List(ctx context.Context) ([]model.{{.Type}}, error) {
+	var rows []model.{{.Type}}
+	err := r.db.NewSelect().Model(&rows).Scan(ctx)
+	return rows, err
+}
+
+func (r *{{.Type}}Repository) Get(ctx context.Context, id int64) (*model.{{.Type}}, error) {
+	e := new(model.{{.Type}})
+	if err := r.db.NewSelect().Model(e).Where("id = ?", id).Scan(ctx); err != nil {
+		return nil, err
+	}
+	return e, nil
+}
+
+func (r *{{.Type}}Repository) Create(ctx context.Context, e *model.{{.Type}}) error {
+	_, err := r.db.NewInsert().Model(e).Exec(ctx)
+	return err
+}

@@ -63,3 +63,27 @@ func TestRenderModuleDDDGofmtClean(t *testing.T) {
 	assertFileContains(t, dir+"/internal/interface/http/product_module.go", "func (m *ProductModule) Migrate(ctx context.Context) error")
 	assertFileContains(t, dir+"/internal/interface/http/product_handler.go", "/products")
 }
+
+func TestPlanModuleLayered(t *testing.T) {
+	md := ModuleData{Layout: "layered", Type: "Product", Pkg: "product", Plural: "products"}
+	var dests []string
+	for _, s := range planModule(md) {
+		dests = append(dests, s.dest)
+	}
+	assert.Contains(t, dests, "internal/model/product.go")
+	assert.Contains(t, dests, "internal/repository/product_repo.go")
+	assert.Contains(t, dests, "internal/service/product_service.go")
+	assert.Contains(t, dests, "internal/handler/product_handler.go")
+	assert.Contains(t, dests, "internal/handler/product_module.go")
+}
+
+func TestRenderModuleLayeredGofmtClean(t *testing.T) {
+	dir := t.TempDir()
+	md := ModuleData{Module: "github.com/me/app", Layout: "layered", Type: "Product", Pkg: "product", Plural: "products"}
+	for _, s := range planModule(md) {
+		require.NoError(t, renderFile(s, md, dir))
+	}
+	assertFileContains(t, dir+"/internal/handler/product_module.go", "func NewProductModule(db *bun.DB) bootstrap.Module")
+	assertFileContains(t, dir+"/internal/handler/product_handler.go", "/products")
+	assertFileContains(t, dir+"/internal/repository/product_repo.go", "func MigrateProduct(ctx context.Context, db *bun.DB) error")
+}
