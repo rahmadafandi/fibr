@@ -3,11 +3,16 @@
 package main
 
 import (
+	"encoding/json"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -108,4 +113,140 @@ func TestAddModuleE2ECompiles(t *testing.T) {
 			require.NoError(t, err, "go build failed:\n%s", out)
 		})
 	}
+}
+
+func TestAuthCompilesE2E(t *testing.T) {
+	if os.Getenv("RUN_E2E") != "1" {
+		t.Skip("set RUN_E2E=1 to run the auth compile test (slow: go build)")
+	}
+	root := repoRoot(t)
+	cases := []struct {
+		layout string
+		sample bool
+	}{
+		{"ddd", false},
+		{"layered", false},
+		{"ddd", true},
+		{"layered", true},
+	}
+	for _, tc := range cases {
+		name := tc.layout
+		if tc.sample {
+			name += "-sample"
+		}
+		t.Run(name, func(t *testing.T) {
+			dir := filepath.Join(t.TempDir(), "app")
+			require.NoError(t, Generate(Options{
+				Name: "app", Module: "example.com/app",
+				DB: "sqlite", Layout: tc.layout, Auth: true, Sample: tc.sample,
+				Dir: dir, NoGit: true, NoTidy: false, Local: root,
+			}, &strings.Builder{}))
+			build := exec.Command("go", "build", "./...")
+			build.Dir = dir
+			out, err := build.CombinedOutput()
+			require.NoError(t, err, "go build failed:\n%s", out)
+		})
+	}
+}
+
+func TestAuthFlowE2E(t *testing.T) {
+	if os.Getenv("RUN_E2E") != "1" {
+		t.Skip("set RUN_E2E=1 to run the auth runtime test (slow: go run)")
+	}
+	root := repoRoot(t)
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "ddd", Auth: true,
+		Dir: dir, NoGit: true, NoTidy: false, Local: root,
+	}, &strings.Builder{}))
+
+	dbPath := filepath.Join(t.TempDir(), "auth.db")
+	port := "39517"
+	env := append(os.Environ(),
+		"DATABASE_URL=file:"+dbPath+"?cache=shared",
+		"PORT="+port,
+		"JWT_SECRET="+strings.Repeat("a", 64),
+	)
+
+	mig := exec.Command("go", "run", "./cmd/api", "migrate", "up")
+	mig.Dir, mig.Env = dir, env
+	if out, err := mig.CombinedOutput(); err != nil {
+		t.Fatalf("migrate up failed:\n%s", out)
+	}
+
+	srv := exec.Command("go", "run", "./cmd/api")
+	srv.Dir, srv.Env = dir, env
+	srv.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	require.NoError(t, srv.Start())
+	defer func() { _ = syscall.Kill(-srv.Process.Pid, syscall.SIGKILL) }()
+
+	base := "http://127.0.0.1:" + port
+	waitReady(t, base+"/livez")
+
+	code, _ := postJSON(t, base+"/auth/register", `{"email":"a@b.com","password":"secret123"}`, "")
+	require.Equal(t, 201, code)
+
+	code, body := postJSON(t, base+"/auth/login", `{"email":"a@b.com","password":"secret123"}`, "")
+	require.Equal(t, 200, code)
+	token := extractToken(t, body)
+	require.NotEmpty(t, token)
+
+	assert.Equal(t, 200, getCode(t, base+"/auth/me", token))
+	assert.Equal(t, 401, getCode(t, base+"/auth/me", ""))
+	assert.Equal(t, 403, getCode(t, base+"/auth/admin", token))
+}
+
+func waitReady(t *testing.T, url string) {
+	t.Helper()
+	for i := 0; i < 100; i++ {
+		resp, err := http.Get(url) //nolint:noctx
+		if err == nil {
+			_ = resp.Body.Close()
+			if resp.StatusCode == 200 {
+				return
+			}
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	t.Fatalf("server did not become ready at %s", url)
+}
+
+func postJSON(t *testing.T, url, body, bearer string) (int, string) {
+	t.Helper()
+	req, err := http.NewRequest("POST", url, strings.NewReader(body))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	if bearer != "" {
+		req.Header.Set("Authorization", "Bearer "+bearer)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(resp.Body)
+	return resp.StatusCode, string(b)
+}
+
+func getCode(t *testing.T, url, bearer string) int {
+	t.Helper()
+	req, err := http.NewRequest("GET", url, nil)
+	require.NoError(t, err)
+	if bearer != "" {
+		req.Header.Set("Authorization", "Bearer "+bearer)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	return resp.StatusCode
+}
+
+func extractToken(t *testing.T, body string) string {
+	t.Helper()
+	var parsed struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(body), &parsed))
+	return parsed.Data.Token
 }

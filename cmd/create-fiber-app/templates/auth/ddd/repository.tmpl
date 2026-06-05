@@ -1,0 +1,9 @@
+package account
+
+import "context"
+
+// Repository is the account persistence port.
+type Repository interface {
+	Create(ctx context.Context, a *Account) error
+	FindByEmail(ctx context.Context, email string) (*Account, error)
+}

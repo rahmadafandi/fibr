@@ -3,6 +3,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"go/format"
 	"io"
@@ -24,8 +26,19 @@ type Data struct {
 	DB             string
 	Layout         string
 	Sample         bool
+	Auth           bool
+	JWTSecret      string
 	HelpersVersion string
 	LocalReplace   string
+}
+
+// randHex returns a hex string of n random bytes.
+func randHex(n int) (string, error) {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }
 
 type fileSpec struct {
@@ -77,6 +90,15 @@ func Generate(o Options, out io.Writer) error {
 		Sample: o.Sample, HelpersVersion: o.HelpersVersion, LocalReplace: o.Local,
 	}
 
+	if o.Auth {
+		secret, err := randHex(32)
+		if err != nil {
+			return err
+		}
+		d.Auth = true
+		d.JWTSecret = secret
+	}
+
 	for _, fsp := range plan(d) {
 		if err := renderFile(fsp, d, o.Dir); err != nil {
 			_ = os.RemoveAll(o.Dir)
@@ -104,6 +126,19 @@ func Generate(o Options, out io.Writer) error {
 		}
 	}
 
+	if o.Auth {
+		for _, fsp := range planAuth(d) {
+			if err := renderFile(fsp, d, o.Dir); err != nil {
+				_ = os.RemoveAll(o.Dir)
+				return fmt.Errorf("render %s: %w", fsp.tmpl, err)
+			}
+		}
+		if _, err := renderAuthMigration(o.Dir); err != nil {
+			_ = os.RemoveAll(o.Dir)
+			return fmt.Errorf("render auth migration: %w", err)
+		}
+	}
+
 	if !o.NoTidy {
 		if o.Local == "" && o.HelpersVersion != "" {
 			if err := runCmd(out, o.Dir, "go", "get", "github.com/rahmadafandi/fiber-helpers@"+o.HelpersVersion); err != nil {
@@ -120,6 +155,43 @@ func Generate(o Options, out io.Writer) error {
 
 	fmt.Fprintf(out, "created %s (%s, %s)\n", o.Dir, o.Layout, o.DB)
 	return nil
+}
+
+// planAuth returns the auth scaffold template->dest specs for the layout.
+func planAuth(d Data) []fileSpec {
+	switch d.Layout {
+	case "ddd":
+		return []fileSpec{
+			{"auth/ddd/account.tmpl", "internal/domain/account/account.go"},
+			{"auth/ddd/repository.tmpl", "internal/domain/account/repository.go"},
+			{"auth/ddd/service.tmpl", "internal/application/account/service.go"},
+			{"auth/ddd/persistence.tmpl", "internal/infrastructure/persistence/account_repository_bun.go"},
+			{"auth/ddd/handler.tmpl", "internal/interface/http/auth_handler.go"},
+			{"auth/ddd/module.tmpl", "internal/interface/http/auth_module.go"},
+		}
+	case "layered":
+		return []fileSpec{
+			{"auth/layered/model.tmpl", "internal/model/account.go"},
+			{"auth/layered/repository.tmpl", "internal/repository/account_repo.go"},
+			{"auth/layered/service.tmpl", "internal/service/auth_service.go"},
+			{"auth/layered/handler.tmpl", "internal/handler/auth_handler.go"},
+			{"auth/layered/module.tmpl", "internal/handler/auth_module.go"},
+		}
+	}
+	return nil
+}
+
+// renderAuthMigration writes the timestamped accounts migration.
+func renderAuthMigration(root string) (string, error) {
+	dest := filepath.Join("internal", "migrations",
+		now().UTC().Format("20060102150405")+"_create_accounts.go")
+	if _, err := os.Stat(filepath.Join(root, dest)); err == nil {
+		return "", fmt.Errorf("migration %s already exists (same-second collision; retry in a moment)", dest)
+	}
+	if err := renderFile(fileSpec{"auth/migration_accounts.tmpl", dest}, nil, root); err != nil {
+		return "", err
+	}
+	return dest, nil
 }
 
 // renderMigration writes a timestamped create-table migration for md into root.

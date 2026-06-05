@@ -1,0 +1,93 @@
+package handler
+
+import (
+	"errors"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/rahmadafandi/fiber-helpers/auth"
+	"github.com/rahmadafandi/fiber-helpers/jwt"
+	"github.com/rahmadafandi/fiber-helpers/response"
+	"{{.Module}}/internal/service"
+)
+
+const authAccessTTL = 24 * time.Hour
+
+// AuthHandler exposes the auth routes.
+type AuthHandler struct {
+	svc    *service.AuthService
+	secret string
+}
+
+// NewAuthHandler creates an AuthHandler.
+func NewAuthHandler(svc *service.AuthService, secret string) *AuthHandler {
+	return &AuthHandler{svc: svc, secret: secret}
+}
+
+type credentials struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+// RegisterRoutes mounts the /auth routes.
+func (h *AuthHandler) RegisterRoutes(r fiber.Router) {
+	g := r.Group("/auth")
+	g.Post("/register", h.register)
+	g.Post("/login", h.login)
+	g.Get("/me", auth.RequireAuth(h.secret), h.me)
+	g.Get("/admin", auth.RequireAuth(h.secret), auth.RequireScope("admin"), h.admin)
+}
+
+func (h *AuthHandler) register(c *fiber.Ctx) error {
+	var in credentials
+	if err := c.BodyParser(&in); err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	}
+	if in.Email == "" || in.Password == "" {
+		return response.SendError(c, nil, "email and password are required", fiber.StatusBadRequest)
+	}
+	a, err := h.svc.Register(c.UserContext(), in.Email, in.Password)
+	if err != nil {
+		if errors.Is(err, service.ErrEmailTaken) {
+			return response.SendError(c, nil, "email already registered", fiber.StatusConflict)
+		}
+		return response.SendError(c, nil, "could not create account", fiber.StatusInternalServerError)
+	}
+	return response.SendSuccess(c, fiber.Map{"id": a.ID, "email": a.Email, "scopes": strings.Split(a.Scopes, ",")}, "created", fiber.StatusCreated)
+}
+
+func (h *AuthHandler) login(c *fiber.Ctx) error {
+	var in credentials
+	if err := c.BodyParser(&in); err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	}
+	if in.Email == "" || in.Password == "" {
+		return response.SendError(c, nil, "email and password are required", fiber.StatusBadRequest)
+	}
+	a, err := h.svc.Authenticate(c.UserContext(), in.Email, in.Password)
+	if err != nil {
+		return response.SendError(c, nil, "invalid credentials", fiber.StatusUnauthorized)
+	}
+	token, err := jwt.GenerateTokenWithExpiry(jwt.MapClaims{
+		"sub":    strconv.FormatInt(a.ID, 10),
+		"email":  a.Email,
+		"scopes": strings.Split(a.Scopes, ","),
+	}, h.secret, authAccessTTL)
+	if err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusInternalServerError)
+	}
+	return response.SendSuccess(c, fiber.Map{"token": token}, "ok")
+}
+
+func (h *AuthHandler) me(c *fiber.Ctx) error {
+	return response.SendSuccess(c, fiber.Map{
+		"sub":    auth.Subject(c),
+		"scopes": auth.Scopes(c),
+	}, "ok")
+}
+
+func (h *AuthHandler) admin(c *fiber.Ctx) error {
+	return response.SendSuccess(c, fiber.Map{"ok": true}, "admin area")
+}

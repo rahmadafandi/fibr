@@ -1,0 +1,51 @@
+package persistence
+
+import (
+	"context"
+
+	domain "{{.Module}}/internal/domain/account"
+	"github.com/uptrace/bun"
+)
+
+type accountModel struct {
+	bun.BaseModel `bun:"table:accounts,alias:account"`
+	ID            int64  `bun:"id,pk,autoincrement"`
+	Email         string `bun:"email,unique"`
+	PasswordHash  string `bun:"password_hash"`
+	Scopes        string `bun:"scopes"`
+}
+
+// MigrateAccount creates the accounts table if it does not exist.
+func MigrateAccount(ctx context.Context, db *bun.DB) error {
+	_, err := db.NewCreateTable().Model((*accountModel)(nil)).IfNotExists().Exec(ctx)
+	return err
+}
+
+// AccountRepository implements domain/account.Repository with Bun.
+type AccountRepository struct {
+	db *bun.DB
+}
+
+// NewAccountRepository creates an AccountRepository.
+func NewAccountRepository(db *bun.DB) *AccountRepository {
+	return &AccountRepository{db: db}
+}
+
+// Create inserts a new account.
+func (r *AccountRepository) Create(ctx context.Context, a *domain.Account) error {
+	m := &accountModel{Email: a.Email, PasswordHash: a.PasswordHash, Scopes: a.Scopes}
+	if _, err := r.db.NewInsert().Model(m).Exec(ctx); err != nil {
+		return err
+	}
+	a.ID = m.ID
+	return nil
+}
+
+// FindByEmail returns the account with the given email.
+func (r *AccountRepository) FindByEmail(ctx context.Context, email string) (*domain.Account, error) {
+	m := new(accountModel)
+	if err := r.db.NewSelect().Model(m).Where("email = ?", email).Scan(ctx); err != nil {
+		return nil, err
+	}
+	return &domain.Account{ID: m.ID, Email: m.Email, PasswordHash: m.PasswordHash, Scopes: m.Scopes}, nil
+}

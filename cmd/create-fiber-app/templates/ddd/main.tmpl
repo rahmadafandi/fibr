@@ -66,6 +66,9 @@ func runServe(autoMigrate bool) error {
 {{if .Sample}}	if err := app.Mount(httpiface.NewUserModule(db)); err != nil {
 		return err
 	}
+{{end}}{{if .Auth}}	if err := app.Mount(httpiface.NewAuthModule(db, cfg.JWTSecret)); err != nil {
+		return err
+	}
 {{end}}
 	fmt.Printf("listening on :%s\n", cfg.Port)
 	return app.Run(":" + cfg.Port)

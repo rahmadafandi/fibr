@@ -15,7 +15,7 @@ import (
 	"{{.Module}}/internal/config"
 	"{{.Module}}/internal/migrations"
 	"{{.Module}}/internal/router"
-{{if .Sample}}	"{{.Module}}/internal/handler"
+{{if or .Sample .Auth}}	"{{.Module}}/internal/handler"
 {{end}})
 
 func main() {
@@ -65,6 +65,9 @@ func runServe(autoMigrate bool) error {
 	// app.App is the embedded *fiber.App; app.Mount (below) is bootstrap.App's module-aware method.
 	router.Register(app.App)
 {{if .Sample}}	if err := app.Mount(handler.NewUserModule(db)); err != nil {
+		return err
+	}
+{{end}}{{if .Auth}}	if err := app.Mount(handler.NewAuthModule(db, cfg.JWTSecret)); err != nil {
 		return err
 	}
 {{end}}

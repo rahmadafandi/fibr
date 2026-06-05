@@ -23,6 +23,7 @@ Run with no flags for an interactive wizard. Flags:
 | `--layout` | `ddd` | `ddd` or `layered` |
 | `--sample` | `false` | include a sample CRUD domain |
 | `--dir` | `./<name>` | output directory |
+| `--auth` | `false` | scaffold JWT auth (Account model, register/login/me routes) |
 | `--no-git` | `false` | skip `git init` |
 | `--no-tidy` | `false` | skip `go mod tidy` |
 | `--helpers-version` | `latest` | fiber-helpers version pinned in go.mod |
@@ -65,6 +66,15 @@ go run ./cmd/api migrate create x  # scaffold internal/migrations/<ts>_x.go
 tables at startup with `AUTO_MIGRATE=true ./app` (or `./app serve --auto-migrate`).
 Makefile targets: `make migrate-up`, `migrate-down`, `migrate-status`,
 `migrate-create name=add_foo`.
+
+## Auth
+
+`--auth` scaffolds JWT authentication: an `Account` model (email + bcrypt
+password + comma-separated scopes), an `accounts` migration, and `/auth` routes —
+`POST /auth/register`, `POST /auth/login` (returns a JWT), `GET /auth/me`
+(protected), and `GET /auth/admin` (requires the `admin` scope). A random
+`JWT_SECRET` is generated into `.env.example`; override it per environment. Works
+alongside `--sample` (accounts and the demo users table are independent).
 
 ## Note
 
