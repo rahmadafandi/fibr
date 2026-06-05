@@ -84,6 +84,10 @@ func TestRegisterAtCustomPaths(t *testing.T) {
 func TestRegisterProviderLiveChecks(t *testing.T) {
 	app := fiber.New()
 	checks := []NamedCheck{}
+	// NOTE: closing over a local slice is fine here because the test is
+	// single-goroutine. Real callers whose checks change at runtime must make
+	// the provider safe for concurrent use — /readyz may call it from many
+	// request goroutines at once.
 	RegisterProvider(app, func() []NamedCheck { return checks })
 
 	// No checks yet -> ok.
