@@ -106,7 +106,13 @@ func (h *AuthHandler) login(c *fiber.Ctx) error {
 	}
 	m, err := h.teams.DefaultMembership(c.UserContext(), a.ID)
 	if err != nil {
-		return response.SendError(c, nil, "no team for account", fiber.StatusInternalServerError)
+		// Self-heal: an account with no team (e.g. team creation failed at
+		// register) gets a personal team on first successful login.
+		t, cerr := h.teams.CreatePersonalTeam(c.UserContext(), a.ID, a.Email)
+		if cerr != nil {
+			return response.SendError(c, nil, "could not create team", fiber.StatusInternalServerError)
+		}
+		m = &teamdomain.Membership{AccountID: a.ID, TeamID: t.ID, Role: "owner"}
 	}
 	pair, err := h.issuer.Issue(c.UserContext(), teamClaims(strconv.FormatInt(a.ID, 10), a.Email, m))
 	if err != nil {
@@ -248,6 +254,8 @@ func (h *AuthHandler) addMember(c *fiber.Ctx) error {
 			return response.SendError(c, nil, "unknown role", fiber.StatusBadRequest)
 		case errors.Is(err, appteam.ErrAccountNotFound):
 			return response.SendError(c, nil, "account not found", fiber.StatusNotFound)
+		case errors.Is(err, appteam.ErrAlreadyMember):
+			return response.SendError(c, nil, "already a member", fiber.StatusConflict)
 		default:
 			return response.SendError(c, nil, "could not add member", fiber.StatusInternalServerError)
 		}

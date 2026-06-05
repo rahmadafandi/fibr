@@ -17,12 +17,18 @@ func NewTeamRepository(db *bun.DB) *TeamRepository {
 	return &TeamRepository{db: db}
 }
 
-// MigrateTeam creates the teams and memberships tables if they do not exist.
+// MigrateTeam creates the teams and memberships tables (and the membership
+// unique index) if they do not exist.
 func MigrateTeam(ctx context.Context, db *bun.DB) error {
 	if _, err := db.NewCreateTable().Model((*model.Team)(nil)).IfNotExists().Exec(ctx); err != nil {
 		return err
 	}
-	_, err := db.NewCreateTable().Model((*model.Membership)(nil)).IfNotExists().Exec(ctx)
+	if _, err := db.NewCreateTable().Model((*model.Membership)(nil)).IfNotExists().Exec(ctx); err != nil {
+		return err
+	}
+	_, err := db.NewCreateIndex().Model((*model.Membership)(nil)).
+		IfNotExists().Index("memberships_account_team_uq").Unique().
+		Column("account_id", "team_id").Exec(ctx)
 	return err
 }
 

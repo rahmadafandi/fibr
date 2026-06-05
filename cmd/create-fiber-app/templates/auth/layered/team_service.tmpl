@@ -16,6 +16,9 @@ var ErrUnknownRole = errors.New("unknown role")
 // ErrAccountNotFound is returned when adding a member whose email has no account.
 var ErrAccountNotFound = errors.New("account not found")
 
+// ErrAlreadyMember is returned when adding an account that is already a member.
+var ErrAlreadyMember = errors.New("already a member")
+
 // rolePermissions maps a team role to the permissions it grants. Edit freely.
 var rolePermissions = map[string][]string{
 	"owner":  {"team:manage", "member:manage", "post:read", "post:write"},
@@ -97,6 +100,9 @@ func (s *TeamService) AddMemberByEmail(ctx context.Context, teamID int64, email,
 	a, err := s.accounts.FindByEmail(ctx, email)
 	if err != nil || a == nil {
 		return nil, ErrAccountNotFound
+	}
+	if existing, _ := s.repo.FindMembership(ctx, a.ID, teamID); existing != nil {
+		return nil, ErrAlreadyMember
 	}
 	m := &model.Membership{AccountID: a.ID, TeamID: teamID, Role: role}
 	if err := s.repo.CreateMembership(ctx, m); err != nil {

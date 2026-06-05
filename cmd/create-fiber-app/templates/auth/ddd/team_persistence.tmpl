@@ -23,12 +23,18 @@ type membershipModel struct {
 	Role          string `bun:"role"`
 }
 
-// MigrateTeam creates the teams and memberships tables if they do not exist.
+// MigrateTeam creates the teams and memberships tables (and the membership
+// unique index) if they do not exist.
 func MigrateTeam(ctx context.Context, db *bun.DB) error {
 	if _, err := db.NewCreateTable().Model((*teamModel)(nil)).IfNotExists().Exec(ctx); err != nil {
 		return err
 	}
-	_, err := db.NewCreateTable().Model((*membershipModel)(nil)).IfNotExists().Exec(ctx)
+	if _, err := db.NewCreateTable().Model((*membershipModel)(nil)).IfNotExists().Exec(ctx); err != nil {
+		return err
+	}
+	_, err := db.NewCreateIndex().Model((*membershipModel)(nil)).
+		IfNotExists().Index("memberships_account_team_uq").Unique().
+		Column("account_id", "team_id").Exec(ctx)
 	return err
 }
 
