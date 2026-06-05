@@ -45,6 +45,7 @@ func TestPlanModuleDDD(t *testing.T) {
 	for _, s := range planModule(md) {
 		dests = append(dests, s.dest)
 	}
+	assert.Len(t, dests, 6)
 	assert.Contains(t, dests, "internal/domain/product/product.go")
 	assert.Contains(t, dests, "internal/domain/product/repository.go")
 	assert.Contains(t, dests, "internal/application/product/service.go")
@@ -70,6 +71,7 @@ func TestPlanModuleLayered(t *testing.T) {
 	for _, s := range planModule(md) {
 		dests = append(dests, s.dest)
 	}
+	assert.Len(t, dests, 5)
 	assert.Contains(t, dests, "internal/model/product.go")
 	assert.Contains(t, dests, "internal/repository/product_repo.go")
 	assert.Contains(t, dests, "internal/service/product_service.go")
