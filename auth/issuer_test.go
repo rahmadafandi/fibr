@@ -128,3 +128,28 @@ func TestIssuerRefreshReuseKillsFamily(t *testing.T) {
 	_, err = iss.Refresh(ctx, second.RefreshToken)
 	require.ErrorIs(t, err, ErrInvalidToken)
 }
+
+func TestIssuerLogout(t *testing.T) {
+	ctx := context.Background()
+	store := NewMemoryStore()
+	iss := NewIssuer(testSecret, store)
+
+	pair, err := iss.Issue(ctx, jwt.MapClaims{"sub": "3"})
+	require.NoError(t, err)
+
+	require.NoError(t, iss.Logout(ctx, pair.AccessToken, pair.RefreshToken))
+
+	ac := mustClaims(t, pair.AccessToken)
+	blocked, err := store.IsBlocked(ctx, ac["jti"].(string))
+	require.NoError(t, err)
+	require.True(t, blocked)
+
+	_, err = iss.Refresh(ctx, pair.RefreshToken)
+	require.ErrorIs(t, err, ErrInvalidToken)
+}
+
+func TestIssuerLogoutToleratesJunk(t *testing.T) {
+	iss := NewIssuer(testSecret, NewMemoryStore())
+	require.NoError(t, iss.Logout(context.Background(), "", ""))
+	require.NoError(t, iss.Logout(context.Background(), "garbage", "garbage"))
+}

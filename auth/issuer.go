@@ -201,6 +201,35 @@ func newID() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+// Logout revokes a session. It blocks the access token's jti until its
+// expiry and revokes the refresh token's family. Either argument may be empty;
+// malformed or invalid tokens are ignored so logout is best-effort and never
+// fails on junk input. It returns the first store error encountered, if any.
+func (i *Issuer) Logout(ctx context.Context, accessToken, refreshToken string) error {
+	var firstErr error
+	if accessToken != "" {
+		if claims, err := i.parseValid(accessToken); err == nil {
+			if jti, _ := claims["jti"].(string); jti != "" {
+				if rem := remainingTTL(claims); rem > 0 {
+					if e := i.store.Block(ctx, jti, rem); e != nil && firstErr == nil {
+						firstErr = e
+					}
+				}
+			}
+		}
+	}
+	if refreshToken != "" {
+		if claims, err := i.parseValid(refreshToken); err == nil {
+			if fid, _ := claims["fid"].(string); fid != "" {
+				if e := i.store.RevokeFamily(ctx, fid); e != nil && firstErr == nil {
+					firstErr = e
+				}
+			}
+		}
+	}
+	return firstErr
+}
+
 // remainingTTL derives the time until a token's "exp" claim from now (0 if
 // absent, unparseable, or already past).
 func remainingTTL(claims jwt.MapClaims) time.Duration {
