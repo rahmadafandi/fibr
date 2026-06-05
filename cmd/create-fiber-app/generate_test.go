@@ -198,6 +198,42 @@ func TestGenerateAuthDDD(t *testing.T) {
 	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "httpiface.NewAuthModule(db, cfg.JWTSecret)")
 }
 
+func TestGenerateAuthLayered(t *testing.T) {
+	dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "sqlite", Layout: "layered", Auth: true})
+	assertFileContains(t, filepath.Join(dir, "internal/model/account.go"), "type Account struct")
+	assertFileContains(t, filepath.Join(dir, "internal/repository/account_repo.go"), "func NewAccountRepository")
+	assertFileContains(t, filepath.Join(dir, "internal/service/auth_service.go"), "func (s *AuthService) Register")
+	assertFileContains(t, filepath.Join(dir, "internal/handler/auth_handler.go"), "/auth")
+	assertFileContains(t, filepath.Join(dir, "internal/handler/auth_module.go"), "func NewAuthModule(db *bun.DB, secret string) bootstrap.Module")
+	m := globOne(t, filepath.Join(dir, "internal/migrations/*_create_accounts.go"))
+	assertFileContains(t, m, `bun:"table:accounts"`)
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "handler.NewAuthModule(db, cfg.JWTSecret)")
+}
+
+func TestGenerateAuthAndSampleCoexist(t *testing.T) {
+	dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "sqlite", Layout: "ddd", Auth: true, Sample: true})
+	assertFileContains(t, filepath.Join(dir, "internal/domain/user/user.go"), "type User struct")
+	assertFileContains(t, filepath.Join(dir, "internal/domain/account/account.go"), "type Account struct")
+	_ = globOne(t, filepath.Join(dir, "internal/migrations/*_create_users.go"))
+	_ = globOne(t, filepath.Join(dir, "internal/migrations/*_create_accounts.go"))
+}
+
+func TestGenerateAuthAndSampleCoexistLayered(t *testing.T) {
+	dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "sqlite", Layout: "layered", Auth: true, Sample: true})
+	// sample user files
+	assertFileContains(t, filepath.Join(dir, "internal/model/user.go"), "type User struct")
+	assertFileContains(t, filepath.Join(dir, "internal/handler/user_module.go"), "func NewUserModule")
+	// auth account files (same packages, distinct names)
+	assertFileContains(t, filepath.Join(dir, "internal/model/account.go"), "type Account struct")
+	assertFileContains(t, filepath.Join(dir, "internal/handler/auth_module.go"), "func NewAuthModule")
+	// both migrations
+	_ = globOne(t, filepath.Join(dir, "internal/migrations/*_create_users.go"))
+	_ = globOne(t, filepath.Join(dir, "internal/migrations/*_create_accounts.go"))
+	// main mounts both
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "handler.NewUserModule(db)")
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "handler.NewAuthModule(db, cfg.JWTSecret)")
+}
+
 func TestMatrixCompiles(t *testing.T) {
 	if os.Getenv("RUN_E2E") != "1" {
 		t.Skip("set RUN_E2E=1 to run the matrix compile test (slow: runs go build x8)")

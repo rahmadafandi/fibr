@@ -1,0 +1,39 @@
+package repository
+
+import (
+	"context"
+
+	"{{.Module}}/internal/model"
+	"github.com/uptrace/bun"
+)
+
+// AccountRepository is the Bun-backed account store.
+type AccountRepository struct {
+	db *bun.DB
+}
+
+// NewAccountRepository creates an AccountRepository.
+func NewAccountRepository(db *bun.DB) *AccountRepository {
+	return &AccountRepository{db: db}
+}
+
+// MigrateAccount creates the accounts table if it does not exist.
+func MigrateAccount(ctx context.Context, db *bun.DB) error {
+	_, err := db.NewCreateTable().Model((*model.Account)(nil)).IfNotExists().Exec(ctx)
+	return err
+}
+
+// Create inserts a new account.
+func (r *AccountRepository) Create(ctx context.Context, a *model.Account) error {
+	_, err := r.db.NewInsert().Model(a).Exec(ctx)
+	return err
+}
+
+// FindByEmail returns the account with the given email.
+func (r *AccountRepository) FindByEmail(ctx context.Context, email string) (*model.Account, error) {
+	a := new(model.Account)
+	if err := r.db.NewSelect().Model(a).Where("email = ?", email).Scan(ctx); err != nil {
+		return nil, err
+	}
+	return a, nil
+}
