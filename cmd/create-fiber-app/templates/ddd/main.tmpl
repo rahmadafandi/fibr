@@ -7,9 +7,7 @@ import (
 	"{{.Module}}/internal/infrastructure/config"
 	"{{.Module}}/internal/infrastructure/database"
 	httpiface "{{.Module}}/internal/interface/http"
-{{if .Sample}}	appuser "{{.Module}}/internal/application/user"
-	"{{.Module}}/internal/infrastructure/persistence"
-{{end}}	"github.com/rahmadafandi/fiber-helpers/bootstrap"
+	"github.com/rahmadafandi/fiber-helpers/bootstrap"
 	"github.com/rahmadafandi/fiber-helpers/health"
 )
 
@@ -31,13 +29,10 @@ func main() {
 		HealthChecks: []health.NamedCheck{health.PingBun(db)},
 	})
 
-{{if .Sample}}	if err := persistence.AutoMigrate(db); err != nil {
+	httpiface.Register(app.App)
+{{if .Sample}}	if err := app.Mount(httpiface.NewUserModule(db)); err != nil {
 		log.Fatal(err)
 	}
-	userRepo := persistence.NewUserRepository(db)
-	userSvc := appuser.NewService(userRepo)
-	httpiface.Register(app, userSvc)
-{{else}}	httpiface.Register(app)
 {{end}}
 	fmt.Printf("listening on :%s\n", cfg.Port)
 	log.Fatal(app.Run(":" + cfg.Port))

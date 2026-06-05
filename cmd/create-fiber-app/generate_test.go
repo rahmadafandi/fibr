@@ -25,14 +25,13 @@ func TestPlanSelection(t *testing.T) {
 	assert.Contains(t, ddd, "cmd/api/main.go")
 	assert.Contains(t, ddd, "internal/infrastructure/config/config.go")
 	assert.Contains(t, ddd, "internal/interface/http/router.go")
+
+	// Sample files come from planModule now, not plan.
 	assert.NotContains(t, ddd, "internal/domain/user/user.go")
 
-	dddSample := dests(Data{Layout: "ddd", Sample: true})
-	assert.Contains(t, dddSample, "internal/domain/user/user.go")
-
-	layered := dests(Data{Layout: "layered", Sample: true})
+	layered := dests(Data{Layout: "layered", Sample: false})
 	assert.Contains(t, layered, "internal/config/config.go")
-	assert.Contains(t, layered, "internal/handler/user_handler.go")
+	assert.Contains(t, layered, "internal/router/router.go")
 }
 
 func TestGenerateCommonFiles(t *testing.T) {
@@ -104,7 +103,8 @@ func TestGenerateDDDSample(t *testing.T) {
 	assertFileContains(t, filepath.Join(dir, "internal/domain/user/repository.go"), "type Repository interface")
 	assertFileContains(t, filepath.Join(dir, "internal/infrastructure/persistence/user_repository_bun.go"), "func NewUserRepository")
 	assertFileContains(t, filepath.Join(dir, "internal/interface/http/user_handler.go"), "/users")
-	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "persistence.NewUserRepository")
+	assertFileContains(t, filepath.Join(dir, "internal/interface/http/user_module.go"), "func NewUserModule(db *bun.DB) bootstrap.Module")
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "app.Mount(httpiface.NewUserModule(db))")
 }
 
 func TestGenerateLayeredNoSample(t *testing.T) {
@@ -122,7 +122,8 @@ func TestGenerateLayeredSample(t *testing.T) {
 	assertFileContains(t, filepath.Join(dir, "internal/repository/user_repo.go"), "func NewUserRepository")
 	assertFileContains(t, filepath.Join(dir, "internal/service/user_service.go"), "func NewUserService")
 	assertFileContains(t, filepath.Join(dir, "internal/handler/user_handler.go"), "func NewUserHandler")
-	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "handler.NewUserHandler")
+	assertFileContains(t, filepath.Join(dir, "internal/handler/user_module.go"), "func NewUserModule(db *bun.DB) bootstrap.Module")
+	assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "app.Mount(handler.NewUserModule(db))")
 }
 
 func repoRoot(t *testing.T) string {
