@@ -42,8 +42,29 @@ The layout (`ddd`/`layered`) is auto-detected from the project; override with
 The command prints the `app.Mount(...)` line (and import) to paste into
 `cmd/api/main.go`. It refuses to overwrite existing module files.
 
+It also generates a `create table` migration in `internal/migrations/`; run
+`go run ./cmd/api migrate up` to apply it.
+
 Field note: scaffolded entities have `ID` and `Name`; rename/extend them for
 your domain. Pluralization for the table/route is naive (`product` → `products`).
+
+## Migrations
+
+Generated projects are a single binary. `./app` (or `go run ./cmd/api`) runs the
+server; migrations are subcommands:
+
+```bash
+go run ./cmd/api migrate up        # apply pending migrations
+go run ./cmd/api migrate down      # roll back the last group
+go run ./cmd/api migrate status    # show applied/pending
+go run ./cmd/api migrate create x  # scaffold internal/migrations/<ts>_x.go
+```
+
+`--sample` and `add module` generate a `create table` migration under
+`internal/migrations/`. For a fast dev loop you can skip migrations and create
+tables at startup with `AUTO_MIGRATE=true ./app` (or `./app serve --auto-migrate`).
+Makefile targets: `make migrate-up`, `migrate-down`, `migrate-status`,
+`migrate-create name=add_foo`.
 
 ## Note
 

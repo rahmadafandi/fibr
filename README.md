@@ -75,6 +75,7 @@ func main() {
 - [`middleware`](#middleware) — Recover, request logging, auth, and request-id middleware.
 - [`context`](#context) — Request context, request-id, and type-safe local accessors.
 - [`database`](#database) — Bun connector with Postgres/SQLite dialect auto-detection.
+- [`migrate`](#migrate) — Versioned migrations with `bun/migrate` and a ready cobra command.
 - [`health`](#health) — Liveness (`/livez`) and readiness (`/readyz`) endpoints.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
 - [`bootstrap`](#bootstrap) — One-call app wiring: middleware, health, DB, and graceful shutdown.
@@ -358,6 +359,25 @@ db, err := database.NewBun("postgres://localhost/app",
 )
 ```
 
+### `migrate`
+
+Versioned database migrations over `bun/migrate`. Declare a collection, register
+Go migrations, and run them from your app binary.
+
+```go
+// internal/migrations/migrations.go
+var Migrations = migrate.NewMigrations(migrate.WithMigrationsDirectory("internal/migrations"))
+
+// cmd/api/main.go
+root.AddCommand(migrate.NewCommand(openDB, migrations.Migrations))
+```
+
+`migrate.NewCommand` gives `up`, `down`, `status`, and `create <name>`
+subcommands. The core funcs `Up`/`Down`/`Status`/`Create` are also usable
+directly. Each migration file registers itself in `init()` via
+`Migrations.MustRegister(up, down)`; the version comes from the filename
+(`<timestamp>_<name>.go`).
+
 ### `health`
 
 Liveness (`/livez`) and readiness (`/readyz`) endpoints with concurrent checks.
@@ -422,8 +442,12 @@ if err := app.Mount(user.NewUserModule(db), product.NewProductModule(db)); err !
 }
 ```
 
-`Mount` runs each module's `Migrate` (if implemented), registers its routes, and
-adds its `Checks()` to `/readyz`.
+By default `Mount` does **not** create tables — use migrations
+(`migrate.NewCommand`). Set `bootstrap.Options{AutoMigrate: true}` (e.g. from an
+`AUTO_MIGRATE` env in dev) to have `Mount` run each module's `Migrate` at startup.
+
+`Mount` registers each module's routes and, when `AutoMigrate` is enabled, runs
+its `Migrate`. It also adds its `Checks()` to `/readyz`.
 
 > Note: `*bootstrap.App.Mount` is the module-aware method and shadows Fiber's
 > `Mount`. Where a `fiber.Router` is needed (e.g. passing the app to a route

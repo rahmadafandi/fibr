@@ -9,6 +9,12 @@ This project has not yet had a stable release; all changes are listed under **Un
 
 ### Added
 
+- `migrate` package: `bun/migrate` wrapper (`Up`/`Down`/`Status`/`Create`) plus a
+  ready cobra `NewCommand` (up/down/status/create).
+- Generated projects are now a single cobra binary with `serve` + `migrate`
+  subcommands and an `internal/migrations/` package; `--sample` and `add module`
+  emit `create table` migrations.
+- `bootstrap.Options.AutoMigrate` to run module `Migrate` at startup (dev).
 - `bootstrap.Module` interface and `App.Mount` for self-wiring feature modules,
   with optional `Migrator` and `HealthChecker` capabilities.
 - `health.RegisterProvider` / `RegisterProviderAt` for live readiness checks.
@@ -30,6 +36,9 @@ This project has not yet had a stable release; all changes are listed under **Un
 
 ### Changed
 
+- `bootstrap.App.Mount` runs a module's `Migrate` only when the app was built
+  with `AutoMigrate: true` (previously always). Schema is owned by migrations by
+  default.
 - `create-fiber-app --sample` now generates the sample `user` feature as a
   `bootstrap.Module` mounted via `app.Mount` (previously hand-wired in main.go).
 - **ORM migration**: GORM removed; Bun is now the ORM throughout the library. `parser` pagination scopes and `slug.Generate` (now `slug.Generate(ctx, db, table, text) (string, error)`) migrated accordingly.
