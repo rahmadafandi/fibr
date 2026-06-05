@@ -14,8 +14,7 @@ import (
 // the optional Migrator and HealthChecker interfaces to opt into startup
 // migration and readiness reporting.
 type Module interface {
-	// Name identifies the module (used in error messages and as a default
-	// health-check group name).
+	// Name identifies the module; it is used in error messages from Mount.
 	Name() string
 	// Register mounts the module's routes on r.
 	Register(r fiber.Router) error

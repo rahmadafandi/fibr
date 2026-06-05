@@ -63,6 +63,7 @@ func TestMountMigrateErrorWrapped(t *testing.T) {
 	err := app.Mount(&fakeModule{name: "broke", migrateErr: assert.AnError})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "broke")
+	assert.ErrorIs(t, err, assert.AnError)
 }
 
 func TestMountRegisterErrorWrapped(t *testing.T) {
@@ -70,6 +71,7 @@ func TestMountRegisterErrorWrapped(t *testing.T) {
 	err := app.Mount(&fakeModule{name: "rbroke", registerErr: assert.AnError})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "rbroke")
+	assert.ErrorIs(t, err, assert.AnError)
 }
 
 // Module with no optional capabilities must still mount.
