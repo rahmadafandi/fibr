@@ -421,3 +421,103 @@ func dataField(t *testing.T, body, field string) string {
 	require.Truef(t, ok, "field %q missing or not a string in body: %s", field, body)
 	return s
 }
+
+func TestTeamRolesFlowE2E(t *testing.T) {
+	if os.Getenv("RUN_E2E") != "1" {
+		t.Skip("set RUN_E2E=1 to run the team-roles runtime test (slow: go run)")
+	}
+	root := repoRoot(t)
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "ddd", Team: true,
+		Dir: dir, NoGit: true, NoTidy: false, Local: root,
+	}, &strings.Builder{}))
+
+	dbPath := filepath.Join(t.TempDir(), "roles.db")
+	port := "39520"
+	env := append(os.Environ(),
+		"DATABASE_URL=file:"+dbPath+"?cache=shared",
+		"PORT="+port,
+		"JWT_SECRET="+strings.Repeat("d", 64),
+	)
+
+	mig := exec.Command("go", "run", "./cmd/api", "migrate", "up")
+	mig.Dir, mig.Env = dir, env
+	if out, err := mig.CombinedOutput(); err != nil {
+		t.Fatalf("migrate up failed:\n%s", out)
+	}
+
+	srv := exec.Command("go", "run", "./cmd/api")
+	srv.Dir, srv.Env = dir, env
+	srv.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	require.NoError(t, srv.Start())
+	defer func() { _ = syscall.Kill(-srv.Process.Pid, syscall.SIGKILL) }()
+
+	base := "http://127.0.0.1:" + port
+	waitReady(t, base+"/livez")
+
+	// owner registers + logs in
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/auth/register", `{"email":"owner@b.com","password":"secret123"}`, "")))
+	_, body := postJSON(t, base+"/auth/login", `{"email":"owner@b.com","password":"secret123"}`, "")
+	ownerTok := dataField(t, body, "access_token")
+	require.NotEmpty(t, ownerTok)
+	team1 := dataFieldFrom(t, base+"/auth/me", ownerTok, "team")
+	require.NotEmpty(t, team1)
+
+	// permission catalog
+	require.Equal(t, 200, getCode(t, base+"/permissions", ownerTok))
+
+	// owner lists seeded roles (owner/admin/member/viewer)
+	require.Equal(t, 200, getCode(t, base+"/teams/"+team1+"/roles", ownerTok))
+
+	// create a custom "editor" role
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/teams/"+team1+"/roles", `{"name":"editor","permissions":["post:read","post:write"]}`, ownerTok)))
+	// invalid permission -> 400
+	require.Equal(t, 400, mustCode(postJSON(t, base+"/teams/"+team1+"/roles", `{"name":"bad","permissions":["does:not:exist"]}`, ownerTok)))
+
+	// register a member, add to team, then set role to editor
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/auth/register", `{"email":"member@b.com","password":"secret123"}`, "")))
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/teams/"+team1+"/members", `{"email":"member@b.com","role":"member"}`, ownerTok)))
+	require.Equal(t, 200, mustCode(postJSONMethod(t, "PUT", base+"/teams/"+team1+"/members", `{"email":"member@b.com","role":"editor"}`, ownerTok)))
+
+	// member logs in, switches into the shared team, checks permissions
+	_, mBody := postJSON(t, base+"/auth/login", `{"email":"member@b.com","password":"secret123"}`, "")
+	memberTok := dataField(t, mBody, "access_token")
+	_, swBody := postJSON(t, base+"/auth/switch-team", `{"team_id":`+team1+`}`, memberTok)
+	memberTeamTok := dataField(t, swBody, "access_token")
+
+	_, meBody := postGet(t, base+"/auth/me", memberTeamTok)
+	require.Contains(t, meBody, "post:write")     // editor has it
+	require.NotContains(t, meBody, "team:manage") // editor lacks it
+	require.Equal(t, 403, getCode(t, base+"/teams/"+team1+"/manage", memberTeamTok)) // lacks team:manage
+	require.Equal(t, 200, getCode(t, base+"/teams/"+team1+"/manage", ownerTok))      // owner has it
+
+	// delete-role guards: owner protected (400); editor in use (409)
+	require.Equal(t, 400, mustCode(postJSONMethod(t, "DELETE", base+"/teams/"+team1+"/roles/owner", "", ownerTok)))
+	require.Equal(t, 409, mustCode(postJSONMethod(t, "DELETE", base+"/teams/"+team1+"/roles/editor", "", ownerTok)))
+}
+
+// dataFieldFrom GETs url with a bearer and returns a string field under data.
+func dataFieldFrom(t *testing.T, url, bearer, field string) string {
+	t.Helper()
+	_, body := postGet(t, url, bearer)
+	return dataField(t, body, field)
+}
+
+// postJSONMethod issues an arbitrary-method JSON request with a bearer and
+// returns status + body.
+func postJSONMethod(t *testing.T, method, url, body, bearer string) (int, string) {
+	t.Helper()
+	req, err := http.NewRequest(method, url, strings.NewReader(body))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	if bearer != "" {
+		req.Header.Set("Authorization", "Bearer "+bearer)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(resp.Body)
+	return resp.StatusCode, string(b)
+}
