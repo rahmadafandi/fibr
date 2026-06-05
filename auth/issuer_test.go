@@ -153,3 +153,25 @@ func TestIssuerLogoutToleratesJunk(t *testing.T) {
 	require.NoError(t, iss.Logout(context.Background(), "", ""))
 	require.NoError(t, iss.Logout(context.Background(), "garbage", "garbage"))
 }
+
+func TestIssuerRefreshPreservesTeam(t *testing.T) {
+	ctx := context.Background()
+	store := NewMemoryStore()
+	iss := NewIssuer(testSecret, store)
+
+	first, err := iss.Issue(ctx, jwt.MapClaims{
+		"sub": "5", "email": "t@example.com",
+		"team": "9", "role": "admin", "scopes": []string{"member:manage"},
+	})
+	require.NoError(t, err)
+
+	ac := mustClaims(t, first.AccessToken)
+	require.Equal(t, "9", ac["team"])
+	require.Equal(t, "admin", ac["role"])
+
+	second, err := iss.Refresh(ctx, first.RefreshToken)
+	require.NoError(t, err)
+	rc := mustClaims(t, second.AccessToken)
+	require.Equal(t, "9", rc["team"])
+	require.Equal(t, "admin", rc["role"])
+}
