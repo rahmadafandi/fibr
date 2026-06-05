@@ -7,6 +7,7 @@ type Config struct {
 	DatabaseURL string `mapstructure:"DATABASE_URL" default:"{{if eq .DB "postgres"}}postgres://app:app@localhost:5432/app?sslmode=disable{{else}}file:./data/app.db?cache=shared{{end}}"`
 	Port        string `mapstructure:"PORT" default:"3000"`
 	LogLevel    string `mapstructure:"LOG_LEVEL" default:"info"`
+	AutoMigrate bool   `mapstructure:"AUTO_MIGRATE" default:"false"`
 }
 
 // Load reads configuration from environment variables and defaults.

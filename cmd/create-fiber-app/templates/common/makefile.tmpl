@@ -1,4 +1,4 @@
-.PHONY: run build test tidy docker-up
+.PHONY: run build test tidy docker-up migrate-up migrate-down migrate-status migrate-create
 
 run:
 	go run ./cmd/api
@@ -14,3 +14,16 @@ tidy:
 
 docker-up:
 	docker compose up --build
+
+migrate-up:
+	go run ./cmd/api migrate up
+
+migrate-down:
+	go run ./cmd/api migrate down
+
+migrate-status:
+	go run ./cmd/api migrate status
+
+# Usage: make migrate-create name=add_payments
+migrate-create:
+	go run ./cmd/api migrate create $(name)
