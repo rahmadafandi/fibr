@@ -90,6 +90,54 @@ func (i *Issuer) Issue(ctx context.Context, claims jwt.MapClaims) (TokenPair, er
 	return i.mint(ctx, claims, fid)
 }
 
+// Refresh validates a refresh token and rotates it: it returns a new pair under
+// the same family with fresh ids and updates the family's active token. If the
+// presented token has been superseded (reuse), it revokes the entire family and
+// returns ErrTokenReuse; any other validation failure returns ErrInvalidToken.
+//
+// Reuse detection is sequential: once a token is rotated, presenting the old
+// token again is caught by the family-pointer mismatch (the primary defense).
+// The check-and-rotate is not atomic, so two Refresh calls racing on the *same*
+// token may both succeed; last-write-wins on the family pointer makes the loser's
+// token immediately stale, so the next use of it kills the family. If you need
+// strict single-use under concurrent presentation, back the store with an atomic
+// compare-and-swap implementation.
+func (i *Issuer) Refresh(ctx context.Context, refreshToken string) (TokenPair, error) {
+	claims, err := i.parseValid(refreshToken)
+	if err != nil {
+		return TokenPair{}, ErrInvalidToken
+	}
+	if t, _ := claims["type"].(string); t != "refresh" {
+		return TokenPair{}, ErrInvalidToken
+	}
+	fid, _ := claims["fid"].(string)
+	jti, _ := claims["jti"].(string)
+	if fid == "" || jti == "" {
+		return TokenPair{}, ErrInvalidToken
+	}
+
+	active, ok, err := i.store.Family(ctx, fid)
+	if err != nil {
+		return TokenPair{}, err
+	}
+	if !ok {
+		return TokenPair{}, ErrInvalidToken
+	}
+	if active != jti {
+		_ = i.store.RevokeFamily(ctx, fid)
+		return TokenPair{}, ErrTokenReuse
+	}
+
+	pair, err := i.mint(ctx, claims, fid)
+	if err != nil {
+		return TokenPair{}, err
+	}
+	if rem := remainingTTL(claims); rem > 0 {
+		_ = i.store.Block(ctx, jti, rem)
+	}
+	return pair, nil
+}
+
 // mint builds an access+refresh pair for the given family, signs both, and
 // records the new refresh jti as the family's active token.
 func (i *Issuer) mint(ctx context.Context, base jwt.MapClaims, fid string) (TokenPair, error) {

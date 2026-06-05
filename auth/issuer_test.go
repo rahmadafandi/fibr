@@ -73,3 +73,58 @@ func mustClaims(t *testing.T, token string) jwt.MapClaims {
 	require.NoError(t, err)
 	return claims
 }
+
+func TestIssuerRefreshRotates(t *testing.T) {
+	ctx := context.Background()
+	store := NewMemoryStore()
+	iss := NewIssuer(testSecret, store)
+
+	first, err := iss.Issue(ctx, jwt.MapClaims{"sub": "7", "email": "r@example.com", "scopes": []string{"user"}})
+	require.NoError(t, err)
+
+	second, err := iss.Refresh(ctx, first.RefreshToken)
+	require.NoError(t, err)
+	require.NotEqual(t, first.RefreshToken, second.RefreshToken)
+	require.NotEqual(t, first.AccessToken, second.AccessToken)
+
+	ac := mustClaims(t, second.AccessToken)
+	require.Equal(t, "7", ac["sub"])
+	require.Equal(t, "r@example.com", ac["email"])
+
+	oldClaims := mustClaims(t, first.RefreshToken)
+	blocked, err := store.IsBlocked(ctx, oldClaims["jti"].(string))
+	require.NoError(t, err)
+	require.True(t, blocked)
+}
+
+func TestIssuerRefreshRejectsAccessToken(t *testing.T) {
+	ctx := context.Background()
+	iss := NewIssuer(testSecret, NewMemoryStore())
+	pair, _ := iss.Issue(ctx, jwt.MapClaims{"sub": "1"})
+	_, err := iss.Refresh(ctx, pair.AccessToken)
+	require.ErrorIs(t, err, ErrInvalidToken)
+}
+
+func TestIssuerRefreshRejectsGarbage(t *testing.T) {
+	iss := NewIssuer(testSecret, NewMemoryStore())
+	_, err := iss.Refresh(context.Background(), "not-a-jwt")
+	require.ErrorIs(t, err, ErrInvalidToken)
+}
+
+func TestIssuerRefreshReuseKillsFamily(t *testing.T) {
+	ctx := context.Background()
+	store := NewMemoryStore()
+	iss := NewIssuer(testSecret, store)
+
+	first, err := iss.Issue(ctx, jwt.MapClaims{"sub": "9"})
+	require.NoError(t, err)
+
+	second, err := iss.Refresh(ctx, first.RefreshToken)
+	require.NoError(t, err)
+
+	_, err = iss.Refresh(ctx, first.RefreshToken)
+	require.ErrorIs(t, err, ErrTokenReuse)
+
+	_, err = iss.Refresh(ctx, second.RefreshToken)
+	require.ErrorIs(t, err, ErrInvalidToken)
+}
