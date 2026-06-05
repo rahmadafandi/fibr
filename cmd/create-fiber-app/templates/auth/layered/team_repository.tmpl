@@ -117,23 +117,25 @@ func (r *TeamRepository) permsForRoleID(ctx context.Context, roleID int64) ([]st
 	return perms, nil
 }
 
-func (r *TeamRepository) insertPerms(ctx context.Context, roleID int64, perms []string) error {
+func insertPerms(ctx context.Context, db bun.IDB, roleID int64, perms []string) error {
 	for _, p := range perms {
-		if _, err := r.db.NewInsert().Model(&model.RolePermission{RoleID: roleID, Permission: p}).Exec(ctx); err != nil {
+		if _, err := db.NewInsert().Model(&model.RolePermission{RoleID: roleID, Permission: p}).Exec(ctx); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// CreateRole inserts a role and its permissions.
+// CreateRole inserts a role and its permissions in one transaction.
 func (r *TeamRepository) CreateRole(ctx context.Context, role *model.Role) error {
-	rm := &model.RoleModel{TeamID: role.TeamID, Name: role.Name}
-	if _, err := r.db.NewInsert().Model(rm).Exec(ctx); err != nil {
-		return err
-	}
-	role.ID = rm.ID
-	return r.insertPerms(ctx, rm.ID, role.Permissions)
+	return r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		rm := &model.RoleModel{TeamID: role.TeamID, Name: role.Name}
+		if _, err := tx.NewInsert().Model(rm).Exec(ctx); err != nil {
+			return err
+		}
+		role.ID = rm.ID
+		return insertPerms(ctx, tx, rm.ID, role.Permissions)
+	})
 }
 
 // RolesForTeam returns the team's roles with their permissions.
@@ -166,12 +168,14 @@ func (r *TeamRepository) FindRole(ctx context.Context, teamID int64, name string
 	return &model.Role{ID: rm.ID, TeamID: rm.TeamID, Name: rm.Name, Permissions: perms}, nil
 }
 
-// SetRolePermissions replaces a role's permissions.
+// SetRolePermissions replaces a role's permissions atomically.
 func (r *TeamRepository) SetRolePermissions(ctx context.Context, roleID int64, perms []string) error {
-	if _, err := r.db.NewDelete().Model((*model.RolePermission)(nil)).Where("role_id = ?", roleID).Exec(ctx); err != nil {
-		return err
-	}
-	return r.insertPerms(ctx, roleID, perms)
+	return r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		if _, err := tx.NewDelete().Model((*model.RolePermission)(nil)).Where("role_id = ?", roleID).Exec(ctx); err != nil {
+			return err
+		}
+		return insertPerms(ctx, tx, roleID, perms)
+	})
 }
 
 // DeleteRole removes a role and its permissions.

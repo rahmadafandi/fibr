@@ -48,6 +48,20 @@ func validPermission(p string) bool {
 	return false
 }
 
+// dedupe returns perms with duplicates removed, preserving order.
+func dedupe(perms []string) []string {
+	seen := make(map[string]struct{}, len(perms))
+	out := make([]string, 0, len(perms))
+	for _, p := range perms {
+		if _, ok := seen[p]; ok {
+			continue
+		}
+		seen[p] = struct{}{}
+		out = append(out, p)
+	}
+	return out
+}
+
 // Service holds team use cases.
 type Service struct {
 	repo     domain.Repository
@@ -175,6 +189,7 @@ func (s *Service) CreateRole(ctx context.Context, teamID int64, name string, per
 			return nil, ErrInvalidPermission
 		}
 	}
+	perms = dedupe(perms)
 	if existing, _ := s.repo.FindRole(ctx, teamID, name); existing != nil {
 		return nil, ErrRoleExists
 	}
@@ -192,6 +207,7 @@ func (s *Service) UpdateRolePermissions(ctx context.Context, teamID int64, name 
 			return nil, ErrInvalidPermission
 		}
 	}
+	perms = dedupe(perms)
 	role, err := s.repo.FindRole(ctx, teamID, name)
 	if err != nil {
 		return nil, ErrRoleNotFound
