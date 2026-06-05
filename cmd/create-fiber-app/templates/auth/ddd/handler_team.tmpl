@@ -176,8 +176,13 @@ func (h *AuthHandler) switchTeam(c *fiber.Ctx) error {
 }
 
 func (h *AuthHandler) me(c *fiber.Ctx) error {
+	email := ""
+	if claims, ok := auth.Claims(c); ok {
+		email, _ = claims["email"].(string)
+	}
 	return response.SendSuccess(c, fiber.Map{
 		"sub":         auth.Subject(c),
+		"email":       email,
 		"team":        auth.ActiveTeam(c),
 		"role":        auth.TeamRole(c),
 		"permissions": auth.Scopes(c),
