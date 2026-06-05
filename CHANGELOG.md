@@ -12,8 +12,16 @@ This project has not yet had a stable release; all changes are listed under **Un
 - `auth` package: bcrypt `Hash`/`Compare`, JWT bearer middleware
   (`RequireAuth`/`Optional`), claims accessors (`Claims`/`Subject`), and scope
   checks (`RequireScope`/`HasScope`/`Scopes`).
+- `auth` refresh tokens + revocation: `Issuer` (`Issue`/`Refresh`/`Logout`) mints
+  rotating access+refresh JWT pairs (`TokenPair`) with family-based reuse
+  detection; `TokenStore` interface with `RedisStore` and `MemoryStore` impls;
+  `WithBlocklist` makes `RequireAuth`/`Optional` reject revoked tokens by `jti`
+  (refresh tokens are also rejected for API access).
 - `create-fiber-app --auth`: scaffolds an auth module (Account, register/login/me
   + scope-gated route, accounts migration) and generates a random `JWT_SECRET`.
+  Login returns an access+refresh `TokenPair`; adds `/auth/refresh` and
+  `/auth/logout`; wires a redis-backed token store when `REDIS_URL` is set,
+  falling back to an in-memory store otherwise.
 - `migrate` package: `bun/migrate` wrapper (`Up`/`Down`/`Status`/`Create`) plus a
   ready cobra `NewCommand` (up/down/status/create).
 - Generated projects are now a single cobra binary with `serve` + `migrate`
