@@ -113,7 +113,7 @@ func Generate(o Options, out io.Writer) error {
 	return nil
 }
 
-func renderFile(fsp fileSpec, d Data, root string) error {
+func renderFile(fsp fileSpec, data any, root string) error {
 	raw, err := templatesFS.ReadFile("templates/" + fsp.tmpl)
 	if err != nil {
 		return err
@@ -123,7 +123,7 @@ func renderFile(fsp fileSpec, d Data, root string) error {
 		return err
 	}
 	var buf strings.Builder
-	if err := tmpl.Execute(&buf, d); err != nil {
+	if err := tmpl.Execute(&buf, data); err != nil {
 		return err
 	}
 

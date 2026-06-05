@@ -1,0 +1,10 @@
+package {{.Pkg}}
+
+import "context"
+
+// Repository is the {{.Pkg}} persistence port.
+type Repository interface {
+	List(ctx context.Context) ([]{{.Type}}, error)
+	Get(ctx context.Context, id int64) (*{{.Type}}, error)
+	Create(ctx context.Context, e *{{.Type}}) error
+}

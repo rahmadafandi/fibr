@@ -1,0 +1,62 @@
+package persistence
+
+import (
+	"context"
+
+	domain "{{.Module}}/internal/domain/{{.Pkg}}"
+	"github.com/uptrace/bun"
+)
+
+type {{.Pkg}}Model struct {
+	bun.BaseModel `bun:"table:{{.Plural}},alias:{{.Pkg}}"`
+	ID            int64  `bun:"id,pk,autoincrement"`
+	Name          string `bun:"name"`
+}
+
+// Migrate{{.Type}} creates the {{.Plural}} table if it does not exist.
+func Migrate{{.Type}}(ctx context.Context, db *bun.DB) error {
+	_, err := db.NewCreateTable().Model((*{{.Pkg}}Model)(nil)).IfNotExists().Exec(ctx)
+	return err
+}
+
+// {{.Type}}Repository implements domain/{{.Pkg}}.Repository with Bun.
+type {{.Type}}Repository struct {
+	db *bun.DB
+}
+
+// New{{.Type}}Repository creates a new {{.Type}}Repository.
+func New{{.Type}}Repository(db *bun.DB) *{{.Type}}Repository {
+	return &{{.Type}}Repository{db: db}
+}
+
+// List returns all {{.Plural}}.
+func (r *{{.Type}}Repository) List(ctx context.Context) ([]domain.{{.Type}}, error) {
+	var rows []{{.Pkg}}Model
+	if err := r.db.NewSelect().Model(&rows).Scan(ctx); err != nil {
+		return nil, err
+	}
+	out := make([]domain.{{.Type}}, len(rows))
+	for i, m := range rows {
+		out[i] = domain.{{.Type}}{ID: m.ID, Name: m.Name}
+	}
+	return out, nil
+}
+
+// Get returns a single {{.Pkg}} by ID.
+func (r *{{.Type}}Repository) Get(ctx context.Context, id int64) (*domain.{{.Type}}, error) {
+	m := new({{.Pkg}}Model)
+	if err := r.db.NewSelect().Model(m).Where("id = ?", id).Scan(ctx); err != nil {
+		return nil, err
+	}
+	return &domain.{{.Type}}{ID: m.ID, Name: m.Name}, nil
+}
+
+// Create inserts a new {{.Pkg}}.
+func (r *{{.Type}}Repository) Create(ctx context.Context, e *domain.{{.Type}}) error {
+	m := &{{.Pkg}}Model{Name: e.Name}
+	if _, err := r.db.NewInsert().Model(m).Exec(ctx); err != nil {
+		return err
+	}
+	e.ID = m.ID
+	return nil
+}
