@@ -1,0 +1,46 @@
+package http
+
+import (
+	"context"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/rahmadafandi/fiber-helpers/auth"
+	"github.com/rahmadafandi/fiber-helpers/bootstrap"
+	"github.com/uptrace/bun"
+
+	appaccount "{{.Module}}/internal/application/account"
+	appteam "{{.Module}}/internal/application/team"
+	"{{.Module}}/internal/infrastructure/persistence"
+)
+
+// AuthModule wires the auth + team feature.
+type AuthModule struct {
+	db      *bun.DB
+	handler *AuthHandler
+}
+
+// NewAuthModule builds the auth module. Pass the result to app.Mount.
+func NewAuthModule(db *bun.DB, secret string, store auth.TokenStore) bootstrap.Module {
+	accountRepo := persistence.NewAccountRepository(db)
+	teamRepo := persistence.NewTeamRepository(db)
+	accountSvc := appaccount.NewService(accountRepo)
+	teamSvc := appteam.NewService(teamRepo, accountRepo)
+	return &AuthModule{db: db, handler: NewAuthHandler(accountSvc, teamSvc, secret, store)}
+}
+
+// Name identifies the module.
+func (m *AuthModule) Name() string { return "auth" }
+
+// Register mounts the auth and team routes.
+func (m *AuthModule) Register(r fiber.Router) error {
+	m.handler.RegisterRoutes(r)
+	return nil
+}
+
+// Migrate creates the accounts, teams, and memberships tables if absent.
+func (m *AuthModule) Migrate(ctx context.Context) error {
+	if err := persistence.MigrateAccount(ctx, m.db); err != nil {
+		return err
+	}
+	return persistence.MigrateTeam(ctx, m.db)
+}

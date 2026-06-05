@@ -1,0 +1,12 @@
+package team
+
+import "context"
+
+// Repository is the team/membership persistence port.
+type Repository interface {
+	CreateTeam(ctx context.Context, t *Team) error
+	CreateMembership(ctx context.Context, m *Membership) error
+	TeamsForAccount(ctx context.Context, accountID int64) ([]Team, error)
+	FindMembership(ctx context.Context, accountID, teamID int64) (*Membership, error)
+	FirstMembership(ctx context.Context, accountID int64) (*Membership, error)
+}

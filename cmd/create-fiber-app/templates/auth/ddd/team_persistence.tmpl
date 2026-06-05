@@ -1,0 +1,103 @@
+package persistence
+
+import (
+	"context"
+
+	domain "{{.Module}}/internal/domain/team"
+	"github.com/uptrace/bun"
+)
+
+type teamModel struct {
+	bun.BaseModel  `bun:"table:teams,alias:team"`
+	ID             int64  `bun:"id,pk,autoincrement"`
+	Name           string `bun:"name"`
+	Slug           string `bun:"slug,unique"`
+	OwnerAccountID int64  `bun:"owner_account_id"`
+}
+
+type membershipModel struct {
+	bun.BaseModel `bun:"table:memberships,alias:membership"`
+	ID            int64  `bun:"id,pk,autoincrement"`
+	AccountID     int64  `bun:"account_id"`
+	TeamID        int64  `bun:"team_id"`
+	Role          string `bun:"role"`
+}
+
+// MigrateTeam creates the teams and memberships tables if they do not exist.
+func MigrateTeam(ctx context.Context, db *bun.DB) error {
+	if _, err := db.NewCreateTable().Model((*teamModel)(nil)).IfNotExists().Exec(ctx); err != nil {
+		return err
+	}
+	_, err := db.NewCreateTable().Model((*membershipModel)(nil)).IfNotExists().Exec(ctx)
+	return err
+}
+
+// TeamRepository implements domain/team.Repository with Bun.
+type TeamRepository struct {
+	db *bun.DB
+}
+
+// NewTeamRepository creates a TeamRepository.
+func NewTeamRepository(db *bun.DB) *TeamRepository {
+	return &TeamRepository{db: db}
+}
+
+// CreateTeam inserts a new team.
+func (r *TeamRepository) CreateTeam(ctx context.Context, t *domain.Team) error {
+	m := &teamModel{Name: t.Name, Slug: t.Slug, OwnerAccountID: t.OwnerAccountID}
+	if _, err := r.db.NewInsert().Model(m).Exec(ctx); err != nil {
+		return err
+	}
+	t.ID = m.ID
+	return nil
+}
+
+// CreateMembership inserts a new membership.
+func (r *TeamRepository) CreateMembership(ctx context.Context, mem *domain.Membership) error {
+	m := &membershipModel{AccountID: mem.AccountID, TeamID: mem.TeamID, Role: mem.Role}
+	if _, err := r.db.NewInsert().Model(m).Exec(ctx); err != nil {
+		return err
+	}
+	mem.ID = m.ID
+	return nil
+}
+
+// TeamsForAccount returns the teams the account belongs to.
+func (r *TeamRepository) TeamsForAccount(ctx context.Context, accountID int64) ([]domain.Team, error) {
+	var rows []teamModel
+	err := r.db.NewSelect().Model(&rows).
+		Join("JOIN memberships AS m ON m.team_id = team.id").
+		Where("m.account_id = ?", accountID).
+		Order("team.id ASC").
+		Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+	teams := make([]domain.Team, len(rows))
+	for i, m := range rows {
+		teams[i] = domain.Team{ID: m.ID, Name: m.Name, Slug: m.Slug, OwnerAccountID: m.OwnerAccountID}
+	}
+	return teams, nil
+}
+
+// FindMembership returns the account's membership in a team, or an error if absent.
+func (r *TeamRepository) FindMembership(ctx context.Context, accountID, teamID int64) (*domain.Membership, error) {
+	m := new(membershipModel)
+	err := r.db.NewSelect().Model(m).
+		Where("account_id = ?", accountID).Where("team_id = ?", teamID).Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &domain.Membership{ID: m.ID, AccountID: m.AccountID, TeamID: m.TeamID, Role: m.Role}, nil
+}
+
+// FirstMembership returns the account's earliest membership (its default team).
+func (r *TeamRepository) FirstMembership(ctx context.Context, accountID int64) (*domain.Membership, error) {
+	m := new(membershipModel)
+	err := r.db.NewSelect().Model(m).
+		Where("account_id = ?", accountID).Order("id ASC").Limit(1).Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &domain.Membership{ID: m.ID, AccountID: m.AccountID, TeamID: m.TeamID, Role: m.Role}, nil
+}

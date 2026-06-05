@@ -1,0 +1,29 @@
+package migrations
+
+import (
+	"context"
+
+	"github.com/uptrace/bun"
+)
+
+func init() {
+	type membership struct {
+		bun.BaseModel `bun:"table:memberships"`
+		ID            int64  `bun:"id,pk,autoincrement"`
+		AccountID     int64  `bun:"account_id"`
+		TeamID        int64  `bun:"team_id"`
+		Role          string `bun:"role"`
+	}
+	Migrations.MustRegister(func(ctx context.Context, db *bun.DB) error {
+		if _, err := db.NewCreateTable().Model((*membership)(nil)).Exec(ctx); err != nil {
+			return err
+		}
+		_, err := db.NewCreateIndex().Model((*membership)(nil)).
+			Index("memberships_account_team_uq").Unique().
+			Column("account_id", "team_id").Exec(ctx)
+		return err
+	}, func(ctx context.Context, db *bun.DB) error {
+		_, err := db.NewDropTable().Model((*membership)(nil)).IfExists().Exec(ctx)
+		return err
+	})
+}
