@@ -20,13 +20,15 @@ type ModuleData struct {
 var moduleNameRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_]*$`)
 
 // deriveModuleNames validates name and derives the Type/Pkg/Plural forms.
-// Pluralization is naive (append "s"); rename in the generated files if needed.
+// Type preserves the input's inner capitalization (e.g. "OrderItem" stays "OrderItem").
+// Pkg is the all-lowercase form; Plural is Pkg+"s" (naive; rename in generated files if needed).
+// The caller must set Module and Layout on the returned ModuleData before rendering.
 func deriveModuleNames(name string) (ModuleData, error) {
 	if !moduleNameRe.MatchString(name) {
 		return ModuleData{}, fmt.Errorf("module name %q must be a Go identifier (letters, digits, underscore; not starting with a digit)", name)
 	}
 	pkg := strings.ToLower(name)
-	typ := strings.ToUpper(pkg[:1]) + pkg[1:]
+	typ := strings.ToUpper(name[:1]) + name[1:]
 	return ModuleData{Type: typ, Pkg: pkg, Plural: pkg + "s"}, nil
 }
 
@@ -51,5 +53,6 @@ func planModule(md ModuleData) []fileSpec {
 			{"module/layered/module.tmpl", "internal/handler/" + md.Pkg + "_module.go"},
 		}
 	}
+	// Unreachable: Layout is validated ("ddd"|"layered") before planModule is called.
 	return nil
 }

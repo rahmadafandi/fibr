@@ -24,6 +24,14 @@ func TestDeriveModuleNamesUpcasesAndLowers(t *testing.T) {
 	assert.Equal(t, "user", md.Pkg)
 }
 
+func TestDeriveModuleNamesPreservesCamelCase(t *testing.T) {
+	md, err := deriveModuleNames("OrderItem")
+	require.NoError(t, err)
+	assert.Equal(t, "OrderItem", md.Type)
+	assert.Equal(t, "orderitem", md.Pkg)
+	assert.Equal(t, "orderitems", md.Plural)
+}
+
 func TestDeriveModuleNamesRejectsInvalid(t *testing.T) {
 	for _, bad := range []string{"", "a/b", "../evil", "9lives", "has space", "x-y"} {
 		_, err := deriveModuleNames(bad)
