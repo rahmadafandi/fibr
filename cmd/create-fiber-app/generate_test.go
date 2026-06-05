@@ -325,7 +325,7 @@ func TestTeamImpliesAuthAndArtifacts(t *testing.T) {
 
 	// Team entities + service exist.
 	require.Contains(t, read("internal/domain/team/team.go"), "type Membership struct")
-	require.Contains(t, read("internal/application/team/service.go"), "rolePermissions")
+	require.Contains(t, read("internal/application/team/service.go"), "defaultRoles")
 
 	// Migrations for teams + memberships exist (find by suffix).
 	migs, err := filepath.Glob(filepath.Join(dir, "internal/migrations/*.go"))
@@ -366,4 +366,33 @@ func TestTeamRoleMigrationsEmitted(t *testing.T) {
 	}
 	require.Contains(t, names, "_create_roles.go")
 	require.Contains(t, names, "_create_role_permissions.go")
+}
+
+func TestTeamRoleScaffoldArtifacts(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "ddd", Team: true,
+		Dir: dir, NoGit: true, NoTidy: true, Local: repoRoot(t),
+	}, &strings.Builder{}))
+
+	read := func(rel string) string {
+		b, err := os.ReadFile(filepath.Join(dir, rel))
+		require.NoError(t, err)
+		return string(b)
+	}
+
+	svc := read("internal/application/team/service.go")
+	require.Contains(t, svc, "var AllPermissions")
+	require.Contains(t, svc, "var defaultRoles")
+	require.Contains(t, svc, "func (s *Service) PermissionsForRole(")
+	require.Contains(t, svc, "func (s *Service) CreateRole(")
+	require.NotContains(t, svc, "func PermissionsFor(role string)") // static map removed
+
+	handler := read("internal/interface/http/auth_handler.go")
+	require.Contains(t, handler, `t.Post("/:id/roles", auth.RequireScope("role:manage")`)
+	require.Contains(t, handler, `r.Get("/permissions"`)
+	require.Contains(t, handler, `t.Put("/:id/members", auth.RequireScope("member:manage")`)
+
+	require.Contains(t, read("internal/domain/team/team.go"), "type Role struct")
 }
