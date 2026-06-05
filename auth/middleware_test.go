@@ -3,6 +3,8 @@
 package auth
 
 import (
+	"context"
+	"errors"
 	"io"
 	"net/http/httptest"
 	"testing"
@@ -112,4 +114,97 @@ func TestHasScopeAfterRoundTrip(t *testing.T) {
 	})
 	tok := mintToken(t, jwt.MapClaims{"sub": "u1", "scopes": []string{"admin"}}, time.Hour)
 	assert.Equal(t, 200, do(t, app, "GET", "/r", tok))
+}
+
+func TestRequireAuthBlocklist(t *testing.T) {
+	ctx := context.Background()
+	store := NewMemoryStore()
+	iss := NewIssuer(testSecret, store)
+	pair, err := iss.Issue(ctx, jwt.MapClaims{"sub": "5", "scopes": []string{"user"}})
+	require.NoError(t, err)
+
+	app := fiber.New()
+	app.Get("/p", RequireAuth(testSecret, WithBlocklist(store)), func(c *fiber.Ctx) error {
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	req := httptest.NewRequest("GET", "/p", nil)
+	req.Header.Set("Authorization", "Bearer "+pair.AccessToken)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	ac := mustClaims(t, pair.AccessToken)
+	require.NoError(t, store.Block(ctx, ac["jti"].(string), time.Hour))
+	req2 := httptest.NewRequest("GET", "/p", nil)
+	req2.Header.Set("Authorization", "Bearer "+pair.AccessToken)
+	resp2, err := app.Test(req2)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusUnauthorized, resp2.StatusCode)
+}
+
+func TestRequireAuthRejectsRefreshToken(t *testing.T) {
+	iss := NewIssuer(testSecret, NewMemoryStore())
+	pair, err := iss.Issue(context.Background(), jwt.MapClaims{"sub": "1"})
+	require.NoError(t, err)
+
+	app := fiber.New()
+	app.Get("/p", RequireAuth(testSecret), func(c *fiber.Ctx) error { return c.SendStatus(200) })
+
+	req := httptest.NewRequest("GET", "/p", nil)
+	req.Header.Set("Authorization", "Bearer "+pair.RefreshToken)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestOptionalBlocklistProceeds(t *testing.T) {
+	ctx := context.Background()
+	store := NewMemoryStore()
+	iss := NewIssuer(testSecret, store)
+	pair, err := iss.Issue(ctx, jwt.MapClaims{"sub": "8"})
+	require.NoError(t, err)
+	ac := mustClaims(t, pair.AccessToken)
+	require.NoError(t, store.Block(ctx, ac["jti"].(string), time.Hour))
+
+	app := fiber.New()
+	app.Get("/p", Optional(testSecret, WithBlocklist(store)), func(c *fiber.Ctx) error {
+		if _, ok := Claims(c); ok {
+			return c.SendString("authed")
+		}
+		return c.SendString("anon")
+	})
+
+	req := httptest.NewRequest("GET", "/p", nil)
+	req.Header.Set("Authorization", "Bearer "+pair.AccessToken)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusOK, resp.StatusCode)
+	body, _ := io.ReadAll(resp.Body)
+	require.Equal(t, "anon", string(body))
+}
+
+// errStore is a TokenStore whose IsBlocked always errors, to exercise the
+// fail-closed path in RequireAuth.
+type errStore struct{ *MemoryStore }
+
+func (errStore) IsBlocked(context.Context, string) (bool, error) {
+	return false, errors.New("store down")
+}
+
+func TestRequireAuthBlocklistFailsClosed(t *testing.T) {
+	iss := NewIssuer(testSecret, NewMemoryStore())
+	pair, err := iss.Issue(context.Background(), jwt.MapClaims{"sub": "9"})
+	require.NoError(t, err)
+
+	app := fiber.New()
+	app.Get("/p", RequireAuth(testSecret, WithBlocklist(errStore{})), func(c *fiber.Ctx) error {
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	req := httptest.NewRequest("GET", "/p", nil)
+	req.Header.Set("Authorization", "Bearer "+pair.AccessToken)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusUnauthorized, resp.StatusCode) // store error -> 401
 }

@@ -3,6 +3,7 @@
 package auth
 
 import (
+	"context"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -33,17 +34,40 @@ func parse(c *fiber.Ctx, secret string) (jwt.MapClaims, bool) {
 	if err != nil {
 		return nil, false
 	}
+	if t, _ := claims["type"].(string); t == "refresh" {
+		return nil, false // refresh tokens must not grant API access
+	}
 	return claims, true
+}
+
+// blocklisted reports whether the token's jti has been revoked via store. A
+// token without a jti (not minted by an Issuer) is never blocklisted. The bool
+// is true only on a confirmed block; a store error is returned so callers can
+// decide their own fail-open/closed policy.
+func blocklisted(ctx context.Context, store TokenStore, claims jwt.MapClaims) (bool, error) {
+	if store == nil {
+		return false, nil
+	}
+	jti, _ := claims["jti"].(string)
+	if jti == "" {
+		return false, nil
+	}
+	return store.IsBlocked(ctx, jti)
 }
 
 // RequireAuth extracts a bearer token, validates it with secret, stores the
 // claims in the request context, then calls the next handler. A missing or
-// invalid token gets a 401 response.
+// invalid token gets a 401 response. Pass WithBlocklist to also reject revoked
+// tokens by jti (fail-closed: a store error is treated as unauthorized). Tokens
+// with no jti field (not minted by an Issuer) are not subject to the blocklist.
 func RequireAuth(secret string, opts ...Option) fiber.Handler {
 	cfg := newConfig(opts...)
 	return func(c *fiber.Ctx) error {
 		claims, ok := parse(c, secret)
 		if !ok {
+			return response.SendError(c, nil, "unauthorized", fiber.StatusUnauthorized)
+		}
+		if blocked, err := blocklisted(c.UserContext(), cfg.store, claims); err != nil || blocked {
 			return response.SendError(c, nil, "unauthorized", fiber.StatusUnauthorized)
 		}
 		fhcontext.SetLocal(c, cfg.contextKey, claims)
@@ -52,12 +76,15 @@ func RequireAuth(secret string, opts ...Option) fiber.Handler {
 }
 
 // Optional behaves like RequireAuth but proceeds without claims when the token
-// is missing or invalid.
+// is missing or invalid. With WithBlocklist, a blocked or errored token is
+// treated as no auth (the handler runs anonymously) rather than rejected.
 func Optional(secret string, opts ...Option) fiber.Handler {
 	cfg := newConfig(opts...)
 	return func(c *fiber.Ctx) error {
 		if claims, ok := parse(c, secret); ok {
-			fhcontext.SetLocal(c, cfg.contextKey, claims)
+			if blocked, err := blocklisted(c.UserContext(), cfg.store, claims); err == nil && !blocked {
+				fhcontext.SetLocal(c, cfg.contextKey, claims)
+			}
 		}
 		return c.Next()
 	}

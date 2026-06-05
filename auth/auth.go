@@ -32,6 +32,7 @@ type Option func(*config)
 
 type config struct {
 	contextKey string
+	store      TokenStore
 }
 
 func newConfig(opts ...Option) config {
@@ -49,5 +50,15 @@ func WithContextKey(key string) Option {
 		if key != "" {
 			c.contextKey = key
 		}
+	}
+}
+
+// WithBlocklist makes RequireAuth and Optional reject access tokens whose jti
+// has been revoked via store (e.g. by Issuer.Logout or Issuer.Refresh). Tokens
+// without a jti (not minted by an Issuer) are not affected. Without this option
+// the middleware performs no store lookups.
+func WithBlocklist(store TokenStore) Option {
+	return func(c *config) {
+		c.store = store
 	}
 }
