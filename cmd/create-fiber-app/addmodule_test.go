@@ -94,3 +94,18 @@ func TestAddModuleInvalidName(t *testing.T) {
 	err := AddModule(AddModuleOptions{Name: "../evil", Dir: dir, Layout: "ddd"}, &strings.Builder{})
 	assert.Error(t, err)
 }
+
+func TestAddModuleEmitsMigration(t *testing.T) {
+	dir := t.TempDir()
+	writeGoMod(t, dir, "github.com/me/app")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "internal/domain"), 0o755))
+
+	var out strings.Builder
+	require.NoError(t, AddModule(AddModuleOptions{Name: "product", Dir: dir}, &out))
+
+	matches, err := filepath.Glob(filepath.Join(dir, "internal/migrations/*_create_products.go"))
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+	assertFileContains(t, matches[0], "Migrations.MustRegister")
+	assert.Contains(t, out.String(), "migrate up")
+}
