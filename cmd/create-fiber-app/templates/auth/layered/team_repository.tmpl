@@ -178,13 +178,15 @@ func (r *TeamRepository) SetRolePermissions(ctx context.Context, roleID int64, p
 	})
 }
 
-// DeleteRole removes a role and its permissions.
+// DeleteRole removes a role and its permissions atomically.
 func (r *TeamRepository) DeleteRole(ctx context.Context, roleID int64) error {
-	if _, err := r.db.NewDelete().Model((*model.RolePermission)(nil)).Where("role_id = ?", roleID).Exec(ctx); err != nil {
+	return r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		if _, err := tx.NewDelete().Model((*model.RolePermission)(nil)).Where("role_id = ?", roleID).Exec(ctx); err != nil {
+			return err
+		}
+		_, err := tx.NewDelete().Model((*model.RoleModel)(nil)).Where("id = ?", roleID).Exec(ctx)
 		return err
-	}
-	_, err := r.db.NewDelete().Model((*model.RoleModel)(nil)).Where("id = ?", roleID).Exec(ctx)
-	return err
+	})
 }
 
 // PermissionsForRole returns the permission keys granted by a team's named role.
