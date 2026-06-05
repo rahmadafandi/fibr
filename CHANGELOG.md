@@ -9,6 +9,11 @@ This project has not yet had a stable release; all changes are listed under **Un
 
 ### Added
 
+- `bootstrap.Module` interface and `App.Mount` for self-wiring feature modules,
+  with optional `Migrator` and `HealthChecker` capabilities.
+- `health.RegisterProvider` / `RegisterProviderAt` for live readiness checks.
+- `create-fiber-app add module <name>` subcommand scaffolding a complete feature
+  module for the detected layout (ddd/layered).
 - **`database`**: `NewBun` opens a Bun ORM connection with automatic Postgres/SQLite dialect detection from the DSN; pool options (`WithMaxOpenConns`, `WithMaxIdleConns`, `WithConnMaxLifetime`, `WithPingTimeout`, `WithoutPing`).
 - **`health`**: `Register`/`RegisterAt` mount `/livez` (liveness) and `/readyz` (readiness) endpoints that run named checks concurrently; `/readyz` applies an overall deadline so a stuck check cannot hang the server. `PingBun` and `Check` helpers provided.
 - **`server`**: `RunGraceful` starts a Fiber app and blocks until SIGINT/SIGTERM, then shuts the server down cleanly and calls optional cleanup hooks.
@@ -25,6 +30,8 @@ This project has not yet had a stable release; all changes are listed under **Un
 
 ### Changed
 
+- `create-fiber-app --sample` now generates the sample `user` feature as a
+  `bootstrap.Module` mounted via `app.Mount` (previously hand-wired in main.go).
 - **ORM migration**: GORM removed; Bun is now the ORM throughout the library. `parser` pagination scopes and `slug.Generate` (now `slug.Generate(ctx, db, table, text) (string, error)`) migrated accordingly.
 - **`config.LoadConfig`**: Signature changed from a generic return (`LoadConfig[T]() (T, error)`) to pointer-out (`LoadConfig(out any) error`), matching idiomatic Go.
 - **`http` methods**: All request methods now accept a leading `context.Context` argument and return `(int, error)` instead of a plain error.
