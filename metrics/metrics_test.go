@@ -35,3 +35,19 @@ func TestMiddlewareRecordsAndHandlerScrapes(t *testing.T) {
 	require.Contains(t, s, "go_goroutines")
 	require.NotContains(t, s, `path="/metrics"`)
 }
+
+func TestMiddlewareRecordsErrorStatus(t *testing.T) {
+	app := fiber.New()
+	app.Use(metrics.Middleware())
+	app.Get("/boom", func(c *fiber.Ctx) error { return fiber.NewError(503, "down") })
+	app.Get(metrics.MetricsPath, metrics.Handler())
+
+	resp, err := app.Test(httptest.NewRequest("GET", "/boom", nil))
+	require.NoError(t, err)
+	require.Equal(t, 503, resp.StatusCode)
+
+	resp, err = app.Test(httptest.NewRequest("GET", "/metrics", nil))
+	require.NoError(t, err)
+	body, _ := io.ReadAll(resp.Body)
+	require.Contains(t, string(body), `path="/boom",status="503"`)
+}

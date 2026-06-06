@@ -8,6 +8,7 @@
 package metrics
 
 import (
+	"errors"
 	"strconv"
 	"sync"
 	"time"
@@ -79,7 +80,19 @@ func Middleware(opts ...Option) fiber.Handler {
 		if r := c.Route(); r != nil && r.Path != "" {
 			path = r.Path
 		}
-		status := strconv.Itoa(c.Response().StatusCode())
+		// Resolve the status the client will actually receive. When a handler
+		// returns an error, Fiber's error handler sets the response code only
+		// after the middleware chain unwinds, so c.Response().StatusCode() is
+		// still the default here — derive it from the error instead.
+		code := c.Response().StatusCode()
+		if err != nil {
+			code = fiber.StatusInternalServerError
+			var fe *fiber.Error
+			if errors.As(err, &fe) {
+				code = fe.Code
+			}
+		}
+		status := strconv.Itoa(code)
 		method := c.Method()
 		reqTotal.WithLabelValues(method, path, status).Inc()
 		reqDur.WithLabelValues(method, path, status).Observe(time.Since(start).Seconds())
