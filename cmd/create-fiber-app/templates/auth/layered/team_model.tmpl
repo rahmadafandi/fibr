@@ -1,6 +1,10 @@
 package model
 
-import "github.com/uptrace/bun"
+import (
+	"time"
+
+	"github.com/uptrace/bun"
+)
 
 // Team is a workspace that accounts belong to via memberships.
 type Team struct {
@@ -42,4 +46,17 @@ type Role struct {
 	TeamID      int64    `json:"team_id"`
 	Name        string   `json:"name"`
 	Permissions []string `json:"permissions"`
+}
+
+// Invitation is a pending request for an account (identified by email) to join a
+// team with a role. The JTI links it to its signed invite token.
+type Invitation struct {
+	bun.BaseModel `bun:"table:invitations,alias:invitation" json:"-"`
+	ID            int64     `bun:"id,pk,autoincrement" json:"id"`
+	TeamID        int64     `bun:"team_id" json:"team_id"`
+	Email         string    `bun:"email" json:"email"`
+	Role          string    `bun:"role" json:"role"`
+	JTI           string    `bun:"jti" json:"-"`
+	Status        string    `bun:"status" json:"status"`
+	ExpiresAt     time.Time `bun:"expires_at" json:"expires_at"`
 }

@@ -23,7 +23,7 @@ func NewAuthModule(db *bun.DB, secret string, store auth.TokenStore) bootstrap.M
 	accountRepo := repository.NewAccountRepository(db)
 	teamRepo := repository.NewTeamRepository(db)
 	accountSvc := service.NewAuthService(accountRepo)
-	teamSvc := service.NewTeamService(teamRepo, accountRepo)
+	teamSvc := service.NewTeamService(teamRepo, accountRepo, secret)
 	return &AuthModule{db: db, handler: NewAuthHandler(accountSvc, teamSvc, secret, store)}
 }
 
