@@ -396,3 +396,84 @@ func TestTeamRoleScaffoldArtifacts(t *testing.T) {
 
 	require.Contains(t, read("internal/domain/team/team.go"), "type Role struct")
 }
+
+func TestTeamInvitationScaffoldArtifactsDDD(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "ddd", Team: true,
+		Dir: dir, NoGit: true, NoTidy: true, Local: repoRoot(t),
+	}, &strings.Builder{}))
+
+	read := func(rel string) string {
+		b, err := os.ReadFile(filepath.Join(dir, rel))
+		require.NoError(t, err)
+		return string(b)
+	}
+
+	// Entity + repository port.
+	entity := read("internal/domain/team/team.go")
+	require.Contains(t, entity, "type Invitation struct")
+	repo := read("internal/domain/team/repository.go")
+	require.Contains(t, repo, "CreateInvitation(ctx context.Context, inv *Invitation) error")
+	require.Contains(t, repo, "FindInvitationByJTI(ctx context.Context, jti string) (*Invitation, error)")
+
+	// Persistence: model + MigrateTeam extension.
+	pers := read("internal/infrastructure/persistence/team_repository_bun.go")
+	require.Contains(t, pers, "type invitationModel struct")
+	require.Contains(t, pers, "invitations_jti_uq")
+
+	// Service: secret-bound, sentinels, use cases.
+	svc := read("internal/application/team/service.go")
+	require.Contains(t, svc, "ErrInviteInvalid")
+	require.Contains(t, svc, "func (s *Service) Invite(")
+	require.Contains(t, svc, "func (s *Service) AcceptInvitation(")
+	require.Contains(t, svc, "func NewService(repo domain.Repository, accounts accountdomain.Repository, secret string) *Service")
+
+	// Handler: routes.
+	handler := read("internal/interface/http/auth_handler.go")
+	require.Contains(t, handler, `t.Post("/:id/invitations", auth.RequireScope("member:manage")`)
+	require.Contains(t, handler, `r.Post("/invitations/accept"`)
+
+	// Module: NewService passes secret.
+	mod := read("internal/interface/http/auth_module.go")
+	require.Contains(t, mod, "appteam.NewService(teamRepo, accountRepo, secret)")
+
+	// Migration emitted.
+	migs, err := filepath.Glob(filepath.Join(dir, "internal/migrations/*.go"))
+	require.NoError(t, err)
+	var names string
+	for _, m := range migs {
+		names += filepath.Base(m) + "\n"
+	}
+	require.Contains(t, names, "_create_invitations.go")
+}
+
+func TestTeamInvitationScaffoldArtifactsLayered(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "layered", Team: true,
+		Dir: dir, NoGit: true, NoTidy: true, Local: repoRoot(t),
+	}, &strings.Builder{}))
+
+	read := func(rel string) string {
+		b, err := os.ReadFile(filepath.Join(dir, rel))
+		require.NoError(t, err)
+		return string(b)
+	}
+
+	require.Contains(t, read("internal/model/team.go"), "type Invitation struct")
+	repo := read("internal/repository/team_repo.go")
+	require.Contains(t, repo, "func (r *TeamRepository) CreateInvitation(")
+	require.Contains(t, repo, "invitations_jti_uq")
+
+	svc := read("internal/service/team_service.go")
+	require.Contains(t, svc, "ErrInviteInvalid")
+	require.Contains(t, svc, "func (s *TeamService) AcceptInvitation(")
+	require.Contains(t, svc, "func NewTeamService(repo *repository.TeamRepository, accounts *repository.AccountRepository, secret string) *TeamService")
+
+	handler := read("internal/handler/auth_handler.go")
+	require.Contains(t, handler, `r.Post("/invitations/accept"`)
+	require.Contains(t, read("internal/handler/auth_module.go"), "service.NewTeamService(teamRepo, accountRepo, secret)")
+}
