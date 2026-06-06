@@ -625,3 +625,106 @@ func TestTeamInvitationsFlowE2E(t *testing.T) {
 	require.NotContains(t, lbody, "invitee@b.com")
 	require.NotContains(t, lbody, "revoked@b.com")
 }
+
+func TestTeamAdminFlowE2E(t *testing.T) {
+	if os.Getenv("RUN_E2E") != "1" {
+		t.Skip("set RUN_E2E=1 to run the team-admin runtime test (slow: go run)")
+	}
+	root := repoRoot(t)
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "ddd", Team: true,
+		Dir: dir, NoGit: true, NoTidy: false, Local: root,
+	}, &strings.Builder{}))
+
+	dbPath := filepath.Join(t.TempDir(), "admin.db")
+	port := "39522"
+	env := append(os.Environ(),
+		"DATABASE_URL=file:"+dbPath+"?cache=shared",
+		"PORT="+port,
+		"JWT_SECRET="+strings.Repeat("e", 64),
+	)
+
+	mig := exec.Command("go", "run", "./cmd/api", "migrate", "up")
+	mig.Dir, mig.Env = dir, env
+	if out, err := mig.CombinedOutput(); err != nil {
+		t.Fatalf("migrate up failed:\n%s", out)
+	}
+
+	srv := exec.Command("go", "run", "./cmd/api")
+	srv.Dir, srv.Env = dir, env
+	srv.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	require.NoError(t, srv.Start())
+	defer func() { _ = syscall.Kill(-srv.Process.Pid, syscall.SIGKILL) }()
+
+	base := "http://127.0.0.1:" + port
+	waitReady(t, base+"/livez")
+
+	// owner registers (personal team A) + logs in.
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/auth/register", `{"email":"owner@b.com","password":"secret123"}`, "")))
+	_, body := postJSON(t, base+"/auth/login", `{"email":"owner@b.com","password":"secret123"}`, "")
+	ownerTok := dataField(t, body, "access_token")
+	teamA := dataFieldFrom(t, base+"/auth/me", ownerTok, "team")
+
+	// owner creates a second team B (so deletes/leaves have a non-last team).
+	_, cbody := postJSON(t, base+"/teams/", `{"name":"Acme"}`, ownerTok)
+	teamB := dataFieldNum(t, cbody, "id")
+
+	// rename A -> "Renamed"; GET /teams reflects it.
+	require.Equal(t, 200, mustCode(postJSONMethod(t, "PATCH", base+"/teams/"+teamA, `{"name":"Renamed"}`, ownerTok)))
+	_, listBody := postGet(t, base+"/teams/", ownerTok)
+	require.Contains(t, listBody, "Renamed")
+
+	// add member@b.com to A; remove; re-add (proves removal worked).
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/auth/register", `{"email":"member@b.com","password":"secret123"}`, "")))
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/teams/"+teamA+"/members", `{"email":"member@b.com","role":"member"}`, ownerTok)))
+	require.Equal(t, 200, mustCode(postJSONMethod(t, "DELETE", base+"/teams/"+teamA+"/members", `{"email":"member@b.com"}`, ownerTok)))
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/teams/"+teamA+"/members", `{"email":"member@b.com","role":"member"}`, ownerTok)))
+
+	// owner cannot remove self via /members.
+	require.Equal(t, 403, mustCode(postJSONMethod(t, "DELETE", base+"/teams/"+teamA+"/members", `{"email":"owner@b.com"}`, ownerTok)))
+
+	// promote member -> admin (admin role has member:manage); member switches into A.
+	require.Equal(t, 200, mustCode(postJSONMethod(t, "PUT", base+"/teams/"+teamA+"/members", `{"email":"member@b.com","role":"admin"}`, ownerTok)))
+	_, mbody := postJSON(t, base+"/auth/login", `{"email":"member@b.com","password":"secret123"}`, "")
+	memberTok := dataField(t, mbody, "access_token")
+	_, swbody := postJSON(t, base+"/auth/switch-team", `{"team_id":`+teamA+`}`, memberTok)
+	memberAdminTok := dataField(t, swbody, "access_token")
+
+	// admin cannot remove the owner.
+	require.Equal(t, 409, mustCode(postJSONMethod(t, "DELETE", base+"/teams/"+teamA+"/members", `{"email":"owner@b.com"}`, memberAdminTok)))
+
+	// owner transfers A to member -> 200.
+	require.Equal(t, 200, mustCode(postJSON(t, base+"/teams/"+teamA+"/transfer", `{"email":"member@b.com"}`, ownerTok)))
+
+	// old owner (now demoted to admin) can no longer delete A -> 403 (not owner).
+	require.Equal(t, 403, mustCode(postJSONMethod(t, "DELETE", base+"/teams/"+teamA, "", ownerTok)))
+
+	// member re-switches into A to pick up owner scopes, then transfers back.
+	_, sw2 := postJSON(t, base+"/auth/switch-team", `{"team_id":`+teamA+`}`, memberTok)
+	memberOwnerTok := dataField(t, sw2, "access_token")
+	require.Equal(t, 200, mustCode(postJSON(t, base+"/teams/"+teamA+"/transfer", `{"email":"owner@b.com"}`, memberOwnerTok)))
+
+	// member (now admin again) leaves A voluntarily -> 200.
+	_, sw3 := postJSON(t, base+"/auth/switch-team", `{"team_id":`+teamA+`}`, memberTok)
+	memberBackTok := dataField(t, sw3, "access_token")
+	require.Equal(t, 200, mustCode(postJSONMethod(t, "DELETE", base+"/teams/"+teamA+"/members/me", "", memberBackTok)))
+
+	// owner cannot leave A (owner must transfer first) -> 409.
+	require.Equal(t, 409, mustCode(postJSONMethod(t, "DELETE", base+"/teams/"+teamA+"/members/me", "", ownerTok)))
+
+	// last-team guard: a fresh solo account cannot delete its only team -> 409.
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/auth/register", `{"email":"solo@b.com","password":"secret123"}`, "")))
+	_, vbody := postJSON(t, base+"/auth/login", `{"email":"solo@b.com","password":"secret123"}`, "")
+	soloTok := dataField(t, vbody, "access_token")
+	soloTeam := dataFieldFrom(t, base+"/auth/me", soloTok, "team")
+	require.Equal(t, 409, mustCode(postJSONMethod(t, "DELETE", base+"/teams/"+soloTeam, "", soloTok)))
+
+	// delete success: owner switches into B and deletes it (cascade) -> 200; gone from list.
+	_, sw4 := postJSON(t, base+"/auth/switch-team", `{"team_id":`+teamB+`}`, ownerTok)
+	ownerBTok := dataField(t, sw4, "access_token")
+	require.Equal(t, 200, mustCode(postJSONMethod(t, "DELETE", base+"/teams/"+teamB, "", ownerBTok)))
+	_, finalList := postGet(t, base+"/teams/", ownerTok)
+	require.NotContains(t, finalList, "Acme")
+}
