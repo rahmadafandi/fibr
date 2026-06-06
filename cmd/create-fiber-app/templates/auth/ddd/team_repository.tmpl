@@ -19,6 +19,12 @@ type Repository interface {
 	DeleteRole(ctx context.Context, roleID int64) error
 	PermissionsForRole(ctx context.Context, teamID int64, name string) ([]string, error)
 
+	FindTeam(ctx context.Context, teamID int64) (*Team, error)
+	UpdateTeamName(ctx context.Context, teamID int64, name string) error
+	DeleteMembership(ctx context.Context, accountID, teamID int64) error
+	DeleteTeamCascade(ctx context.Context, teamID int64) error
+	TransferOwnership(ctx context.Context, teamID, newOwnerID, oldOwnerID int64) error
+
 	CreateInvitation(ctx context.Context, inv *Invitation) error
 	PendingInvitations(ctx context.Context, teamID int64) ([]Invitation, error)
 	FindInvitation(ctx context.Context, teamID, inviteID int64) (*Invitation, error)

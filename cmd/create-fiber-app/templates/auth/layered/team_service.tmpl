@@ -25,6 +25,10 @@ var (
 	ErrRoleInUse         = errors.New("role is assigned to members")
 	ErrProtectedRole     = errors.New("role is protected")
 	ErrInvalidPermission = errors.New("unknown permission")
+	ErrNotOwner         = errors.New("not the team owner")
+	ErrLastTeam         = errors.New("cannot delete your last team")
+	ErrOwnerRemoval     = errors.New("owner cannot be removed; transfer ownership first")
+	ErrCannotRemoveSelf = errors.New("cannot remove yourself; use leave")
 )
 
 // Invitation errors.
@@ -352,6 +356,101 @@ func (s *TeamService) AcceptInvitation(ctx context.Context, accountID int64, cal
 		return nil, err
 	}
 	return m, nil
+}
+
+// RenameTeam updates a team's display name and returns the updated team.
+func (s *TeamService) RenameTeam(ctx context.Context, teamID int64, name string) (*model.Team, error) {
+	if err := s.repo.UpdateTeamName(ctx, teamID, name); err != nil {
+		return nil, err
+	}
+	return s.repo.FindTeam(ctx, teamID)
+}
+
+// DeleteTeam hard-deletes a team (and its memberships, roles, role permissions,
+// and invitations). Only the owner may delete, and never their last team.
+func (s *TeamService) DeleteTeam(ctx context.Context, callerAccountID, teamID int64) error {
+	team, err := s.repo.FindTeam(ctx, teamID)
+	if err != nil {
+		return err
+	}
+	if team.OwnerAccountID != callerAccountID {
+		return ErrNotOwner
+	}
+	teams, err := s.repo.TeamsForAccount(ctx, callerAccountID)
+	if err != nil {
+		return err
+	}
+	if len(teams) <= 1 {
+		return ErrLastTeam
+	}
+	return s.repo.DeleteTeamCascade(ctx, teamID)
+}
+
+// TransferOwnership makes the account with newOwnerEmail the team owner (it must
+// already be a member), promoting it to the owner role and demoting the old
+// owner to admin. Only the current owner may transfer. Returns the new owner id.
+func (s *TeamService) TransferOwnership(ctx context.Context, teamID, currentOwnerID int64, newOwnerEmail string) (int64, error) {
+	team, err := s.repo.FindTeam(ctx, teamID)
+	if err != nil {
+		return 0, err
+	}
+	if team.OwnerAccountID != currentOwnerID {
+		return 0, ErrNotOwner
+	}
+	a, err := s.accounts.FindByEmail(ctx, newOwnerEmail)
+	if err != nil || a == nil {
+		return 0, ErrAccountNotFound
+	}
+	if a.ID == currentOwnerID {
+		return a.ID, nil // already the owner; nothing to do
+	}
+	if _, err := s.repo.FindMembership(ctx, a.ID, teamID); err != nil {
+		return 0, ErrNotAMember
+	}
+	if err := s.repo.TransferOwnership(ctx, teamID, a.ID, currentOwnerID); err != nil {
+		return 0, err
+	}
+	return a.ID, nil
+}
+
+// RemoveMember removes another account (by email) from a team. The team owner
+// cannot be removed (transfer first), and a caller cannot remove themselves
+// (use LeaveTeam).
+func (s *TeamService) RemoveMember(ctx context.Context, teamID int64, email string, callerAccountID int64) error {
+	a, err := s.accounts.FindByEmail(ctx, email)
+	if err != nil || a == nil {
+		return ErrAccountNotFound
+	}
+	if a.ID == callerAccountID {
+		return ErrCannotRemoveSelf
+	}
+	team, err := s.repo.FindTeam(ctx, teamID)
+	if err != nil {
+		return err
+	}
+	if team.OwnerAccountID == a.ID {
+		return ErrOwnerRemoval
+	}
+	if _, err := s.repo.FindMembership(ctx, a.ID, teamID); err != nil {
+		return ErrNotAMember
+	}
+	return s.repo.DeleteMembership(ctx, a.ID, teamID)
+}
+
+// LeaveTeam removes the caller's own membership. The owner cannot leave
+// (transfer ownership first).
+func (s *TeamService) LeaveTeam(ctx context.Context, callerAccountID, teamID int64) error {
+	team, err := s.repo.FindTeam(ctx, teamID)
+	if err != nil {
+		return err
+	}
+	if team.OwnerAccountID == callerAccountID {
+		return ErrOwnerRemoval
+	}
+	if _, err := s.repo.FindMembership(ctx, callerAccountID, teamID); err != nil {
+		return ErrNotAMember
+	}
+	return s.repo.DeleteMembership(ctx, callerAccountID, teamID)
 }
 
 func slugify(s string) string {

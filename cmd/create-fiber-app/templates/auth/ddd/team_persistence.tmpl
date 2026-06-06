@@ -342,3 +342,72 @@ func (r *TeamRepository) SetInvitationStatus(ctx context.Context, id int64, stat
 		Set("status = ?", status).Where("id = ?", id).Exec(ctx)
 	return err
 }
+
+// FindTeam returns a team by id, or an error if absent.
+func (r *TeamRepository) FindTeam(ctx context.Context, teamID int64) (*domain.Team, error) {
+	m := new(teamModel)
+	if err := r.db.NewSelect().Model(m).Where("id = ?", teamID).Scan(ctx); err != nil {
+		return nil, err
+	}
+	return &domain.Team{ID: m.ID, Name: m.Name, Slug: m.Slug, OwnerAccountID: m.OwnerAccountID}, nil
+}
+
+// UpdateTeamName changes a team's display name.
+func (r *TeamRepository) UpdateTeamName(ctx context.Context, teamID int64, name string) error {
+	_, err := r.db.NewUpdate().Model((*teamModel)(nil)).
+		Set("name = ?", name).Where("id = ?", teamID).Exec(ctx)
+	return err
+}
+
+// DeleteMembership removes an account's membership in a team.
+func (r *TeamRepository) DeleteMembership(ctx context.Context, accountID, teamID int64) error {
+	_, err := r.db.NewDelete().Model((*membershipModel)(nil)).
+		Where("account_id = ?", accountID).Where("team_id = ?", teamID).Exec(ctx)
+	return err
+}
+
+// DeleteTeamCascade removes a team and all of its dependent rows
+// (invitations, role permissions, roles, memberships) in one transaction.
+func (r *TeamRepository) DeleteTeamCascade(ctx context.Context, teamID int64) error {
+	return r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		if _, err := tx.NewDelete().Model((*invitationModel)(nil)).
+			Where("team_id = ?", teamID).Exec(ctx); err != nil {
+			return err
+		}
+		if _, err := tx.NewDelete().Model((*rolePermissionModel)(nil)).
+			Where("role_id IN (?)", tx.NewSelect().Model((*roleModel)(nil)).
+				Column("id").Where("team_id = ?", teamID)).Exec(ctx); err != nil {
+			return err
+		}
+		if _, err := tx.NewDelete().Model((*roleModel)(nil)).
+			Where("team_id = ?", teamID).Exec(ctx); err != nil {
+			return err
+		}
+		if _, err := tx.NewDelete().Model((*membershipModel)(nil)).
+			Where("team_id = ?", teamID).Exec(ctx); err != nil {
+			return err
+		}
+		_, err := tx.NewDelete().Model((*teamModel)(nil)).Where("id = ?", teamID).Exec(ctx)
+		return err
+	})
+}
+
+// TransferOwnership reassigns a team's owner and swaps the owner/admin roles in
+// one transaction: the new owner gets the "owner" role, the old owner "admin".
+func (r *TeamRepository) TransferOwnership(ctx context.Context, teamID, newOwnerID, oldOwnerID int64) error {
+	return r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		if _, err := tx.NewUpdate().Model((*teamModel)(nil)).
+			Set("owner_account_id = ?", newOwnerID).Where("id = ?", teamID).Exec(ctx); err != nil {
+			return err
+		}
+		if _, err := tx.NewUpdate().Model((*membershipModel)(nil)).
+			Set("role = ?", "owner").
+			Where("account_id = ?", newOwnerID).Where("team_id = ?", teamID).Exec(ctx); err != nil {
+			return err
+		}
+		_, err := tx.NewUpdate().Model((*membershipModel)(nil)).
+			Set("role = ?", "admin").
+			Where("account_id = ?", oldOwnerID).Where("team_id = ?", teamID).Exec(ctx)
+		return err
+	})
+}
