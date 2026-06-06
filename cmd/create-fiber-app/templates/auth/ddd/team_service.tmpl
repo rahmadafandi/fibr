@@ -2,10 +2,15 @@ package team
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/rahmadafandi/fiber-helpers/jwt"
 	accountdomain "{{.Module}}/internal/domain/account"
 	domain "{{.Module}}/internal/domain/team"
 )
@@ -21,6 +26,16 @@ var (
 	ErrProtectedRole     = errors.New("role is protected")
 	ErrInvalidPermission = errors.New("unknown permission")
 )
+
+// Invitation errors.
+var (
+	ErrInviteInvalid    = errors.New("invalid invitation token")
+	ErrInviteNotPending = errors.New("invitation is not pending")
+	ErrEmailMismatch    = errors.New("invitation email does not match account")
+)
+
+// inviteTTL is how long an issued invitation token stays valid.
+const inviteTTL = 7 * 24 * time.Hour
 
 // AllPermissions is the catalog of permissions roles may grant. Edit freely.
 var AllPermissions = []string{
@@ -66,11 +81,13 @@ func dedupe(perms []string) []string {
 type Service struct {
 	repo     domain.Repository
 	accounts accountdomain.Repository
+	secret   string
 }
 
-// NewService creates a team Service.
-func NewService(repo domain.Repository, accounts accountdomain.Repository) *Service {
-	return &Service{repo: repo, accounts: accounts}
+// NewService creates a team Service. secret is the JWT signing key used to mint
+// and validate invitation tokens.
+func NewService(repo domain.Repository, accounts accountdomain.Repository, secret string) *Service {
+	return &Service{repo: repo, accounts: accounts, secret: secret}
 }
 
 // seedRoles creates the default roles for a freshly created team.
@@ -237,6 +254,105 @@ func (s *Service) DeleteRole(ctx context.Context, teamID int64, name string) err
 		return ErrRoleInUse
 	}
 	return s.repo.DeleteRole(ctx, role.ID)
+}
+
+// newJTI returns a random hex id used to link an invite token to its DB row.
+func newJTI() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+// Invite mints a pending invitation for email to join the team with role and
+// returns the signed token plus the stored row. The role must already exist.
+func (s *Service) Invite(ctx context.Context, teamID int64, email, role string) (string, *domain.Invitation, error) {
+	if _, err := s.repo.FindRole(ctx, teamID, role); err != nil {
+		return "", nil, ErrRoleNotFound
+	}
+	jti, err := newJTI()
+	if err != nil {
+		return "", nil, err
+	}
+	claims := jwt.MapClaims{
+		"typ":   "invite",
+		"team":  strconv.FormatInt(teamID, 10),
+		"email": email,
+		"role":  role,
+		"jti":   jti,
+	}
+	token, err := jwt.GenerateTokenWithExpiry(claims, s.secret, inviteTTL)
+	if err != nil {
+		return "", nil, err
+	}
+	inv := &domain.Invitation{
+		TeamID:    teamID,
+		Email:     email,
+		Role:      role,
+		JTI:       jti,
+		Status:    "pending",
+		ExpiresAt: time.Now().Add(inviteTTL),
+	}
+	if err := s.repo.CreateInvitation(ctx, inv); err != nil {
+		return "", nil, err
+	}
+	return token, inv, nil
+}
+
+// ListInvitations returns a team's pending invitations.
+func (s *Service) ListInvitations(ctx context.Context, teamID int64) ([]domain.Invitation, error) {
+	return s.repo.PendingInvitations(ctx, teamID)
+}
+
+// RevokeInvitation marks a team's invitation as revoked. It errors if the
+// invitation is not found in the team.
+func (s *Service) RevokeInvitation(ctx context.Context, teamID, inviteID int64) error {
+	inv, err := s.repo.FindInvitation(ctx, teamID, inviteID)
+	if err != nil {
+		return err
+	}
+	return s.repo.SetInvitationStatus(ctx, inv.ID, "revoked")
+}
+
+// AcceptInvitation validates a signed invite token and, if the caller's email
+// matches, joins them to the team. callerEmail comes from the caller's verified
+// access-token claims; accountID is their account id.
+func (s *Service) AcceptInvitation(ctx context.Context, accountID int64, callerEmail, token string) (*domain.Membership, error) {
+	parsed, err := jwt.ValidateToken(token, s.secret)
+	if err != nil || parsed == nil || !parsed.Valid {
+		return nil, ErrInviteInvalid
+	}
+	claims, err := jwt.ExtractClaimsFromJwt(parsed)
+	if err != nil {
+		return nil, ErrInviteInvalid
+	}
+	if typ, _ := claims["typ"].(string); typ != "invite" {
+		return nil, ErrInviteInvalid
+	}
+	jti, _ := claims["jti"].(string)
+	inv, err := s.repo.FindInvitationByJTI(ctx, jti)
+	if err != nil || inv == nil || inv.Status != "pending" {
+		return nil, ErrInviteNotPending
+	}
+	if !strings.EqualFold(callerEmail, inv.Email) {
+		return nil, ErrEmailMismatch
+	}
+	// Re-validate the role in case it was deleted after the invite was sent.
+	if _, err := s.repo.FindRole(ctx, inv.TeamID, inv.Role); err != nil {
+		return nil, ErrRoleNotFound
+	}
+	if existing, _ := s.repo.FindMembership(ctx, accountID, inv.TeamID); existing != nil {
+		return nil, ErrAlreadyMember
+	}
+	m := &domain.Membership{AccountID: accountID, TeamID: inv.TeamID, Role: inv.Role}
+	if err := s.repo.CreateMembership(ctx, m); err != nil {
+		return nil, err
+	}
+	if err := s.repo.SetInvitationStatus(ctx, inv.ID, "accepted"); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func slugify(s string) string {

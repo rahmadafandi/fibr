@@ -242,6 +242,7 @@ func renderTeamMigrations(root string) error {
 		{"auth/migration_memberships.tmpl", "create_memberships", 2 * time.Second},
 		{"auth/migration_roles.tmpl", "create_roles", 3 * time.Second},
 		{"auth/migration_role_permissions.tmpl", "create_role_permissions", 4 * time.Second},
+		{"auth/migration_invitations.tmpl", "create_invitations", 5 * time.Second},
 	}
 	for _, s := range steps {
 		ts := base.Add(s.off).Format("20060102150405")

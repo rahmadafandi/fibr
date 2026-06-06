@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+	"time"
 
 	domain "{{.Module}}/internal/domain/team"
 	"github.com/uptrace/bun"
@@ -37,8 +38,19 @@ type rolePermissionModel struct {
 	Permission    string `bun:"permission"`
 }
 
-// MigrateTeam creates the teams, memberships, roles, and role_permissions
-// tables (and their unique indexes) if they do not exist.
+type invitationModel struct {
+	bun.BaseModel `bun:"table:invitations,alias:invitation"`
+	ID            int64     `bun:"id,pk,autoincrement"`
+	TeamID        int64     `bun:"team_id"`
+	Email         string    `bun:"email"`
+	Role          string    `bun:"role"`
+	JTI           string    `bun:"jti"`
+	Status        string    `bun:"status"`
+	ExpiresAt     time.Time `bun:"expires_at"`
+}
+
+// MigrateTeam creates the teams, memberships, roles, role_permissions, and
+// invitations tables (and their unique indexes) if they do not exist.
 func MigrateTeam(ctx context.Context, db *bun.DB) error {
 	if _, err := db.NewCreateTable().Model((*teamModel)(nil)).IfNotExists().Exec(ctx); err != nil {
 		return err
@@ -62,9 +74,17 @@ func MigrateTeam(ctx context.Context, db *bun.DB) error {
 	if _, err := db.NewCreateTable().Model((*rolePermissionModel)(nil)).IfNotExists().Exec(ctx); err != nil {
 		return err
 	}
-	_, err := db.NewCreateIndex().Model((*rolePermissionModel)(nil)).
+	if _, err := db.NewCreateIndex().Model((*rolePermissionModel)(nil)).
 		IfNotExists().Index("role_permissions_role_perm_uq").Unique().
-		Column("role_id", "permission").Exec(ctx)
+		Column("role_id", "permission").Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := db.NewCreateTable().Model((*invitationModel)(nil)).IfNotExists().Exec(ctx); err != nil {
+		return err
+	}
+	_, err := db.NewCreateIndex().Model((*invitationModel)(nil)).
+		IfNotExists().Index("invitations_jti_uq").Unique().
+		Column("jti").Exec(ctx)
 	return err
 }
 
@@ -247,4 +267,78 @@ func (r *TeamRepository) PermissionsForRole(ctx context.Context, teamID int64, n
 		return nil, err
 	}
 	return perms, nil
+}
+
+func toInvitation(m invitationModel) domain.Invitation {
+	return domain.Invitation{
+		ID:        m.ID,
+		TeamID:    m.TeamID,
+		Email:     m.Email,
+		Role:      m.Role,
+		JTI:       m.JTI,
+		Status:    m.Status,
+		ExpiresAt: m.ExpiresAt,
+	}
+}
+
+// CreateInvitation inserts a new invitation.
+func (r *TeamRepository) CreateInvitation(ctx context.Context, inv *domain.Invitation) error {
+	m := &invitationModel{
+		TeamID:    inv.TeamID,
+		Email:     inv.Email,
+		Role:      inv.Role,
+		JTI:       inv.JTI,
+		Status:    inv.Status,
+		ExpiresAt: inv.ExpiresAt,
+	}
+	if _, err := r.db.NewInsert().Model(m).Exec(ctx); err != nil {
+		return err
+	}
+	inv.ID = m.ID
+	return nil
+}
+
+// PendingInvitations returns a team's pending invitations.
+func (r *TeamRepository) PendingInvitations(ctx context.Context, teamID int64) ([]domain.Invitation, error) {
+	var rows []invitationModel
+	err := r.db.NewSelect().Model(&rows).
+		Where("team_id = ?", teamID).Where("status = ?", "pending").
+		Order("id ASC").Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.Invitation, len(rows))
+	for i, m := range rows {
+		out[i] = toInvitation(m)
+	}
+	return out, nil
+}
+
+// FindInvitation returns an invitation by id within a team, or an error if absent.
+func (r *TeamRepository) FindInvitation(ctx context.Context, teamID, inviteID int64) (*domain.Invitation, error) {
+	m := new(invitationModel)
+	err := r.db.NewSelect().Model(m).
+		Where("id = ?", inviteID).Where("team_id = ?", teamID).Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+	inv := toInvitation(*m)
+	return &inv, nil
+}
+
+// FindInvitationByJTI returns an invitation by its token jti, or an error if absent.
+func (r *TeamRepository) FindInvitationByJTI(ctx context.Context, jti string) (*domain.Invitation, error) {
+	m := new(invitationModel)
+	if err := r.db.NewSelect().Model(m).Where("jti = ?", jti).Scan(ctx); err != nil {
+		return nil, err
+	}
+	inv := toInvitation(*m)
+	return &inv, nil
+}
+
+// SetInvitationStatus updates an invitation's status.
+func (r *TeamRepository) SetInvitationStatus(ctx context.Context, id int64, status string) error {
+	_, err := r.db.NewUpdate().Model((*invitationModel)(nil)).
+		Set("status = ?", status).Where("id = ?", id).Exec(ctx)
+	return err
 }

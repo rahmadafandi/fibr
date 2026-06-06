@@ -17,8 +17,8 @@ func NewTeamRepository(db *bun.DB) *TeamRepository {
 	return &TeamRepository{db: db}
 }
 
-// MigrateTeam creates the teams, memberships, roles, and role_permissions tables
-// (and their unique indexes) if they do not exist.
+// MigrateTeam creates the teams, memberships, roles, role_permissions, and
+// invitations tables (and their unique indexes) if they do not exist.
 func MigrateTeam(ctx context.Context, db *bun.DB) error {
 	if _, err := db.NewCreateTable().Model((*model.Team)(nil)).IfNotExists().Exec(ctx); err != nil {
 		return err
@@ -42,9 +42,17 @@ func MigrateTeam(ctx context.Context, db *bun.DB) error {
 	if _, err := db.NewCreateTable().Model((*model.RolePermission)(nil)).IfNotExists().Exec(ctx); err != nil {
 		return err
 	}
-	_, err := db.NewCreateIndex().Model((*model.RolePermission)(nil)).
+	if _, err := db.NewCreateIndex().Model((*model.RolePermission)(nil)).
 		IfNotExists().Index("role_permissions_role_perm_uq").Unique().
-		Column("role_id", "permission").Exec(ctx)
+		Column("role_id", "permission").Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := db.NewCreateTable().Model((*model.Invitation)(nil)).IfNotExists().Exec(ctx); err != nil {
+		return err
+	}
+	_, err := db.NewCreateIndex().Model((*model.Invitation)(nil)).
+		IfNotExists().Index("invitations_jti_uq").Unique().
+		Column("jti").Exec(ctx)
 	return err
 }
 
@@ -202,4 +210,46 @@ func (r *TeamRepository) PermissionsForRole(ctx context.Context, teamID int64, n
 		return nil, err
 	}
 	return perms, nil
+}
+
+// CreateInvitation inserts a new invitation.
+func (r *TeamRepository) CreateInvitation(ctx context.Context, inv *model.Invitation) error {
+	_, err := r.db.NewInsert().Model(inv).Exec(ctx)
+	return err
+}
+
+// PendingInvitations returns a team's pending invitations.
+func (r *TeamRepository) PendingInvitations(ctx context.Context, teamID int64) ([]model.Invitation, error) {
+	var rows []model.Invitation
+	err := r.db.NewSelect().Model(&rows).
+		Where("team_id = ?", teamID).Where("status = ?", "pending").
+		Order("id ASC").Scan(ctx)
+	return rows, err
+}
+
+// FindInvitation returns an invitation by id within a team, or an error if absent.
+func (r *TeamRepository) FindInvitation(ctx context.Context, teamID, inviteID int64) (*model.Invitation, error) {
+	m := new(model.Invitation)
+	err := r.db.NewSelect().Model(m).
+		Where("id = ?", inviteID).Where("team_id = ?", teamID).Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// FindInvitationByJTI returns an invitation by its token jti, or an error if absent.
+func (r *TeamRepository) FindInvitationByJTI(ctx context.Context, jti string) (*model.Invitation, error) {
+	m := new(model.Invitation)
+	if err := r.db.NewSelect().Model(m).Where("jti = ?", jti).Scan(ctx); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// SetInvitationStatus updates an invitation's status.
+func (r *TeamRepository) SetInvitationStatus(ctx context.Context, id int64, status string) error {
+	_, err := r.db.NewUpdate().Model((*model.Invitation)(nil)).
+		Set("status = ?", status).Where("id = ?", id).Exec(ctx)
+	return err
 }

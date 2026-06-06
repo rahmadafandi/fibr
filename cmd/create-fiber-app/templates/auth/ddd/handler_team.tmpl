@@ -49,6 +49,7 @@ func (h *AuthHandler) RegisterRoutes(r fiber.Router) {
 	g.Get("/me", auth.RequireAuth(h.secret, auth.WithBlocklist(h.store)), h.me)
 
 	r.Get("/permissions", auth.RequireAuth(h.secret, auth.WithBlocklist(h.store)), h.permissions)
+	r.Post("/invitations/accept", auth.RequireAuth(h.secret, auth.WithBlocklist(h.store)), h.acceptInvitation)
 
 	t := r.Group("/teams", auth.RequireAuth(h.secret, auth.WithBlocklist(h.store)))
 	t.Get("/", h.listTeams)
@@ -59,6 +60,9 @@ func (h *AuthHandler) RegisterRoutes(r fiber.Router) {
 	t.Post("/:id/roles", auth.RequireScope("role:manage"), h.createRole)
 	t.Put("/:id/roles/:name", auth.RequireScope("role:manage"), h.updateRole)
 	t.Delete("/:id/roles/:name", auth.RequireScope("role:manage"), h.deleteRole)
+	t.Post("/:id/invitations", auth.RequireScope("member:manage"), h.inviteMember)
+	t.Get("/:id/invitations", auth.RequireScope("member:manage"), h.listInvitations)
+	t.Delete("/:id/invitations/:inviteID", auth.RequireScope("member:manage"), h.revokeInvitation)
 	t.Get("/:id/manage", auth.RequireScope("team:manage"), h.manage)
 }
 
@@ -424,4 +428,107 @@ func (h *AuthHandler) manage(c *fiber.Ctx) error {
 		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
 	}
 	return response.SendSuccess(c, fiber.Map{"ok": true}, "team management area")
+}
+
+func (h *AuthHandler) inviteMember(c *fiber.Ctx) error {
+	if !h.sameTeam(c) {
+		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
+	}
+	teamID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid team id", fiber.StatusBadRequest)
+	}
+	var in struct {
+		Email string `json:"email"`
+		Role  string `json:"role"`
+	}
+	if err := c.BodyParser(&in); err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	}
+	if in.Email == "" || in.Role == "" {
+		return response.SendError(c, nil, "email and role are required", fiber.StatusBadRequest)
+	}
+	token, inv, err := h.teams.Invite(c.UserContext(), teamID, in.Email, in.Role)
+	if err != nil {
+		if errors.Is(err, appteam.ErrRoleNotFound) {
+			return response.SendError(c, nil, "unknown role", fiber.StatusNotFound)
+		}
+		return response.SendError(c, nil, "could not create invitation", fiber.StatusInternalServerError)
+	}
+	return response.SendSuccess(c, fiber.Map{
+		"id":         inv.ID,
+		"token":      token,
+		"expires_at": inv.ExpiresAt,
+	}, "invited", fiber.StatusCreated)
+}
+
+func (h *AuthHandler) listInvitations(c *fiber.Ctx) error {
+	if !h.sameTeam(c) {
+		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
+	}
+	teamID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid team id", fiber.StatusBadRequest)
+	}
+	invs, err := h.teams.ListInvitations(c.UserContext(), teamID)
+	if err != nil {
+		return response.SendError(c, nil, "could not list invitations", fiber.StatusInternalServerError)
+	}
+	return response.SendSuccess(c, invs, "ok")
+}
+
+func (h *AuthHandler) revokeInvitation(c *fiber.Ctx) error {
+	if !h.sameTeam(c) {
+		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
+	}
+	teamID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid team id", fiber.StatusBadRequest)
+	}
+	inviteID, err := strconv.ParseInt(c.Params("inviteID"), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid invitation id", fiber.StatusBadRequest)
+	}
+	if err := h.teams.RevokeInvitation(c.UserContext(), teamID, inviteID); err != nil {
+		return response.SendError(c, nil, "invitation not found", fiber.StatusNotFound)
+	}
+	return response.SendSuccess(c, fiber.Map{"ok": true}, "revoked", fiber.StatusOK)
+}
+
+func (h *AuthHandler) acceptInvitation(c *fiber.Ctx) error {
+	var in struct {
+		Token string `json:"token"`
+	}
+	if err := c.BodyParser(&in); err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	}
+	if in.Token == "" {
+		return response.SendError(c, nil, "token is required", fiber.StatusBadRequest)
+	}
+	accountID, err := strconv.ParseInt(auth.Subject(c), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid subject", fiber.StatusUnauthorized)
+	}
+	email := ""
+	if claims, ok := auth.Claims(c); ok {
+		email, _ = claims["email"].(string)
+	}
+	m, err := h.teams.AcceptInvitation(c.UserContext(), accountID, email, in.Token)
+	if err != nil {
+		switch {
+		case errors.Is(err, appteam.ErrInviteInvalid):
+			return response.SendError(c, nil, "invalid invitation token", fiber.StatusUnauthorized)
+		case errors.Is(err, appteam.ErrInviteNotPending):
+			return response.SendError(c, nil, "invitation is not pending", fiber.StatusConflict)
+		case errors.Is(err, appteam.ErrEmailMismatch):
+			return response.SendError(c, nil, "invitation email does not match account", fiber.StatusForbidden)
+		case errors.Is(err, appteam.ErrRoleNotFound):
+			return response.SendError(c, nil, "unknown role", fiber.StatusConflict)
+		case errors.Is(err, appteam.ErrAlreadyMember):
+			return response.SendError(c, nil, "already a member", fiber.StatusConflict)
+		default:
+			return response.SendError(c, nil, "could not accept invitation", fiber.StatusInternalServerError)
+		}
+	}
+	return response.SendSuccess(c, fiber.Map{"team_id": m.TeamID, "role": m.Role}, "joined", fiber.StatusOK)
 }

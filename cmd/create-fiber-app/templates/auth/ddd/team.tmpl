@@ -1,5 +1,7 @@
 package team
 
+import "time"
+
 // Team is a workspace that accounts belong to via memberships.
 type Team struct {
 	ID             int64  `json:"id"`
@@ -22,4 +24,16 @@ type Role struct {
 	TeamID      int64    `json:"team_id"`
 	Name        string   `json:"name"`
 	Permissions []string `json:"permissions"`
+}
+
+// Invitation is a pending request for an account (identified by email) to join a
+// team with a role. The JTI links it to its signed invite token.
+type Invitation struct {
+	ID        int64     `json:"id"`
+	TeamID    int64     `json:"team_id"`
+	Email     string    `json:"email"`
+	Role      string    `json:"role"`
+	JTI       string    `json:"-"`
+	Status    string    `json:"status"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
