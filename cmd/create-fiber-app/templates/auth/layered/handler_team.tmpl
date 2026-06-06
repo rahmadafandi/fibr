@@ -62,6 +62,11 @@ func (h *AuthHandler) RegisterRoutes(r fiber.Router) {
 	t.Post("/:id/invitations", auth.RequireScope("member:manage"), h.inviteMember)
 	t.Get("/:id/invitations", auth.RequireScope("member:manage"), h.listInvitations)
 	t.Delete("/:id/invitations/:inviteID", auth.RequireScope("member:manage"), h.revokeInvitation)
+	t.Patch("/:id", auth.RequireScope("team:manage"), h.renameTeam)
+	t.Delete("/:id", auth.RequireScope("team:manage"), h.deleteTeam)
+	t.Post("/:id/transfer", auth.RequireScope("team:manage"), h.transferOwnership)
+	t.Delete("/:id/members", auth.RequireScope("member:manage"), h.removeMember)
+	t.Delete("/:id/members/me", h.leaveTeam)
 	t.Get("/:id/manage", auth.RequireScope("team:manage"), h.manage)
 }
 
@@ -530,4 +535,156 @@ func (h *AuthHandler) acceptInvitation(c *fiber.Ctx) error {
 		}
 	}
 	return response.SendSuccess(c, fiber.Map{"team_id": m.TeamID, "role": m.Role}, "joined", fiber.StatusOK)
+}
+
+func (h *AuthHandler) renameTeam(c *fiber.Ctx) error {
+	if !h.sameTeam(c) {
+		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
+	}
+	teamID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid team id", fiber.StatusBadRequest)
+	}
+	var in struct {
+		Name string `json:"name"`
+	}
+	if err := c.BodyParser(&in); err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	}
+	if strings.TrimSpace(in.Name) == "" {
+		return response.SendError(c, nil, "name is required", fiber.StatusBadRequest)
+	}
+	team, err := h.teams.RenameTeam(c.UserContext(), teamID, in.Name)
+	if err != nil {
+		return response.SendError(c, nil, "could not rename team", fiber.StatusInternalServerError)
+	}
+	return response.SendSuccess(c, team, "updated", fiber.StatusOK)
+}
+
+func (h *AuthHandler) deleteTeam(c *fiber.Ctx) error {
+	if !h.sameTeam(c) {
+		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
+	}
+	teamID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid team id", fiber.StatusBadRequest)
+	}
+	accountID, err := strconv.ParseInt(auth.Subject(c), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid subject", fiber.StatusUnauthorized)
+	}
+	if err := h.teams.DeleteTeam(c.UserContext(), accountID, teamID); err != nil {
+		switch {
+		case errors.Is(err, service.ErrNotOwner):
+			return response.SendError(c, nil, "only the owner can delete the team", fiber.StatusForbidden)
+		case errors.Is(err, service.ErrLastTeam):
+			return response.SendError(c, nil, "cannot delete your last team", fiber.StatusConflict)
+		default:
+			return response.SendError(c, nil, "could not delete team", fiber.StatusInternalServerError)
+		}
+	}
+	return response.SendSuccess(c, fiber.Map{"ok": true}, "deleted", fiber.StatusOK)
+}
+
+func (h *AuthHandler) transferOwnership(c *fiber.Ctx) error {
+	if !h.sameTeam(c) {
+		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
+	}
+	teamID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid team id", fiber.StatusBadRequest)
+	}
+	accountID, err := strconv.ParseInt(auth.Subject(c), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid subject", fiber.StatusUnauthorized)
+	}
+	var in struct {
+		Email string `json:"email"`
+	}
+	if err := c.BodyParser(&in); err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	}
+	if in.Email == "" {
+		return response.SendError(c, nil, "email is required", fiber.StatusBadRequest)
+	}
+	newOwnerID, err := h.teams.TransferOwnership(c.UserContext(), teamID, accountID, in.Email)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrNotOwner):
+			return response.SendError(c, nil, "only the owner can transfer ownership", fiber.StatusForbidden)
+		case errors.Is(err, service.ErrAccountNotFound):
+			return response.SendError(c, nil, "account not found", fiber.StatusNotFound)
+		case errors.Is(err, service.ErrNotAMember):
+			return response.SendError(c, nil, "new owner must be a team member", fiber.StatusNotFound)
+		default:
+			return response.SendError(c, nil, "could not transfer ownership", fiber.StatusInternalServerError)
+		}
+	}
+	return response.SendSuccess(c, fiber.Map{"team_id": teamID, "new_owner_account_id": newOwnerID}, "transferred", fiber.StatusOK)
+}
+
+func (h *AuthHandler) removeMember(c *fiber.Ctx) error {
+	if !h.sameTeam(c) {
+		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
+	}
+	teamID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid team id", fiber.StatusBadRequest)
+	}
+	accountID, err := strconv.ParseInt(auth.Subject(c), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid subject", fiber.StatusUnauthorized)
+	}
+	var in struct {
+		Email string `json:"email"`
+	}
+	if err := c.BodyParser(&in); err != nil {
+		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	}
+	if in.Email == "" {
+		return response.SendError(c, nil, "email is required", fiber.StatusBadRequest)
+	}
+	if err := h.teams.RemoveMember(c.UserContext(), teamID, in.Email, accountID); err != nil {
+		switch {
+		case errors.Is(err, service.ErrAccountNotFound):
+			return response.SendError(c, nil, "account not found", fiber.StatusNotFound)
+		case errors.Is(err, service.ErrCannotRemoveSelf):
+			return response.SendError(c, nil, "cannot remove yourself; use DELETE /teams/:id/members/me", fiber.StatusForbidden)
+		case errors.Is(err, service.ErrOwnerRemoval):
+			return response.SendError(c, nil, "owner cannot be removed; transfer ownership first", fiber.StatusConflict)
+		case errors.Is(err, service.ErrNotAMember):
+			return response.SendError(c, nil, "not a member", fiber.StatusNotFound)
+		default:
+			return response.SendError(c, nil, "could not remove member", fiber.StatusInternalServerError)
+		}
+	}
+	return response.SendSuccess(c, fiber.Map{"ok": true}, "removed", fiber.StatusOK)
+}
+
+// leaveTeam removes the caller's own membership. Note: a member who leaves keeps
+// any already-issued JWT (with its team/role/scopes) until it expires or they
+// refresh/switch-team — there is no per-member live session revocation.
+func (h *AuthHandler) leaveTeam(c *fiber.Ctx) error {
+	if !h.sameTeam(c) {
+		return response.SendError(c, nil, "active team does not match path team", fiber.StatusForbidden)
+	}
+	teamID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid team id", fiber.StatusBadRequest)
+	}
+	accountID, err := strconv.ParseInt(auth.Subject(c), 10, 64)
+	if err != nil {
+		return response.SendError(c, nil, "invalid subject", fiber.StatusUnauthorized)
+	}
+	if err := h.teams.LeaveTeam(c.UserContext(), accountID, teamID); err != nil {
+		switch {
+		case errors.Is(err, service.ErrOwnerRemoval):
+			return response.SendError(c, nil, "owner cannot leave; transfer ownership first", fiber.StatusConflict)
+		case errors.Is(err, service.ErrNotAMember):
+			return response.SendError(c, nil, "not a member", fiber.StatusNotFound)
+		default:
+			return response.SendError(c, nil, "could not leave team", fiber.StatusInternalServerError)
+		}
+	}
+	return response.SendSuccess(c, fiber.Map{"ok": true}, "left", fiber.StatusOK)
 }
