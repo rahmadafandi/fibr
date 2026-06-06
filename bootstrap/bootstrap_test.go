@@ -4,6 +4,7 @@ package bootstrap
 
 import (
 	"context"
+	"io"
 	"net/http/httptest"
 	"testing"
 
@@ -71,4 +72,25 @@ func TestHealthExemptFromRateLimit(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 200, resp.StatusCode)
 	}
+}
+
+func TestMetricsOptInServesScrape(t *testing.T) {
+	app := New(Options{Metrics: true})
+	app.Get("/x", func(c *fiber.Ctx) error { return c.SendString("ok") })
+
+	_, err := app.Test(httptest.NewRequest("GET", "/x", nil))
+	require.NoError(t, err)
+
+	resp, err := app.Test(httptest.NewRequest("GET", "/metrics", nil))
+	require.NoError(t, err)
+	require.Equal(t, 200, resp.StatusCode)
+	body, _ := io.ReadAll(resp.Body)
+	require.Contains(t, string(body), "http_requests_total")
+}
+
+func TestMetricsOffNoScrape(t *testing.T) {
+	app := New(Options{})
+	resp, err := app.Test(httptest.NewRequest("GET", "/metrics", nil))
+	require.NoError(t, err)
+	require.Equal(t, 404, resp.StatusCode)
 }

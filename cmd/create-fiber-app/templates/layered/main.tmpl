@@ -61,6 +61,7 @@ func runServe(autoMigrate bool) error {
 	app := bootstrap.New(bootstrap.Options{
 		DB:           db,
 		AutoMigrate:  cfg.AutoMigrate || autoMigrate,
+		Metrics:      cfg.MetricsEnabled,
 		EnableCORS:   true,
 		RateLimit:    100,
 		HealthChecks: []health.NamedCheck{health.PingBun(db)},

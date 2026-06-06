@@ -78,6 +78,7 @@ func main() {
 - [`migrate`](#migrate) — Versioned migrations with `bun/migrate` and a ready cobra command.
 - [`auth`](#auth) — JWT bearer authentication and bcrypt password hashing for Fiber.
 - [`health`](#health) — Liveness (`/livez`) and readiness (`/readyz`) endpoints.
+- [`metrics`](#metrics) — Prometheus request metrics middleware + `/metrics` handler.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
 - [`bootstrap`](#bootstrap) — One-call app wiring: middleware, health, DB, and graceful shutdown.
 
@@ -413,6 +414,27 @@ health.Register(app, health.PingBun(db),
 // GET /livez  -> 200 {"status":"ok"}
 // GET /readyz -> 200/503 {"status":"...","checks":{...}}
 ```
+
+### `metrics`
+
+Prometheus request metrics. Standalone:
+
+```go
+import "github.com/rahmadafandi/fiber-helpers/metrics"
+
+app.Use(metrics.Middleware())
+app.Get("/metrics", metrics.Handler())
+```
+
+Records `http_requests_total{method,path,status}` and
+`http_request_duration_seconds{...}`. The `path` label is the Fiber route
+template (e.g. `/items/:id`), so cardinality stays bounded. The default registry
+also exposes Go-runtime and process collectors (`go_goroutines`, GC, memory,
+fds). The middleware skips its own `/metrics` path.
+
+Via `bootstrap`, enable with `Options{Metrics: true}` — it installs the
+middleware and registers `/metrics` ahead of the rate limiter. In a generated
+app, set `METRICS_ENABLED=true`.
 
 ### `server`
 

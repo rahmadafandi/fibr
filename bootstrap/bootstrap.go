@@ -12,6 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/rahmadafandi/fiber-helpers/health"
 	"github.com/rahmadafandi/fiber-helpers/logger"
+	"github.com/rahmadafandi/fiber-helpers/metrics"
 	"github.com/rahmadafandi/fiber-helpers/middleware"
 	"github.com/rahmadafandi/fiber-helpers/server"
 	"github.com/uptrace/bun"
@@ -36,6 +37,7 @@ type Options struct {
 	EnableCORS      bool
 	RateLimit       int
 	AutoMigrate     bool
+	Metrics         bool
 	HealthChecks    []health.NamedCheck
 	FiberConfig     fiber.Config
 }
@@ -57,6 +59,9 @@ func New(o Options) *App {
 	f.Use(middleware.Recover(o.Logger))
 	f.Use(middleware.ContextMiddleware(o.RequestTimeout))
 	f.Use(middleware.RequestLogger(o.Logger))
+	if o.Metrics {
+		f.Use(metrics.Middleware())
+	}
 
 	app := &App{App: f, shutdownTimeout: o.ShutdownTimeout, autoMigrate: o.AutoMigrate}
 	app.healthChecks = append(app.healthChecks, o.HealthChecks...)
@@ -65,6 +70,10 @@ func New(o Options) *App {
 	// readiness probes are never throttled. Use a provider so checks added
 	// later by Mount are included live.
 	health.RegisterProvider(f, app.snapshotChecks)
+
+	if o.Metrics {
+		f.Get(metrics.MetricsPath, metrics.Handler())
+	}
 
 	if o.EnableCORS {
 		f.Use(cors.New())

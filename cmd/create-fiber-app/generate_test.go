@@ -546,3 +546,37 @@ func TestTeamAdminScaffoldArtifactsLayered(t *testing.T) {
 	require.Contains(t, repo, "func (r *TeamRepository) DeleteTeamCascade(")
 	require.Contains(t, repo, "func (r *TeamRepository) FindTeam(")
 }
+
+func TestMetricsScaffoldWiring(t *testing.T) {
+	for _, layout := range []string{"ddd", "layered"} {
+		t.Run(layout, func(t *testing.T) {
+			dir := filepath.Join(t.TempDir(), "app")
+			require.NoError(t, Generate(Options{
+				Name: "app", Module: "example.com/app",
+				DB: "sqlite", Layout: layout,
+				Dir: dir, NoGit: true, NoTidy: true, Local: repoRoot(t),
+			}, &strings.Builder{}))
+
+			read := func(rel string) string {
+				b, err := os.ReadFile(filepath.Join(dir, rel))
+				require.NoError(t, err)
+				return string(b)
+			}
+
+			configPath := "internal/config/config.go"
+			if layout == "ddd" {
+				configPath = "internal/infrastructure/config/config.go"
+			}
+
+			cfg := read(configPath)
+			require.Contains(t, cfg, "MetricsEnabled bool")
+			require.Contains(t, cfg, "METRICS_ENABLED")
+
+			main := read("cmd/api/main.go")
+			require.Contains(t, main, "Metrics:")
+			require.Contains(t, main, "cfg.MetricsEnabled")
+
+			require.Contains(t, read(".env.example"), "METRICS_ENABLED")
+		})
+	}
+}
