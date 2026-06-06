@@ -477,3 +477,72 @@ func TestTeamInvitationScaffoldArtifactsLayered(t *testing.T) {
 	require.Contains(t, handler, `r.Post("/invitations/accept"`)
 	require.Contains(t, read("internal/handler/auth_module.go"), "service.NewTeamService(teamRepo, accountRepo, secret)")
 }
+
+func TestTeamAdminScaffoldArtifactsDDD(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "ddd", Team: true,
+		Dir: dir, NoGit: true, NoTidy: true, Local: repoRoot(t),
+	}, &strings.Builder{}))
+
+	read := func(rel string) string {
+		b, err := os.ReadFile(filepath.Join(dir, rel))
+		require.NoError(t, err)
+		return string(b)
+	}
+
+	handler := read("internal/interface/http/auth_handler.go")
+	require.Contains(t, handler, `t.Patch("/:id", auth.RequireScope("team:manage")`)
+	require.Contains(t, handler, `t.Delete("/:id", auth.RequireScope("team:manage")`)
+	require.Contains(t, handler, `t.Post("/:id/transfer", auth.RequireScope("team:manage")`)
+	require.Contains(t, handler, `t.Delete("/:id/members", auth.RequireScope("member:manage")`)
+	require.Contains(t, handler, `t.Delete("/:id/members/me"`)
+
+	svc := read("internal/application/team/service.go")
+	require.Contains(t, svc, "func (s *Service) RenameTeam(")
+	require.Contains(t, svc, "func (s *Service) DeleteTeam(")
+	require.Contains(t, svc, "func (s *Service) TransferOwnership(")
+	require.Contains(t, svc, "func (s *Service) RemoveMember(")
+	require.Contains(t, svc, "func (s *Service) LeaveTeam(")
+	require.Contains(t, svc, "ErrNotOwner")
+	require.Contains(t, svc, "ErrLastTeam")
+
+	repo := read("internal/domain/team/repository.go")
+	require.Contains(t, repo, "FindTeam(ctx context.Context, teamID int64) (*Team, error)")
+	require.Contains(t, repo, "DeleteTeamCascade(ctx context.Context, teamID int64) error")
+	require.Contains(t, repo, "TransferOwnership(ctx context.Context, teamID, newOwnerID, oldOwnerID int64) error")
+
+	pers := read("internal/infrastructure/persistence/team_repository_bun.go")
+	require.Contains(t, pers, "func (r *TeamRepository) DeleteTeamCascade(")
+	require.Contains(t, pers, "func (r *TeamRepository) FindTeam(")
+}
+
+func TestTeamAdminScaffoldArtifactsLayered(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "layered", Team: true,
+		Dir: dir, NoGit: true, NoTidy: true, Local: repoRoot(t),
+	}, &strings.Builder{}))
+
+	read := func(rel string) string {
+		b, err := os.ReadFile(filepath.Join(dir, rel))
+		require.NoError(t, err)
+		return string(b)
+	}
+
+	handler := read("internal/handler/auth_handler.go")
+	require.Contains(t, handler, `t.Patch("/:id", auth.RequireScope("team:manage")`)
+	require.Contains(t, handler, `t.Delete("/:id/members/me"`)
+	require.Contains(t, handler, `t.Post("/:id/transfer", auth.RequireScope("team:manage")`)
+
+	svc := read("internal/service/team_service.go")
+	require.Contains(t, svc, "func (s *TeamService) TransferOwnership(")
+	require.Contains(t, svc, "func (s *TeamService) DeleteTeam(")
+	require.Contains(t, svc, "ErrOwnerRemoval")
+
+	repo := read("internal/repository/team_repo.go")
+	require.Contains(t, repo, "func (r *TeamRepository) DeleteTeamCascade(")
+	require.Contains(t, repo, "func (r *TeamRepository) FindTeam(")
+}
