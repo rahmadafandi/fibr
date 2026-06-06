@@ -1,0 +1,32 @@
+package migrations
+
+import (
+	"context"
+	"time"
+
+	"github.com/uptrace/bun"
+)
+
+func init() {
+	type invitation struct {
+		bun.BaseModel `bun:"table:invitations"`
+		ID            int64     `bun:"id,pk,autoincrement"`
+		TeamID        int64     `bun:"team_id"`
+		Email         string    `bun:"email"`
+		Role          string    `bun:"role"`
+		JTI           string    `bun:"jti"`
+		Status        string    `bun:"status"`
+		ExpiresAt     time.Time `bun:"expires_at"`
+	}
+	Migrations.MustRegister(func(ctx context.Context, db *bun.DB) error {
+		if _, err := db.NewCreateTable().Model((*invitation)(nil)).Exec(ctx); err != nil {
+			return err
+		}
+		_, err := db.NewCreateIndex().Model((*invitation)(nil)).
+			Index("invitations_jti_uq").Unique().Column("jti").Exec(ctx)
+		return err
+	}, func(ctx context.Context, db *bun.DB) error {
+		_, err := db.NewDropTable().Model((*invitation)(nil)).IfExists().Exec(ctx)
+		return err
+	})
+}
