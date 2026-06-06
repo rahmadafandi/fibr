@@ -401,6 +401,9 @@ func (s *TeamService) TransferOwnership(ctx context.Context, teamID, currentOwne
 	if err != nil || a == nil {
 		return 0, ErrAccountNotFound
 	}
+	if a.ID == currentOwnerID {
+		return a.ID, nil // already the owner; nothing to do
+	}
 	if _, err := s.repo.FindMembership(ctx, a.ID, teamID); err != nil {
 		return 0, ErrNotAMember
 	}
