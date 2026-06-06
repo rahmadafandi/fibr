@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -520,4 +521,107 @@ func postJSONMethod(t *testing.T, method, url, body, bearer string) (int, string
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(resp.Body)
 	return resp.StatusCode, string(b)
+}
+
+// dataFieldNum reads a numeric field under data and returns it as a string id.
+func dataFieldNum(t *testing.T, body, field string) string {
+	t.Helper()
+	var parsed struct {
+		Data map[string]any `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(body), &parsed))
+	f, ok := parsed.Data[field].(float64)
+	require.Truef(t, ok, "field %q missing or not a number in body: %s", field, body)
+	return strconv.FormatInt(int64(f), 10)
+}
+
+func TestTeamInvitationsFlowE2E(t *testing.T) {
+	if os.Getenv("RUN_E2E") != "1" {
+		t.Skip("set RUN_E2E=1 to run the team-invitations runtime test (slow: go run)")
+	}
+	root := repoRoot(t)
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "ddd", Team: true,
+		Dir: dir, NoGit: true, NoTidy: false, Local: root,
+	}, &strings.Builder{}))
+
+	dbPath := filepath.Join(t.TempDir(), "invites.db")
+	port := "39521"
+	env := append(os.Environ(),
+		"DATABASE_URL=file:"+dbPath+"?cache=shared",
+		"PORT="+port,
+		"JWT_SECRET="+strings.Repeat("d", 64),
+	)
+
+	mig := exec.Command("go", "run", "./cmd/api", "migrate", "up")
+	mig.Dir, mig.Env = dir, env
+	if out, err := mig.CombinedOutput(); err != nil {
+		t.Fatalf("migrate up failed:\n%s", out)
+	}
+
+	srv := exec.Command("go", "run", "./cmd/api")
+	srv.Dir, srv.Env = dir, env
+	srv.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	require.NoError(t, srv.Start())
+	defer func() { _ = syscall.Kill(-srv.Process.Pid, syscall.SIGKILL) }()
+
+	base := "http://127.0.0.1:" + port
+	waitReady(t, base+"/livez")
+
+	// owner registers + logs in; capture active team.
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/auth/register", `{"email":"owner@b.com","password":"secret123"}`, "")))
+	_, body := postJSON(t, base+"/auth/login", `{"email":"owner@b.com","password":"secret123"}`, "")
+	ownerTok := dataField(t, body, "access_token")
+	team1 := dataFieldFrom(t, base+"/auth/me", ownerTok, "team")
+	require.NotEmpty(t, team1)
+
+	// owner invites invitee@b.com as "member" -> 201, capture token.
+	icode, ibody := postJSON(t, base+"/teams/"+team1+"/invitations", `{"email":"invitee@b.com","role":"member"}`, ownerTok)
+	require.Equal(t, 201, icode)
+	inviteTok := dataField(t, ibody, "token")
+	require.NotEmpty(t, inviteTok)
+
+	// unknown role -> 404.
+	require.Equal(t, 404, mustCode(postJSON(t, base+"/teams/"+team1+"/invitations", `{"email":"x@b.com","role":"nope"}`, ownerTok)))
+
+	// invitee and a third account register + log in.
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/auth/register", `{"email":"invitee@b.com","password":"secret123"}`, "")))
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/auth/register", `{"email":"third@b.com","password":"secret123"}`, "")))
+	_, tbody := postJSON(t, base+"/auth/login", `{"email":"third@b.com","password":"secret123"}`, "")
+	thirdTok := dataField(t, tbody, "access_token")
+
+	// wrong account accepting -> 403 (email mismatch).
+	require.Equal(t, 403, mustCode(postJSON(t, base+"/invitations/accept", `{"token":"`+inviteTok+`"}`, thirdTok)))
+
+	// invitee accepts -> 200; their /teams now lists the shared team.
+	_, mbody := postJSON(t, base+"/auth/login", `{"email":"invitee@b.com","password":"secret123"}`, "")
+	inviteeTok := dataField(t, mbody, "access_token")
+	require.Equal(t, 200, mustCode(postJSON(t, base+"/invitations/accept", `{"token":"`+inviteTok+`"}`, inviteeTok)))
+	require.Equal(t, 200, getCode(t, base+"/teams/", inviteeTok))
+
+	// after switching into the shared team, /me shows the "member" role.
+	_, swbody := postJSON(t, base+"/auth/switch-team", `{"team_id":`+team1+`}`, inviteeTok)
+	inviteeTeamTok := dataField(t, swbody, "access_token")
+	_, meBody := postGet(t, base+"/auth/me", inviteeTeamTok)
+	require.Equal(t, "member", dataField(t, meBody, "role"))
+
+	// replay: accepting the same token again -> 409 (not pending / already member).
+	require.Equal(t, 409, mustCode(postJSON(t, base+"/invitations/accept", `{"token":"`+inviteTok+`"}`, inviteeTok)))
+
+	// revoke path: invite revoked@b.com, capture id, DELETE it, then accept -> 409.
+	_, rbody := postJSON(t, base+"/teams/"+team1+"/invitations", `{"email":"revoked@b.com","role":"member"}`, ownerTok)
+	revokeTok := dataField(t, rbody, "token")
+	revokeID := dataFieldNum(t, rbody, "id")
+	require.Equal(t, 200, mustCode(postJSONMethod(t, "DELETE", base+"/teams/"+team1+"/invitations/"+revokeID, "", ownerTok)))
+	require.Equal(t, 201, mustCode(postJSON(t, base+"/auth/register", `{"email":"revoked@b.com","password":"secret123"}`, "")))
+	_, vbody := postJSON(t, base+"/auth/login", `{"email":"revoked@b.com","password":"secret123"}`, "")
+	revokedTok := dataField(t, vbody, "access_token")
+	require.Equal(t, 409, mustCode(postJSON(t, base+"/invitations/accept", `{"token":"`+revokeTok+`"}`, revokedTok)))
+
+	// listing shows only pending invites (accepted + revoked excluded).
+	_, lbody := postGet(t, base+"/teams/"+team1+"/invitations", ownerTok)
+	require.NotContains(t, lbody, "invitee@b.com")
+	require.NotContains(t, lbody, "revoked@b.com")
 }
