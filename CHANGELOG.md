@@ -9,6 +9,10 @@ This project has not yet had a stable release; all changes are listed under **Un
 
 ### Added
 
+- `metrics` package: Prometheus request metrics middleware + `/metrics` handler
+  (`http_requests_total` / `http_request_duration_seconds` with route-template
+  labels; default Go/process collectors). Opt-in via `bootstrap.Options.Metrics`;
+  generated apps toggle it with `METRICS_ENABLED`.
 - `auth` package: bcrypt `Hash`/`Compare`, JWT bearer middleware
   (`RequireAuth`/`Optional`), claims accessors (`Claims`/`Subject`), and scope
   checks (`RequireScope`/`HasScope`/`Scopes`).
