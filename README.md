@@ -8,7 +8,7 @@ A collection of helper packages for the [Fiber](https://gofiber.io/) web framewo
 go get github.com/rahmadafandi/fiber-helpers
 ```
 
-Requires Go 1.25+. Targets Fiber v2 and Bun ORM (Postgres or SQLite).
+Requires Go 1.26+. Targets Fiber v2 and Bun ORM (Postgres or SQLite).
 
 ## Quickstart
 
