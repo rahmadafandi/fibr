@@ -8,3 +8,6 @@
 
 # mkdocs build output
 site/
+
+# local-only planning docs (superpowers specs/plans)
+docs/superpowers/
