@@ -13,6 +13,9 @@ import (
 	"github.com/rahmadafandi/fiber-helpers/health"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 func TestNewRoutesWork(t *testing.T) {
@@ -93,4 +96,28 @@ func TestMetricsOffNoScrape(t *testing.T) {
 	resp, err := app.Test(httptest.NewRequest("GET", "/metrics", nil))
 	require.NoError(t, err)
 	require.Equal(t, 404, resp.StatusCode)
+}
+
+func TestTracingOptInRecordsSpan(t *testing.T) {
+	sr := tracetest.NewSpanRecorder()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(sr))
+	otel.SetTracerProvider(tp)
+
+	app := New(Options{Tracing: true})
+	app.Get("/x", func(c *fiber.Ctx) error { return c.SendString("ok") })
+
+	_, err := app.Test(httptest.NewRequest("GET", "/x", nil))
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(sr.Ended()), 1, "otelfiber should record a server span")
+}
+
+func TestCleanupHooksRegistered(t *testing.T) {
+	called := false
+	app := New(Options{Cleanup: []func(context.Context) error{
+		func(context.Context) error { called = true; return nil },
+	}})
+	for _, fn := range app.cleanup {
+		_ = fn(context.Background())
+	}
+	require.True(t, called, "Options.Cleanup hooks must be registered as cleanup")
 }
