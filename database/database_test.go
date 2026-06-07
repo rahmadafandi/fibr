@@ -9,6 +9,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 func TestDetectDialect(t *testing.T) {
@@ -74,4 +77,39 @@ func TestNewBunPostgresWithoutPing(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 	assert.NotNil(t, db)
+}
+
+func TestWithTracingRecordsQuerySpan(t *testing.T) {
+	sr := tracetest.NewSpanRecorder()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(sr))
+	prev := otel.GetTracerProvider()
+	otel.SetTracerProvider(tp)
+	defer otel.SetTracerProvider(prev)
+
+	db, err := NewBun("file::memory:?cache=shared", WithTracing(), WithoutPing())
+	require.NoError(t, err)
+	defer db.Close()
+
+	var n int
+	require.NoError(t, db.NewSelect().ColumnExpr("1").Scan(context.Background(), &n))
+	require.Equal(t, 1, n)
+
+	require.NotEmpty(t, sr.Ended(), "expected at least one query span")
+}
+
+func TestWithoutTracingNoQuerySpan(t *testing.T) {
+	sr := tracetest.NewSpanRecorder()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(sr))
+	prev := otel.GetTracerProvider()
+	otel.SetTracerProvider(tp)
+	defer otel.SetTracerProvider(prev)
+
+	db, err := NewBun("file::memory:?cache=shared", WithoutPing())
+	require.NoError(t, err)
+	defer db.Close()
+
+	var n int
+	require.NoError(t, db.NewSelect().ColumnExpr("1").Scan(context.Background(), &n))
+
+	require.Empty(t, sr.Ended(), "no spans expected without WithTracing")
 }
