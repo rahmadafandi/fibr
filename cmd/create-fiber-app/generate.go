@@ -28,6 +28,7 @@ type Data struct {
 	Sample         bool
 	Auth           bool
 	Team           bool
+	Queue          bool
 	JWTSecret      string
 	HelpersVersion string
 	LocalReplace   string
@@ -91,7 +92,7 @@ func Generate(o Options, out io.Writer) error {
 
 	d := Data{
 		Name: o.Name, Module: o.Module, DB: o.DB, Layout: o.Layout,
-		Sample: o.Sample, HelpersVersion: o.HelpersVersion, LocalReplace: o.Local,
+		Sample: o.Sample, Queue: o.Queue, HelpersVersion: o.HelpersVersion, LocalReplace: o.Local,
 	}
 
 	if o.Auth {
@@ -146,6 +147,15 @@ func Generate(o Options, out io.Writer) error {
 		} else if _, err := renderAuthMigration(o.Dir); err != nil {
 			_ = os.RemoveAll(o.Dir)
 			return fmt.Errorf("render auth migration: %w", err)
+		}
+	}
+
+	if o.Queue {
+		for _, fsp := range planQueue(d) {
+			if err := renderFile(fsp, d, o.Dir); err != nil {
+				_ = os.RemoveAll(o.Dir)
+				return fmt.Errorf("render %s: %w", fsp.tmpl, err)
+			}
 		}
 	}
 
@@ -212,6 +222,17 @@ func planAuth(d Data) []fileSpec {
 			fileSpec{"auth/layered/handler.tmpl", "internal/handler/auth_handler.go"},
 			fileSpec{"auth/layered/module.tmpl", "internal/handler/auth_module.go"},
 		)
+	}
+	return nil
+}
+
+// planQueue returns the sample-job fileSpec for the layout.
+func planQueue(d Data) []fileSpec {
+	switch d.Layout {
+	case "ddd":
+		return []fileSpec{{"queue/jobs.tmpl", "internal/application/jobs/jobs.go"}}
+	case "layered":
+		return []fileSpec{{"queue/jobs.tmpl", "internal/jobs/jobs.go"}}
 	}
 	return nil
 }
