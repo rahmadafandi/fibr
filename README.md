@@ -2,6 +2,8 @@
 
 A collection of helper packages for the [Fiber](https://gofiber.io/) web framework.
 
+📖 **[Documentation](https://rahmadafandi.github.io/fiber-helpers/)** · [API reference (pkg.go.dev)](https://pkg.go.dev/github.com/rahmadafandi/fiber-helpers)
+
 ## Install
 
 ```bash

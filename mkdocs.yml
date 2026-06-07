@@ -1,0 +1,36 @@
+site_name: fiber-helpers
+site_description: Reusable Fiber boilerplate and the create-fiber-app generator for Go.
+site_url: https://rahmadafandi.github.io/fiber-helpers/
+repo_url: https://github.com/rahmadafandi/fiber-helpers
+repo_name: rahmadafandi/fiber-helpers
+docs_dir: docs-site
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.snippets:
+      base_path: .
+
+nav:
+  - Home: index.md
+  - Generator: generator.md
+  - Packages: packages.md
+  - Changelog: changelog.md
