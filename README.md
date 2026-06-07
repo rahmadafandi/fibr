@@ -81,6 +81,7 @@ func main() {
 - [`metrics`](#metrics) — Prometheus request metrics middleware + `/metrics` handler.
 - [`tracing`](#tracing) — OpenTelemetry tracing setup (OTLP/HTTP) + Fiber spans.
 - [`jobs`](#jobs) — Redis-backed background jobs (asynq) + asynqmon monitoring mount.
+- [`mailer`](#mailer) — Transactional email: pluggable `Sender` (SMTP/log/memory) + template render.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
 - [`bootstrap`](#bootstrap) — One-call app wiring: middleware, health, DB, and graceful shutdown.
 
@@ -498,6 +499,31 @@ a `worker` subcommand, a sample job, the monitoring UI mount, and the
 `REDIS_URL` / `QUEUE_CONCURRENCY` / `ASYNQMON_PATH` config keys. When `REDIS_URL`
 is unset the queue is disabled with a startup warning (the `worker` subcommand
 exits with an error).
+
+### mailer
+
+Transactional email through a pluggable `Sender`.
+
+```go
+import "github.com/rahmadafandi/fiber-helpers/mailer"
+
+sender, _ := mailer.New(mailer.SMTPConfig{
+    Host: os.Getenv("SMTP_HOST"), Port: 587,
+    Username: os.Getenv("SMTP_USERNAME"), Password: os.Getenv("SMTP_PASSWORD"),
+    From: "no-reply@example.com",
+})
+
+html, text, _ := mailer.Render("<p>Hi {{.Name}}</p>", "Hi {{.Name}}", data)
+sender.Send(ctx, mailer.Message{To: []string{"a@b.com"}, Subject: "Hi", HTML: html, Text: text})
+```
+
+`New` returns an SMTP sender when `Host` is set, otherwise a `LogSender` that
+logs instead of sending (handy in development). A `MemorySender` captures
+messages for tests. Because `Message` is JSON-serializable it doubles as an
+asynq job payload — generated apps with both `--mailer` and `--queue` send
+asynchronously through an `email:send` job; with `--mailer` alone they send
+inline. `create-fiber-app --mailer` also sends the team invitation email (with
+`--auth-with-team`) and the welcome job (with `--queue`).
 
 ### `server`
 

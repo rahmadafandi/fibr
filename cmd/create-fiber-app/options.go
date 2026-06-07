@@ -20,6 +20,7 @@ type Options struct {
 	Auth           bool
 	Team           bool
 	Queue          bool
+	Mailer         bool
 	Dir            string
 	NoGit          bool
 	NoTidy         bool
@@ -59,6 +60,9 @@ func (o *Options) Resolve(in io.Reader, out io.Writer, interactive bool, changed
 		}
 		if !changed("queue") && !o.Queue {
 			o.Queue = yesNo(r, out, "Include background job queue (asynq)?", false)
+		}
+		if !changed("mailer") && !o.Mailer {
+			o.Mailer = yesNo(r, out, "Include transactional email (SMTP mailer)?", false)
 		}
 	}
 	return o.Validate()

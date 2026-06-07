@@ -29,6 +29,7 @@ type Data struct {
 	Auth           bool
 	Team           bool
 	Queue          bool
+	Mailer         bool
 	JWTSecret      string
 	HelpersVersion string
 	LocalReplace   string
@@ -92,7 +93,7 @@ func Generate(o Options, out io.Writer) error {
 
 	d := Data{
 		Name: o.Name, Module: o.Module, DB: o.DB, Layout: o.Layout,
-		Sample: o.Sample, Queue: o.Queue, HelpersVersion: o.HelpersVersion, LocalReplace: o.Local,
+		Sample: o.Sample, Queue: o.Queue, Mailer: o.Mailer, HelpersVersion: o.HelpersVersion, LocalReplace: o.Local,
 	}
 
 	if o.Auth {

@@ -842,3 +842,67 @@ func TestQueueCompilesE2E(t *testing.T) {
 		})
 	}
 }
+
+func TestMailerCompilesE2E(t *testing.T) {
+	if os.Getenv("RUN_E2E") != "1" {
+		t.Skip("set RUN_E2E=1 to run the mailer compile test (slow: go build)")
+	}
+	root := repoRoot(t)
+	cases := []struct {
+		name string
+		opts Options
+	}{
+		{"mailer", Options{Mailer: true}},
+		{"mailer-queue", Options{Mailer: true, Queue: true}},
+		{"mailer-team", Options{Mailer: true, Team: true}},
+		{"mailer-team-queue", Options{Mailer: true, Team: true, Queue: true}},
+	}
+	for _, layout := range []string{"ddd", "layered"} {
+		for _, tc := range cases {
+			t.Run(layout+"-"+tc.name, func(t *testing.T) {
+				dir := filepath.Join(t.TempDir(), "app")
+				o := tc.opts
+				o.Name, o.Module, o.DB, o.Layout = "app", "example.com/app", "sqlite", layout
+				o.Dir, o.NoGit, o.NoTidy, o.Local = dir, true, false, root
+				require.NoError(t, Generate(o, &strings.Builder{}))
+				build := exec.Command("go", "build", "./...")
+				build.Dir = dir
+				out, err := build.CombinedOutput()
+				require.NoError(t, err, "go build failed:\n%s", out)
+			})
+		}
+	}
+}
+
+func TestMailerFlowE2E(t *testing.T) {
+	if os.Getenv("RUN_E2E") != "1" {
+		t.Skip("set RUN_E2E=1 to run the mailer runtime test (slow: go run)")
+	}
+	root := repoRoot(t)
+	dir := filepath.Join(t.TempDir(), "app")
+	require.NoError(t, Generate(Options{
+		Name: "app", Module: "example.com/app",
+		DB: "sqlite", Layout: "ddd", Mailer: true,
+		Dir: dir, NoGit: true, NoTidy: false, Local: root,
+	}, &strings.Builder{}))
+
+	dbPath := filepath.Join(t.TempDir(), "mail.db")
+	port := "39526"
+	env := append(os.Environ(),
+		"DATABASE_URL=file:"+dbPath+"?cache=shared",
+		"PORT="+port,
+	)
+
+	srv := exec.Command("go", "run", "./cmd/api")
+	srv.Dir, srv.Env = dir, env
+	srv.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	require.NoError(t, srv.Start())
+	defer func() { _ = syscall.Kill(-srv.Process.Pid, syscall.SIGKILL) }()
+
+	base := "http://127.0.0.1:" + port
+	waitReady(t, base+"/livez")
+
+	// No SMTP_HOST set -> LogSender -> send succeeds and logs.
+	code, _ := postJSON(t, base+"/email/test", `{}`, "")
+	require.Equal(t, 200, code)
+}

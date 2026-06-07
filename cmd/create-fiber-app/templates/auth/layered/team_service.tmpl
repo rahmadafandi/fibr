@@ -11,7 +11,8 @@ import (
 	"time"
 
 	"github.com/rahmadafandi/fiber-helpers/jwt"
-	"{{.Module}}/internal/model"
+{{if .Mailer}}	fhmailer "github.com/rahmadafandi/fiber-helpers/mailer"
+{{end}}	"{{.Module}}/internal/model"
 	"{{.Module}}/internal/repository"
 )
 
@@ -86,12 +87,13 @@ type TeamService struct {
 	repo     *repository.TeamRepository
 	accounts *repository.AccountRepository
 	secret   string
-}
+{{if .Mailer}}	sender   fhmailer.Sender
+{{end}}}
 
 // NewTeamService creates a TeamService. secret is the JWT signing key used to
 // mint and validate invitation tokens.
-func NewTeamService(repo *repository.TeamRepository, accounts *repository.AccountRepository, secret string) *TeamService {
-	return &TeamService{repo: repo, accounts: accounts, secret: secret}
+func NewTeamService(repo *repository.TeamRepository, accounts *repository.AccountRepository, secret string{{if .Mailer}}, sender fhmailer.Sender{{end}}) *TeamService {
+	return &TeamService{repo: repo, accounts: accounts, secret: secret{{if .Mailer}}, sender: sender{{end}}}
 }
 
 func (s *TeamService) seedRoles(ctx context.Context, teamID int64) error {
@@ -300,7 +302,15 @@ func (s *TeamService) Invite(ctx context.Context, teamID int64, email, role stri
 	if err := s.repo.CreateInvitation(ctx, inv); err != nil {
 		return "", nil, err
 	}
-	return token, inv, nil
+{{if .Mailer}}	if html, text, rerr := fhmailer.Render(inviteHTML, inviteText, struct {
+		TeamID string
+		Token  string
+	}{TeamID: strconv.FormatInt(teamID, 10), Token: token}); rerr == nil {
+		// best-effort: the invitation row + token are already persisted, so a
+		// delivery failure must not fail the request.
+		_ = s.sender.Send(ctx, fhmailer.Message{To: []string{email}, Subject: "You're invited", HTML: html, Text: text})
+	}
+{{end}}	return token, inv, nil
 }
 
 // ListInvitations returns a team's pending invitations.
@@ -470,3 +480,7 @@ func slugify(s string) string {
 	}
 	return out
 }
+{{if .Mailer}}
+const inviteHTML = `<p>You've been invited to team #{{"{{"}}.TeamID{{"}}"}}. Use this token to accept the invitation:</p><pre>{{"{{"}}.Token{{"}}"}}</pre>`
+const inviteText = "You've been invited to team #{{"{{"}}.TeamID{{"}}"}}. Token: {{"{{"}}.Token{{"}}"}}"
+{{end}}
