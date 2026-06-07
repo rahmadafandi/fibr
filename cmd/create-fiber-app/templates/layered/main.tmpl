@@ -109,7 +109,8 @@ func runWorker() error {
 		queueClient = fhjobs.NewClient(opt)
 		cleanups = append(cleanups, func(ctx context.Context) error { return queueClient.Close() })
 		asynqmonMount = &bootstrap.AsynqmonMount{
-			Handler: fhjobs.MonitoringHandler(opt, cfg.AsynqmonPath),
+{{if not .Auth}}			// NOTE: the monitoring UI is unauthenticated. Add a Middleware guard (or regenerate with --auth) before exposing it publicly.
+{{end}}			Handler: fhjobs.MonitoringHandler(opt, cfg.AsynqmonPath),
 			Path:    cfg.AsynqmonPath,
 {{if .Auth}}			Middleware: []fiber.Handler{fhauth.RequireAuth(cfg.JWTSecret)},
 {{end}}		}
