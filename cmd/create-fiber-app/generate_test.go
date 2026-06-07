@@ -580,3 +580,41 @@ func TestMetricsScaffoldWiring(t *testing.T) {
 		})
 	}
 }
+
+func TestTracingScaffoldWiring(t *testing.T) {
+	for _, layout := range []string{"ddd", "layered"} {
+		t.Run(layout, func(t *testing.T) {
+			dir := filepath.Join(t.TempDir(), "app")
+			require.NoError(t, Generate(Options{
+				Name: "app", Module: "example.com/app",
+				DB: "sqlite", Layout: layout,
+				Dir: dir, NoGit: true, NoTidy: true, Local: repoRoot(t),
+			}, &strings.Builder{}))
+
+			read := func(rel string) string {
+				b, err := os.ReadFile(filepath.Join(dir, rel))
+				require.NoError(t, err)
+				return string(b)
+			}
+
+			configPath := "internal/config/config.go"
+			if layout == "ddd" {
+				configPath = "internal/infrastructure/config/config.go"
+			}
+
+			cfg := read(configPath)
+			require.Contains(t, cfg, "TracingEnabled bool")
+			require.Contains(t, cfg, "TRACING_ENABLED")
+
+			main := read("cmd/api/main.go")
+			require.Contains(t, main, "tracing.Setup(")
+			require.Contains(t, main, "Tracing:")
+			require.Contains(t, main, "cfg.TracingEnabled")
+			require.Contains(t, main, "Cleanup:")
+
+			env := read(".env.example")
+			require.Contains(t, env, "TRACING_ENABLED")
+			require.Contains(t, env, "OTEL_EXPORTER_OTLP_ENDPOINT")
+		})
+	}
+}

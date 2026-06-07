@@ -9,6 +9,7 @@ type Config struct {
 	LogLevel    string `mapstructure:"LOG_LEVEL" default:"info"`
 	AutoMigrate bool   `mapstructure:"AUTO_MIGRATE" default:"false"`
 	MetricsEnabled bool `mapstructure:"METRICS_ENABLED" default:"false"`
+	TracingEnabled bool `mapstructure:"TRACING_ENABLED" default:"false"`
 {{if .Auth}}	JWTSecret string `mapstructure:"JWT_SECRET" required:"true"`
 	RedisURL  string `mapstructure:"REDIS_URL"`
 {{end}}}

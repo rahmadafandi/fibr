@@ -8,6 +8,7 @@ import (
 	"github.com/rahmadafandi/fiber-helpers/bootstrap"
 	"github.com/rahmadafandi/fiber-helpers/health"
 	fhmigrate "github.com/rahmadafandi/fiber-helpers/migrate"
+	"github.com/rahmadafandi/fiber-helpers/tracing"
 	"github.com/spf13/cobra"
 	"github.com/uptrace/bun"
 {{if .Auth}}	fhauth "github.com/rahmadafandi/fiber-helpers/auth"
@@ -57,10 +58,22 @@ func runServe(autoMigrate bool) error {
 		return err
 	}
 
+	var cleanups []func(context.Context) error
+	if cfg.TracingEnabled {
+		shutdown, terr := tracing.Setup(context.Background(), tracing.WithServiceName("{{.Name}}"))
+		if terr != nil {
+			log.Printf("tracing setup failed; continuing without tracing: %v", terr)
+		} else {
+			cleanups = append(cleanups, shutdown)
+		}
+	}
+
 	app := bootstrap.New(bootstrap.Options{
 		DB:           db,
 		AutoMigrate:  cfg.AutoMigrate || autoMigrate,
 		Metrics:      cfg.MetricsEnabled,
+		Tracing:      cfg.TracingEnabled,
+		Cleanup:      cleanups,
 		EnableCORS:   true,
 		RateLimit:    100,
 		HealthChecks: []health.NamedCheck{health.PingBun(db)},

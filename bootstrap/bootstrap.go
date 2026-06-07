@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	otelfiber "github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
@@ -38,6 +39,8 @@ type Options struct {
 	RateLimit       int
 	AutoMigrate     bool
 	Metrics         bool
+	Tracing         bool
+	Cleanup         []func(context.Context) error
 	HealthChecks    []health.NamedCheck
 	FiberConfig     fiber.Config
 }
@@ -58,6 +61,9 @@ func New(o Options) *App {
 	f := fiber.New(o.FiberConfig)
 	f.Use(middleware.Recover(o.Logger))
 	f.Use(middleware.ContextMiddleware(o.RequestTimeout))
+	if o.Tracing {
+		f.Use(otelfiber.Middleware())
+	}
 	f.Use(middleware.RequestLogger(o.Logger))
 	if o.Metrics {
 		f.Use(metrics.Middleware())
@@ -88,6 +94,7 @@ func New(o Options) *App {
 			return db.Close()
 		})
 	}
+	app.cleanup = append(app.cleanup, o.Cleanup...)
 
 	return app
 }
