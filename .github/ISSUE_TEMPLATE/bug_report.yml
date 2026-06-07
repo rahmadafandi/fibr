@@ -1,0 +1,37 @@
+name: Bug report
+description: Report a problem with fiber-helpers or create-fiber-app
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps or code. For generator issues, include the exact command (layout, --db, flags).
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: fiber-helpers version
+      placeholder: v0.2.0
+    validations:
+      required: true
+  - type: input
+    id: goversion
+    attributes:
+      label: Go version
+      placeholder: go1.26.4
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Logs, stack traces, environment details.

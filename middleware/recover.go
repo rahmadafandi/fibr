@@ -19,7 +19,7 @@ func Recover(logger *logger.Logger) fiber.Handler {
 			if r := recover(); r != nil {
 				err := fmt.Errorf("%v", r)
 				logger.Error(err, string(debug.Stack()), "request_id", context.GetRequestID(c))
-				c.Status(fiber.StatusInternalServerError).JSON(response.Response{
+				_ = c.Status(fiber.StatusInternalServerError).JSON(response.Response{
 					Code:    fiber.StatusInternalServerError,
 					Message: "Internal Server Error",
 					Status:  "error",

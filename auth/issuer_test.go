@@ -35,8 +35,8 @@ func TestIssuerIssue(t *testing.T) {
 	require.NotEmpty(t, ac["jti"])
 	require.Equal(t, "42", ac["sub"])
 	require.Nil(t, ac["fid"])
-	require.Equal(t, "a@example.com", ac["email"])                  // email propagated
-	require.Equal(t, []interface{}{"user"}, ac["scopes"])           // scopes propagated (JSON-decoded form)
+	require.Equal(t, "a@example.com", ac["email"])        // email propagated
+	require.Equal(t, []interface{}{"user"}, ac["scopes"]) // scopes propagated (JSON-decoded form)
 
 	rc := mustClaims(t, pair.RefreshToken)
 	require.Equal(t, "refresh", rc["type"])

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://rahmadafandi.github.io/fiber-helpers/
+    about: Guides, generator options, and the package index.
+  - name: API reference
+    url: https://pkg.go.dev/github.com/rahmadafandi/fiber-helpers
+    about: Full Go API documentation.

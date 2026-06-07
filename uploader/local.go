@@ -93,13 +93,13 @@ func (u *LocalUploader) Upload(file multipart.File, filename string) (string, er
 	}
 
 	if _, err := io.Copy(dst, file); err != nil {
-		dst.Close()
-		os.Remove(dstPath)
+		_ = dst.Close()
+		_ = os.Remove(dstPath)
 		return "", err
 	}
 
 	if err := dst.Close(); err != nil {
-		os.Remove(dstPath)
+		_ = os.Remove(dstPath)
 		return "", err
 	}
 

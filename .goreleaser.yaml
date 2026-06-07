@@ -1,0 +1,48 @@
+version: 2
+
+project_name: fiber-helpers
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: create-fiber-app
+    main: ./cmd/create-fiber-app
+    binary: create-fiber-app
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
+archives:
+  - id: create-fiber-app
+    formats: [tar.gz]
+    name_template: "create-fiber-app_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+
+release:
+  draft: false
+  prerelease: auto
