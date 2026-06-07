@@ -618,3 +618,31 @@ func TestTracingScaffoldWiring(t *testing.T) {
 		})
 	}
 }
+
+func TestQueueScaffoldWiring(t *testing.T) {
+	for _, layout := range []string{"ddd", "layered"} {
+		t.Run(layout, func(t *testing.T) {
+			dir := generateInto(t, Options{Name: "app", Module: "example.com/app", DB: "sqlite", Layout: layout, Queue: true})
+
+			jobsPath := filepath.Join(dir, "internal/jobs/jobs.go")
+			cfgPath := filepath.Join(dir, "internal/config/config.go")
+			if layout == "ddd" {
+				jobsPath = filepath.Join(dir, "internal/application/jobs/jobs.go")
+				cfgPath = filepath.Join(dir, "internal/infrastructure/config/config.go")
+			}
+
+			assertFileContains(t, jobsPath, "func Register(srv *fhjobs.Server)")
+			assertFileContains(t, jobsPath, "WelcomeType")
+
+			main := filepath.Join(dir, "cmd/api/main.go")
+			assertFileContains(t, main, "func workerCmd()")
+			assertFileContains(t, main, "Asynqmon:")
+			assertFileContains(t, main, "fhjobs.NewClient")
+			assertFileContains(t, main, `app.Post("/jobs/welcome"`)
+
+			assertFileContains(t, cfgPath, "QUEUE_CONCURRENCY")
+			assertFileContains(t, cfgPath, "ASYNQMON_PATH")
+			assertFileContains(t, filepath.Join(dir, ".env.example"), "QUEUE_CONCURRENCY=10")
+		})
+	}
+}
