@@ -19,6 +19,7 @@ type Options struct {
 	Sample         bool
 	Auth           bool
 	Team           bool
+	Queue          bool
 	Dir            string
 	NoGit          bool
 	NoTidy         bool
@@ -55,6 +56,9 @@ func (o *Options) Resolve(in io.Reader, out io.Writer, interactive bool, changed
 		}
 		if o.Auth && !changed("auth-with-team") && !o.Team {
 			o.Team = yesNo(r, out, "Include teams/workspaces?", false)
+		}
+		if !changed("queue") && !o.Queue {
+			o.Queue = yesNo(r, out, "Include background job queue (asynq)?", false)
 		}
 	}
 	return o.Validate()

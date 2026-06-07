@@ -69,6 +69,7 @@ func newRootCmd() *cobra.Command {
 	f.BoolVar(&o.Sample, "sample", false, "include a sample CRUD domain")
 	f.BoolVar(&o.Auth, "auth", false, "include auth scaffold (JWT + accounts)")
 	f.BoolVar(&o.Team, "auth-with-team", false, "include teams/workspaces scaffold (implies --auth)")
+	f.BoolVar(&o.Queue, "queue", false, "include background job queue (asynq + asynqmon)")
 	f.StringVar(&o.Dir, "dir", "", "output directory (default ./<name>)")
 	f.BoolVar(&o.NoGit, "no-git", false, "skip git init")
 	f.BoolVar(&o.NoTidy, "no-tidy", false, "skip go mod tidy")

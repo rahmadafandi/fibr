@@ -80,6 +80,7 @@ func main() {
 - [`health`](#health) — Liveness (`/livez`) and readiness (`/readyz`) endpoints.
 - [`metrics`](#metrics) — Prometheus request metrics middleware + `/metrics` handler.
 - [`tracing`](#tracing) — OpenTelemetry tracing setup (OTLP/HTTP) + Fiber spans.
+- [`jobs`](#jobs) — Redis-backed background jobs (asynq) + asynqmon monitoring mount.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
 - [`bootstrap`](#bootstrap) — One-call app wiring: middleware, health, DB, and graceful shutdown.
 
@@ -457,6 +458,46 @@ tracer provider + W3C propagator. Via `bootstrap`, enable with
 pass `shutdown` through `Options{Cleanup: []func(context.Context) error{shutdown}}`
 for graceful shutdown. When tracing is active, `RequestLogger` adds `trace_id` /
 `span_id` to request logs. In a generated app, set `TRACING_ENABLED=true`.
+
+### jobs
+
+Redis-backed background jobs built on [asynq](https://github.com/hibiken/asynq).
+
+```go
+import "github.com/rahmadafandi/fiber-helpers/jobs"
+
+opt, _ := jobs.RedisConnOpt(os.Getenv("REDIS_URL"))
+
+// enqueue (HTTP side)
+client := jobs.NewClient(opt)
+client.Enqueue(ctx, "welcome:send", WelcomePayload{Email: "a@b.com"})
+
+// process (worker side)
+srv := jobs.NewServer(opt, jobs.ServerConfig{Concurrency: 10})
+jobs.Handle[WelcomePayload](srv, "welcome:send", handleWelcome)
+srv.Run()
+```
+
+`Enqueue` JSON-marshals the payload; the generic `Handle[T]` decodes it back into
+`T` before calling your handler (a malformed payload wraps `asynq.SkipRetry` so it
+is not retried forever). Mount the
+[asynqmon](https://github.com/hibiken/asynqmon) dashboard through `bootstrap`
+(the asynqmon dependency stays out of `bootstrap` itself):
+
+```go
+bootstrap.New(bootstrap.Options{
+    Asynqmon: &bootstrap.AsynqmonMount{
+        Handler: jobs.MonitoringHandler(opt, "/monitoring"),
+        Path:    "/monitoring",
+    },
+})
+```
+
+Generate an app with the queue scaffolded via `create-fiber-app --queue`: it adds
+a `worker` subcommand, a sample job, the monitoring UI mount, and the
+`REDIS_URL` / `QUEUE_CONCURRENCY` / `ASYNQMON_PATH` config keys. When `REDIS_URL`
+is unset the queue is disabled with a startup warning (the `worker` subcommand
+exits with an error).
 
 ### `server`
 

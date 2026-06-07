@@ -4,11 +4,13 @@ package bootstrap
 
 import (
 	"context"
+	"net/http"
 	"sync"
 	"time"
 
 	otelfiber "github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/rahmadafandi/fiber-helpers/health"
@@ -29,6 +31,15 @@ type App struct {
 	autoMigrate     bool
 }
 
+// AsynqmonMount configures mounting an external monitoring UI handler (e.g. the
+// asynqmon dashboard) on the app. Kept generic so bootstrap need not import
+// asynqmon.
+type AsynqmonMount struct {
+	Handler    http.Handler    // the UI handler, e.g. jobs.MonitoringHandler(opt, path)
+	Path       string          // mount path; defaults to "/monitoring"
+	Middleware []fiber.Handler // optional guards applied before the handler
+}
+
 // Options configures the bootstrapped app. All fields are optional.
 type Options struct {
 	Logger          *logger.Logger
@@ -41,6 +52,7 @@ type Options struct {
 	Metrics         bool
 	Tracing         bool
 	Cleanup         []func(context.Context) error
+	Asynqmon        *AsynqmonMount
 	HealthChecks    []health.NamedCheck
 	FiberConfig     fiber.Config
 }
@@ -79,6 +91,21 @@ func New(o Options) *App {
 
 	if o.Metrics {
 		f.Get(metrics.MetricsPath, metrics.Handler())
+	}
+
+	if o.Asynqmon != nil && o.Asynqmon.Handler != nil {
+		path := o.Asynqmon.Path
+		if path == "" {
+			path = "/monitoring"
+		}
+		handlers := append(append([]fiber.Handler{}, o.Asynqmon.Middleware...),
+			adaptor.HTTPHandler(o.Asynqmon.Handler))
+		args := make([]interface{}, 0, len(handlers)+1)
+		args = append(args, path)
+		for _, h := range handlers {
+			args = append(args, h)
+		}
+		f.Use(args...)
 	}
 
 	if o.EnableCORS {
