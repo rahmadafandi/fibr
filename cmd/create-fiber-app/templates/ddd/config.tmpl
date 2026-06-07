@@ -14,6 +14,11 @@ type Config struct {
 {{end}}{{if or .Auth .Queue}}	RedisURL  string `mapstructure:"REDIS_URL"`
 {{end}}{{if .Queue}}	QueueConcurrency int    `mapstructure:"QUEUE_CONCURRENCY" default:"10"`
 	AsynqmonPath     string `mapstructure:"ASYNQMON_PATH" default:"/monitoring"`
+{{end}}{{if .Mailer}}	SMTPHost     string `mapstructure:"SMTP_HOST"`
+	SMTPPort     int    `mapstructure:"SMTP_PORT" default:"587"`
+	SMTPUsername string `mapstructure:"SMTP_USERNAME"`
+	SMTPPassword string `mapstructure:"SMTP_PASSWORD"`
+	SMTPFrom     string `mapstructure:"SMTP_FROM" default:"no-reply@example.com"`
 {{end}}}
 
 // Load reads configuration from environment variables and defaults.
