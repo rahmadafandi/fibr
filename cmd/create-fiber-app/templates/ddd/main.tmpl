@@ -15,9 +15,10 @@ import (
 	fhredis "github.com/rahmadafandi/fiber-helpers/redis"
 	redislib "github.com/redis/go-redis/v9"
 	zlog "github.com/rs/zerolog/log"
-{{end}}{{if .Queue}}	"github.com/gofiber/fiber/v2"
-	fhjobs "github.com/rahmadafandi/fiber-helpers/jobs"
+{{end}}{{if or .Queue .Mailer}}	"github.com/gofiber/fiber/v2"
+{{end}}{{if .Queue}}	fhjobs "github.com/rahmadafandi/fiber-helpers/jobs"
 	appjobs "{{.Module}}/internal/application/jobs"
+{{end}}{{if .Mailer}}	fhmailer "github.com/rahmadafandi/fiber-helpers/mailer"
 {{end}}
 	"{{.Module}}/internal/infrastructure/config"
 	"{{.Module}}/internal/infrastructure/database"
@@ -73,8 +74,17 @@ func runWorker() error {
 		return err
 	}
 	srv := fhjobs.NewServer(opt, fhjobs.ServerConfig{Concurrency: cfg.QueueConcurrency})
-	appjobs.Register(srv)
-	log.Println("worker started")
+{{if .Mailer}}	base, _ := fhmailer.New(fhmailer.SMTPConfig{
+		Host:     cfg.SMTPHost,
+		Port:     cfg.SMTPPort,
+		Username: cfg.SMTPUsername,
+		Password: cfg.SMTPPassword,
+		From:     cfg.SMTPFrom,
+	})
+	appjobs.Register(srv, base)
+	appjobs.RegisterEmail(srv, base)
+{{else}}	appjobs.Register(srv)
+{{end}}	log.Println("worker started")
 	return srv.Run()
 }
 
@@ -117,7 +127,17 @@ func runWorker() error {
 		log.Println("queue disabled — set REDIS_URL to enable background jobs")
 	}
 
-{{end}}	app := bootstrap.New(bootstrap.Options{
+{{end}}{{if .Mailer}}	mailSender, _ := fhmailer.New(fhmailer.SMTPConfig{
+		Host:     cfg.SMTPHost,
+		Port:     cfg.SMTPPort,
+		Username: cfg.SMTPUsername,
+		Password: cfg.SMTPPassword,
+		From:     cfg.SMTPFrom,
+	})
+{{if .Queue}}	if queueClient != nil {
+		mailSender = appjobs.NewQueueSender(queueClient)
+	}
+{{end}}{{end}}	app := bootstrap.New(bootstrap.Options{
 		DB:           db,
 		AutoMigrate:  cfg.AutoMigrate || autoMigrate,
 		Metrics:      cfg.MetricsEnabled,
@@ -140,6 +160,12 @@ func runWorker() error {
 			return c.JSON(fiber.Map{"enqueued": info.ID})
 		})
 	}
+{{end}}{{if .Mailer}}	app.Post("/email/test", func(c *fiber.Ctx) error {
+		if err := mailSender.Send(c.UserContext(), fhmailer.Message{To: []string{"someone@example.com"}, Subject: "Test email", Text: "It works.", HTML: "<p>It works.</p>"}); err != nil {
+			return err
+		}
+		return c.JSON(fiber.Map{"sent": true})
+	})
 {{end}}{{if .Sample}}	if err := app.Mount(httpiface.NewUserModule(db)); err != nil {
 		return err
 	}
@@ -154,7 +180,7 @@ func runWorker() error {
 		zlog.Warn().Msg("auth revocation using in-memory store — set REDIS_URL for production")
 		authStore = fhauth.NewMemoryStore()
 	}
-	if err := app.Mount(httpiface.NewAuthModule(db, cfg.JWTSecret, authStore)); err != nil {
+	if err := app.Mount(httpiface.NewAuthModule(db, cfg.JWTSecret, authStore{{if and .Team .Mailer}}, mailSender{{end}})); err != nil {
 		return err
 	}
 {{end}}
