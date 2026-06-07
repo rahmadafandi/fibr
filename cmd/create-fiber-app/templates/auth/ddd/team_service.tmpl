@@ -11,7 +11,8 @@ import (
 	"time"
 
 	"github.com/rahmadafandi/fiber-helpers/jwt"
-	accountdomain "{{.Module}}/internal/domain/account"
+{{if .Mailer}}	fhmailer "github.com/rahmadafandi/fiber-helpers/mailer"
+{{end}}	accountdomain "{{.Module}}/internal/domain/account"
 	domain "{{.Module}}/internal/domain/team"
 )
 
@@ -86,12 +87,13 @@ type Service struct {
 	repo     domain.Repository
 	accounts accountdomain.Repository
 	secret   string
-}
+{{if .Mailer}}	sender   fhmailer.Sender
+{{end}}}
 
 // NewService creates a team Service. secret is the JWT signing key used to mint
 // and validate invitation tokens.
-func NewService(repo domain.Repository, accounts accountdomain.Repository, secret string) *Service {
-	return &Service{repo: repo, accounts: accounts, secret: secret}
+func NewService(repo domain.Repository, accounts accountdomain.Repository, secret string{{if .Mailer}}, sender fhmailer.Sender{{end}}) *Service {
+	return &Service{repo: repo, accounts: accounts, secret: secret{{if .Mailer}}, sender: sender{{end}}}
 }
 
 // seedRoles creates the default roles for a freshly created team.
@@ -301,7 +303,15 @@ func (s *Service) Invite(ctx context.Context, teamID int64, email, role string) 
 	if err := s.repo.CreateInvitation(ctx, inv); err != nil {
 		return "", nil, err
 	}
-	return token, inv, nil
+{{if .Mailer}}	if html, text, rerr := fhmailer.Render(inviteHTML, inviteText, struct {
+		Team  string
+		Token string
+	}{Team: strconv.FormatInt(teamID, 10), Token: token}); rerr == nil {
+		// best-effort: the invitation row + token are already persisted, so a
+		// delivery failure must not fail the request.
+		_ = s.sender.Send(ctx, fhmailer.Message{To: []string{email}, Subject: "You're invited", HTML: html, Text: text})
+	}
+{{end}}	return token, inv, nil
 }
 
 // ListInvitations returns a team's pending invitations.
@@ -471,3 +481,7 @@ func slugify(s string) string {
 	}
 	return out
 }
+{{if .Mailer}}
+const inviteHTML = `<p>You've been invited to team {{"{{"}}.Team{{"}}"}}. Use this token to accept the invitation:</p><pre>{{"{{"}}.Token{{"}}"}}</pre>`
+const inviteText = "You've been invited to team {{"{{"}}.Team{{"}}"}}. Token: {{"{{"}}.Token{{"}}"}}"
+{{end}}
