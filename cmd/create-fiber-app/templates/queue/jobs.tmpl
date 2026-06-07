@@ -2,10 +2,11 @@ package jobs
 
 import (
 	"context"
-	"log"
 
 	fhjobs "github.com/rahmadafandi/fiber-helpers/jobs"
-)
+{{if .Mailer}}	fhmailer "github.com/rahmadafandi/fiber-helpers/mailer"
+{{else}}	"log"
+{{end}})
 
 // WelcomeType is the task type for the welcome-email job.
 const WelcomeType = "welcome:send"
@@ -14,9 +15,49 @@ const WelcomeType = "welcome:send"
 type WelcomePayload struct {
 	Email string `json:"email"`
 }
+{{if .Mailer}}
+const welcomeHTML = `<p>Welcome, {{"{{"}}.Email{{"}}"}}!</p>`
+const welcomeText = "Welcome, {{"{{"}}.Email{{"}}"}}!"
 
-// HandleWelcome processes a welcome job. Replace the log line with a real email
-// send once a mailer is wired.
+// Register wires this app's job handlers onto the worker server, sending mail
+// through sender.
+func Register(srv *fhjobs.Server, sender fhmailer.Sender) {
+	fhjobs.Handle[WelcomePayload](srv, WelcomeType, func(ctx context.Context, p WelcomePayload) error {
+		html, text, err := fhmailer.Render(welcomeHTML, welcomeText, p)
+		if err != nil {
+			return err
+		}
+		return sender.Send(ctx, fhmailer.Message{To: []string{p.Email}, Subject: "Welcome", HTML: html, Text: text})
+	})
+}
+
+// EmailType is the generic email-send job type.
+const EmailType = "email:send"
+
+// QueueSender enqueues messages as email:send jobs instead of sending inline.
+// It satisfies fhmailer.Sender, so request-path consumers can send asynchronously.
+type QueueSender struct {
+	client *fhjobs.Client
+}
+
+// NewQueueSender returns a QueueSender backed by client.
+func NewQueueSender(client *fhjobs.Client) *QueueSender {
+	return &QueueSender{client: client}
+}
+
+// Send enqueues msg as an email:send job.
+func (q *QueueSender) Send(ctx context.Context, msg fhmailer.Message) error {
+	_, err := q.client.Enqueue(ctx, EmailType, msg)
+	return err
+}
+
+// RegisterEmail registers the email:send handler, delivering via base.
+func RegisterEmail(srv *fhjobs.Server, base fhmailer.Sender) {
+	fhjobs.Handle[fhmailer.Message](srv, EmailType, base.Send)
+}
+{{else}}
+// HandleWelcome processes a welcome job. Wire a mailer (generate with --mailer)
+// to send a real email here.
 func HandleWelcome(ctx context.Context, p WelcomePayload) error {
 	log.Printf("sending welcome to %s", p.Email)
 	return nil
@@ -26,3 +67,4 @@ func HandleWelcome(ctx context.Context, p WelcomePayload) error {
 func Register(srv *fhjobs.Server) {
 	fhjobs.Handle[WelcomePayload](srv, WelcomeType, HandleWelcome)
 }
+{{end}}
