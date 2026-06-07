@@ -5,6 +5,7 @@ package bootstrap
 import (
 	"context"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -109,6 +110,30 @@ func TestTracingOptInRecordsSpan(t *testing.T) {
 	_, err := app.Test(httptest.NewRequest("GET", "/x", nil))
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(sr.Ended()), 1, "otelfiber should record a server span")
+}
+
+func TestAsynqmonMountServes(t *testing.T) {
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("mon-ok"))
+	})
+	app := New(Options{Asynqmon: &AsynqmonMount{Handler: h, Path: "/monitoring"}})
+
+	resp, err := app.Test(httptest.NewRequest("GET", "/monitoring", nil))
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	body, _ := io.ReadAll(resp.Body)
+	assert.Equal(t, "mon-ok", string(body))
+}
+
+func TestAsynqmonMiddlewareApplied(t *testing.T) {
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
+	guard := func(c *fiber.Ctx) error { return c.SendStatus(401) }
+	app := New(Options{Asynqmon: &AsynqmonMount{Handler: h, Path: "/monitoring", Middleware: []fiber.Handler{guard}}})
+
+	resp, err := app.Test(httptest.NewRequest("GET", "/monitoring", nil))
+	require.NoError(t, err)
+	assert.Equal(t, 401, resp.StatusCode)
 }
 
 func TestCleanupHooksRegistered(t *testing.T) {
