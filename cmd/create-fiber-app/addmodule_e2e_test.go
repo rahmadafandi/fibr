@@ -371,7 +371,9 @@ func postGet(t *testing.T, url, bearer string) (int, string) {
 
 func waitReady(t *testing.T, url string) {
 	t.Helper()
-	for i := 0; i < 100; i++ {
+	// Generous deadline: a cold `go run` on CI must compile the generated app
+	// (and its deps) before the server binds, which can exceed 20s under load.
+	for i := 0; i < 300; i++ {
 		resp, err := http.Get(url) //nolint:noctx
 		if err == nil {
 			_ = resp.Body.Close()
