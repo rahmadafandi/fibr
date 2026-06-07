@@ -24,7 +24,7 @@ func readGoModule(dir string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("not a Go module in %q (no go.mod): %w", dir, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())

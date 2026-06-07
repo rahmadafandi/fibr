@@ -489,8 +489,8 @@ func TestTeamRolesFlowE2E(t *testing.T) {
 	memberTeamTok := dataField(t, swBody, "access_token")
 
 	_, meBody := postGet(t, base+"/auth/me", memberTeamTok)
-	require.Contains(t, meBody, "post:write")     // editor has it
-	require.NotContains(t, meBody, "team:manage") // editor lacks it
+	require.Contains(t, meBody, "post:write")                                        // editor has it
+	require.NotContains(t, meBody, "team:manage")                                    // editor lacks it
 	require.Equal(t, 403, getCode(t, base+"/teams/"+team1+"/manage", memberTeamTok)) // lacks team:manage
 	require.Equal(t, 200, getCode(t, base+"/teams/"+team1+"/manage", ownerTok))      // owner has it
 
