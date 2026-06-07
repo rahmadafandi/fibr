@@ -15,6 +15,9 @@ import (
 	fhredis "github.com/rahmadafandi/fiber-helpers/redis"
 	redislib "github.com/redis/go-redis/v9"
 	zlog "github.com/rs/zerolog/log"
+{{end}}{{if .Queue}}	"github.com/gofiber/fiber/v2"
+	fhjobs "github.com/rahmadafandi/fiber-helpers/jobs"
+	appjobs "{{.Module}}/internal/application/jobs"
 {{end}}
 	"{{.Module}}/internal/infrastructure/config"
 	"{{.Module}}/internal/infrastructure/database"
@@ -32,7 +35,8 @@ func main() {
 	root.RunE = func(cmd *cobra.Command, args []string) error { return runServe(false) }
 	root.AddCommand(serveCmd())
 	root.AddCommand(fhmigrate.NewCommand(openDB, migrations.Migrations))
-	if err := root.Execute(); err != nil {
+{{if .Queue}}	root.AddCommand(workerCmd())
+{{end}}	if err := root.Execute(); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -48,7 +52,33 @@ func serveCmd() *cobra.Command {
 	return cmd
 }
 
-func runServe(autoMigrate bool) error {
+{{if .Queue}}func workerCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "worker",
+		Short: "run the background job worker",
+		RunE:  func(cmd *cobra.Command, args []string) error { return runWorker() },
+	}
+}
+
+func runWorker() error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	if cfg.RedisURL == "" {
+		return fmt.Errorf("worker requires REDIS_URL")
+	}
+	opt, err := fhjobs.RedisConnOpt(cfg.RedisURL)
+	if err != nil {
+		return err
+	}
+	srv := fhjobs.NewServer(opt, fhjobs.ServerConfig{Concurrency: cfg.QueueConcurrency})
+	appjobs.Register(srv)
+	log.Println("worker started")
+	return srv.Run()
+}
+
+{{end}}func runServe(autoMigrate bool) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -68,20 +98,48 @@ func runServe(autoMigrate bool) error {
 		}
 	}
 
-	app := bootstrap.New(bootstrap.Options{
+{{if .Queue}}	var queueClient *fhjobs.Client
+	var asynqmonMount *bootstrap.AsynqmonMount
+	if cfg.RedisURL != "" {
+		opt, qerr := fhjobs.RedisConnOpt(cfg.RedisURL)
+		if qerr != nil {
+			return qerr
+		}
+		queueClient = fhjobs.NewClient(opt)
+		cleanups = append(cleanups, func(ctx context.Context) error { return queueClient.Close() })
+		asynqmonMount = &bootstrap.AsynqmonMount{
+			Handler: fhjobs.MonitoringHandler(opt, cfg.AsynqmonPath),
+			Path:    cfg.AsynqmonPath,
+{{if .Auth}}			Middleware: []fiber.Handler{fhauth.RequireAuth(cfg.JWTSecret)},
+{{end}}		}
+	} else {
+		log.Println("queue disabled — set REDIS_URL to enable background jobs")
+	}
+
+{{end}}	app := bootstrap.New(bootstrap.Options{
 		DB:           db,
 		AutoMigrate:  cfg.AutoMigrate || autoMigrate,
 		Metrics:      cfg.MetricsEnabled,
 		Tracing:      cfg.TracingEnabled,
 		Cleanup:      cleanups,
-		EnableCORS:   true,
+{{if .Queue}}		Asynqmon:     asynqmonMount,
+{{end}}		EnableCORS:   true,
 		RateLimit:    100,
 		HealthChecks: []health.NamedCheck{health.PingBun(db)},
 	})
 
 	// app.App is the embedded *fiber.App; app.Mount (below) is bootstrap.App's module-aware method.
 	httpiface.Register(app.App)
-{{if .Sample}}	if err := app.Mount(httpiface.NewUserModule(db)); err != nil {
+{{if .Queue}}	if queueClient != nil {
+		app.Post("/jobs/welcome", func(c *fiber.Ctx) error {
+			info, err := queueClient.Enqueue(c.UserContext(), appjobs.WelcomeType, appjobs.WelcomePayload{Email: "user@example.com"})
+			if err != nil {
+				return err
+			}
+			return c.JSON(fiber.Map{"enqueued": info.ID})
+		})
+	}
+{{end}}{{if .Sample}}	if err := app.Mount(httpiface.NewUserModule(db)); err != nil {
 		return err
 	}
 {{end}}{{if .Auth}}	var authStore fhauth.TokenStore
