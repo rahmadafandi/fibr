@@ -160,7 +160,8 @@ func runWorker() error {
 			return c.JSON(fiber.Map{"enqueued": info.ID})
 		})
 	}
-{{end}}{{if .Mailer}}	app.Post("/email/test", func(c *fiber.Ctx) error {
+{{end}}{{if .Mailer}}	// demo smoke-test route; unauthenticated — remove or guard before exposing publicly.
+	app.Post("/email/test", func(c *fiber.Ctx) error {
 		if err := mailSender.Send(c.UserContext(), fhmailer.Message{To: []string{"someone@example.com"}, Subject: "Test email", Text: "It works.", HTML: "<p>It works.</p>"}); err != nil {
 			return err
 		}

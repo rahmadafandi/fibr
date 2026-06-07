@@ -303,9 +303,9 @@ func (s *TeamService) Invite(ctx context.Context, teamID int64, email, role stri
 		return "", nil, err
 	}
 {{if .Mailer}}	if html, text, rerr := fhmailer.Render(inviteHTML, inviteText, struct {
-		Team  string
-		Token string
-	}{Team: strconv.FormatInt(teamID, 10), Token: token}); rerr == nil {
+		TeamID string
+		Token  string
+	}{TeamID: strconv.FormatInt(teamID, 10), Token: token}); rerr == nil {
 		// best-effort: the invitation row + token are already persisted, so a
 		// delivery failure must not fail the request.
 		_ = s.sender.Send(ctx, fhmailer.Message{To: []string{email}, Subject: "You're invited", HTML: html, Text: text})
@@ -481,6 +481,6 @@ func slugify(s string) string {
 	return out
 }
 {{if .Mailer}}
-const inviteHTML = `<p>You've been invited to team {{"{{"}}.Team{{"}}"}}. Use this token to accept the invitation:</p><pre>{{"{{"}}.Token{{"}}"}}</pre>`
-const inviteText = "You've been invited to team {{"{{"}}.Team{{"}}"}}. Token: {{"{{"}}.Token{{"}}"}}"
+const inviteHTML = `<p>You've been invited to team #{{"{{"}}.TeamID{{"}}"}}. Use this token to accept the invitation:</p><pre>{{"{{"}}.Token{{"}}"}}</pre>`
+const inviteText = "You've been invited to team #{{"{{"}}.TeamID{{"}}"}}. Token: {{"{{"}}.Token{{"}}"}}"
 {{end}}
