@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/rahmadafandi/fiber-helpers/bootstrap"
+	fhdatabase "github.com/rahmadafandi/fiber-helpers/database"
 	"github.com/rahmadafandi/fiber-helpers/health"
 	fhmigrate "github.com/rahmadafandi/fiber-helpers/migrate"
 	"github.com/rahmadafandi/fiber-helpers/tracing"
@@ -93,7 +94,11 @@ func runWorker() error {
 	if err != nil {
 		return err
 	}
-	db, err := database.New(cfg.DatabaseURL)
+	var dbOpts []fhdatabase.Option
+	if cfg.TracingEnabled {
+		dbOpts = append(dbOpts, fhdatabase.WithTracing())
+	}
+	db, err := database.New(cfg.DatabaseURL, dbOpts...)
 	if err != nil {
 		return err
 	}
