@@ -27,6 +27,12 @@ This project has not yet had a stable release; all changes are listed under **Un
   asynqmon UI mount, and `REDIS_URL`/`QUEUE_CONCURRENCY`/`ASYNQMON_PATH` config
   (both ddd and layered layouts). Empty `REDIS_URL` disables the queue with a
   warning (fail-soft).
+- `mailer` package: pluggable `Sender` (`SMTPSender` via go-mail, `LogSender` dev
+  fallback, `MemorySender` for tests), `Message`, and a `Render` HTML+text
+  template helper. `New` falls back to `LogSender` when no SMTP host is set.
+- `create-fiber-app --mailer`: scaffolds SMTP config/env, a `/email/test` route,
+  and real send wiring for the welcome job (`--queue`, async via an `email:send`
+  job) and team invitation email (`--auth-with-team`). Both layouts.
 - `auth` package: bcrypt `Hash`/`Compare`, JWT bearer middleware
   (`RequireAuth`/`Optional`), claims accessors (`Claims`/`Subject`), and scope
   checks (`RequireScope`/`HasScope`/`Scopes`).
