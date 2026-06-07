@@ -74,3 +74,60 @@ func TestParseRedisOptions(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, bad)
 }
+
+func TestDelete(t *testing.T) {
+	r := newTestRedis(t)
+	ctx := context.Background()
+
+	require.NoError(t, r.Set(ctx, "k", "v", time.Minute))
+	require.NoError(t, r.Delete(ctx, "k"))
+
+	var got string
+	assert.Error(t, r.Get(ctx, "k", &got)) // miss after delete
+
+	assert.NoError(t, r.Delete(ctx)) // no-op when no keys
+}
+
+func TestExists(t *testing.T) {
+	r := newTestRedis(t)
+	ctx := context.Background()
+
+	require.NoError(t, r.Set(ctx, "k", "v", time.Minute))
+
+	ok, err := r.Exists(ctx, "k")
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	ok, err = r.Exists(ctx, "missing")
+	require.NoError(t, err)
+	assert.False(t, ok)
+}
+
+func TestExpire(t *testing.T) {
+	r := newTestRedis(t)
+	ctx := context.Background()
+
+	require.NoError(t, r.Set(ctx, "k", "v", 0)) // no expiry
+	ok, err := r.Expire(ctx, "k", time.Minute)
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	ttl, err := r.TTL(ctx, "k")
+	require.NoError(t, err)
+	assert.Positive(t, ttl)
+
+	ok, err = r.Expire(ctx, "missing", time.Minute)
+	require.NoError(t, err)
+	assert.False(t, ok)
+}
+
+func TestTTL(t *testing.T) {
+	r := newTestRedis(t)
+	ctx := context.Background()
+
+	require.NoError(t, r.Set(ctx, "k", "v", time.Minute))
+	ttl, err := r.TTL(ctx, "k")
+	require.NoError(t, err)
+	assert.Positive(t, ttl)
+	assert.LessOrEqual(t, ttl, time.Minute)
+}

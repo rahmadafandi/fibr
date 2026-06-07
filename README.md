@@ -274,6 +274,9 @@ result, err := firedis.Remember(ctx, rds, "key", time.Minute, func() (MyType, er
 })
 ```
 
+Invalidate and inspect entries with `Delete(ctx, keys...)`, `Exists(ctx, key)`,
+`Expire(ctx, key, ttl)`, and `TTL(ctx, key)`.
+
 ### `slug`
 
 Generates a unique, URL-safe slug for a given table using a [Bun](https://bun.uptrace.dev/) database.

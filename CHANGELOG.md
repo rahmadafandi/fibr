@@ -20,6 +20,8 @@ This project has not yet had a stable release; all changes are listed under **Un
 - `database.WithTracing()`: installs Bun's `bunotel` OpenTelemetry query hook so
   SQL queries are recorded as spans. Generated apps enable it automatically when
   `TRACING_ENABLED` is set.
+- `redis` cache helpers: `Delete` (variadic), `Exists`, `Expire`, and `TTL` on
+  `*Redis` for invalidating and inspecting cached entries.
 - `jobs` package: typed asynq queue wrapper (`Client.Enqueue`, generic
   `Handle[T]`, worker `Server` with `Run`/`ProcessTask`) and a mountable asynqmon
   monitoring handler (`MonitoringHandler`).

@@ -65,6 +65,34 @@ func Remember[T any](ctx context.Context, r *Redis, key string, ttl time.Duratio
 	return val, nil
 }
 
+// Delete removes the given keys. It is a no-op (returns nil) when no keys are
+// given.
+func (r *Redis) Delete(ctx context.Context, keys ...string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	return r.Client.Del(ctx, keys...).Err()
+}
+
+// Exists reports whether key is present.
+func (r *Redis) Exists(ctx context.Context, key string) (bool, error) {
+	n, err := r.Client.Exists(ctx, key).Result()
+	return n > 0, err
+}
+
+// Expire sets a time-to-live on key. The returned bool reports whether the key
+// existed (and therefore whether the TTL was applied).
+func (r *Redis) Expire(ctx context.Context, key string, ttl time.Duration) (bool, error) {
+	return r.Client.Expire(ctx, key, ttl).Result()
+}
+
+// TTL returns the remaining lifetime of key. Following go-redis semantics, a
+// missing key yields a negative duration (-2) and a key without an expiry
+// yields -1.
+func (r *Redis) TTL(ctx context.Context, key string) (time.Duration, error) {
+	return r.Client.TTL(ctx, key).Result()
+}
+
 // ParseRedisOptions parses a redis:// URL into options.
 func ParseRedisOptions(redisURL string) (*redis.Options, error) {
 	opt, err := redis.ParseURL(redisURL)
