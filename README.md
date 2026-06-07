@@ -79,6 +79,7 @@ func main() {
 - [`auth`](#auth) — JWT bearer authentication and bcrypt password hashing for Fiber.
 - [`health`](#health) — Liveness (`/livez`) and readiness (`/readyz`) endpoints.
 - [`metrics`](#metrics) — Prometheus request metrics middleware + `/metrics` handler.
+- [`tracing`](#tracing) — OpenTelemetry tracing setup (OTLP/HTTP) + Fiber spans.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
 - [`bootstrap`](#bootstrap) — One-call app wiring: middleware, health, DB, and graceful shutdown.
 
@@ -435,6 +436,27 @@ fds). The middleware skips its own `/metrics` path.
 Via `bootstrap`, enable with `Options{Metrics: true}` — it installs the
 middleware and registers `/metrics` ahead of the rate limiter. In a generated
 app, set `METRICS_ENABLED=true`.
+
+### tracing
+
+OpenTelemetry distributed tracing. Set up the provider once at startup and defer
+its shutdown:
+
+```go
+import "github.com/rahmadafandi/fiber-helpers/tracing"
+
+shutdown, err := tracing.Setup(ctx, tracing.WithServiceName("my-svc"))
+if err != nil { /* handle */ }
+defer shutdown(context.Background())
+```
+
+`Setup` builds an OTLP/HTTP exporter (configured by the standard `OTEL_` env vars
+like `OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_SERVICE_NAME`) and installs the global
+tracer provider + W3C propagator. Via `bootstrap`, enable with
+`Options{Tracing: true}` (installs the `otelfiber` server-span middleware) and
+pass `shutdown` through `Options{Cleanup: []func(context.Context) error{shutdown}}`
+for graceful shutdown. When tracing is active, `RequestLogger` adds `trace_id` /
+`span_id` to request logs. In a generated app, set `TRACING_ENABLED=true`.
 
 ### `server`
 
