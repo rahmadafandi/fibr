@@ -19,6 +19,23 @@ import (
 // now is the clock used for migration version stamps; overridable in tests.
 var now = time.Now
 
+// migrationClock hands out distinct, monotonically increasing migration
+// timestamps (one second apart) from a single base, so every generated
+// migration gets a unique bun version even when several are produced in the same
+// wall-clock second.
+type migrationClock struct {
+	base time.Time
+	n    int
+}
+
+func newMigrationClock() *migrationClock { return &migrationClock{base: now().UTC()} }
+
+func (c *migrationClock) next() string {
+	ts := c.base.Add(time.Duration(c.n) * time.Second).Format("20060102150405")
+	c.n++
+	return ts
+}
+
 // Data is the render context passed to every template.
 type Data struct {
 	Name           string
@@ -113,6 +130,11 @@ func Generate(o Options, out io.Writer) error {
 		}
 	}
 
+	var clock *migrationClock
+	if o.Sample || o.Auth {
+		clock = newMigrationClock()
+	}
+
 	if o.Sample {
 		md, err := deriveModuleNames("user")
 		if err != nil {
@@ -127,7 +149,7 @@ func Generate(o Options, out io.Writer) error {
 				return fmt.Errorf("render %s: %w", fsp.tmpl, err)
 			}
 		}
-		if _, err := renderMigration(md, o.Dir); err != nil {
+		if _, err := renderMigration(md, o.Dir, clock.next()); err != nil {
 			_ = os.RemoveAll(o.Dir)
 			return fmt.Errorf("render migration: %w", err)
 		}
@@ -141,11 +163,11 @@ func Generate(o Options, out io.Writer) error {
 			}
 		}
 		if o.Team {
-			if err := renderTeamMigrations(o.Dir); err != nil {
+			if err := renderTeamMigrations(o.Dir, clock); err != nil {
 				_ = os.RemoveAll(o.Dir)
 				return fmt.Errorf("render team migrations: %w", err)
 			}
-		} else if _, err := renderAuthMigration(o.Dir); err != nil {
+		} else if _, err := renderAuthMigration(o.Dir, clock.next()); err != nil {
 			_ = os.RemoveAll(o.Dir)
 			return fmt.Errorf("render auth migration: %w", err)
 		}
@@ -239,9 +261,8 @@ func planQueue(d Data) []fileSpec {
 }
 
 // renderAuthMigration writes the timestamped accounts migration.
-func renderAuthMigration(root string) (string, error) {
-	dest := filepath.Join("internal", "migrations",
-		now().UTC().Format("20060102150405")+"_create_accounts.go")
+func renderAuthMigration(root string, ts string) (string, error) {
+	dest := filepath.Join("internal", "migrations", ts+"_create_accounts.go")
 	if _, err := os.Stat(filepath.Join(root, dest)); err == nil {
 		return "", fmt.Errorf("migration %s already exists (same-second collision; retry in a moment)", dest)
 	}
@@ -251,24 +272,20 @@ func renderAuthMigration(root string) (string, error) {
 	return dest, nil
 }
 
-// renderTeamMigrations writes the accounts, teams, and memberships migrations
-// with one-second-apart timestamps so each gets a distinct migration version.
-func renderTeamMigrations(root string) error {
-	base := now().UTC()
-	steps := []struct {
-		tmpl, name string
-		off        time.Duration
-	}{
-		{"auth/migration_accounts.tmpl", "create_accounts", 0},
-		{"auth/migration_teams.tmpl", "create_teams", time.Second},
-		{"auth/migration_memberships.tmpl", "create_memberships", 2 * time.Second},
-		{"auth/migration_roles.tmpl", "create_roles", 3 * time.Second},
-		{"auth/migration_role_permissions.tmpl", "create_role_permissions", 4 * time.Second},
-		{"auth/migration_invitations.tmpl", "create_invitations", 5 * time.Second},
+// renderTeamMigrations writes the accounts, teams, memberships, roles,
+// role_permissions, and invitations migrations, drawing a distinct, ordered
+// timestamp for each from clock so every one gets a unique migration version.
+func renderTeamMigrations(root string, clock *migrationClock) error {
+	steps := []struct{ tmpl, name string }{
+		{"auth/migration_accounts.tmpl", "create_accounts"},
+		{"auth/migration_teams.tmpl", "create_teams"},
+		{"auth/migration_memberships.tmpl", "create_memberships"},
+		{"auth/migration_roles.tmpl", "create_roles"},
+		{"auth/migration_role_permissions.tmpl", "create_role_permissions"},
+		{"auth/migration_invitations.tmpl", "create_invitations"},
 	}
 	for _, s := range steps {
-		ts := base.Add(s.off).Format("20060102150405")
-		dest := filepath.Join("internal", "migrations", ts+"_"+s.name+".go")
+		dest := filepath.Join("internal", "migrations", clock.next()+"_"+s.name+".go")
 		if _, err := os.Stat(filepath.Join(root, dest)); err == nil {
 			return fmt.Errorf("migration %s already exists (same-second collision; retry in a moment)", dest)
 		}
@@ -280,9 +297,8 @@ func renderTeamMigrations(root string) error {
 }
 
 // renderMigration writes a timestamped create-table migration for md into root.
-func renderMigration(md ModuleData, root string) (string, error) {
-	dest := filepath.Join("internal", "migrations",
-		now().UTC().Format("20060102150405")+"_create_"+md.Plural+".go")
+func renderMigration(md ModuleData, root string, ts string) (string, error) {
+	dest := filepath.Join("internal", "migrations", ts+"_create_"+md.Plural+".go")
 	if _, err := os.Stat(filepath.Join(root, dest)); err == nil {
 		return "", fmt.Errorf("migration %s already exists (same-second collision; retry in a moment)", dest)
 	}
