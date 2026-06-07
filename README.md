@@ -1,5 +1,11 @@
 # Fiber Helpers
 
+[![ci](https://github.com/rahmadafandi/fiber-helpers/actions/workflows/ci.yml/badge.svg)](https://github.com/rahmadafandi/fiber-helpers/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/rahmadafandi/fiber-helpers.svg)](https://pkg.go.dev/github.com/rahmadafandi/fiber-helpers)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rahmadafandi/fiber-helpers)](https://goreportcard.com/report/github.com/rahmadafandi/fiber-helpers)
+[![Release](https://img.shields.io/github/v/release/rahmadafandi/fiber-helpers)](https://github.com/rahmadafandi/fiber-helpers/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A collection of helper packages for the [Fiber](https://gofiber.io/) web framework.
 
 📖 **[Documentation](https://rahmadafandi.github.io/fiber-helpers/)** · [API reference (pkg.go.dev)](https://pkg.go.dev/github.com/rahmadafandi/fiber-helpers)
