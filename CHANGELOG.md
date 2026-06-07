@@ -17,6 +17,9 @@ This project has not yet had a stable release; all changes are listed under **Un
   global provider + W3C propagator, `WithServiceName`/`WithSampler`). Opt-in via
   `bootstrap.Options.Tracing` (otelfiber spans) + `Options.Cleanup`; request logs
   gain `trace_id`/`span_id`; generated apps toggle with `TRACING_ENABLED`.
+- `database.WithTracing()`: installs Bun's `bunotel` OpenTelemetry query hook so
+  SQL queries are recorded as spans. Generated apps enable it automatically when
+  `TRACING_ENABLED` is set.
 - `jobs` package: typed asynq queue wrapper (`Client.Enqueue`, generic
   `Handle[T]`, worker `Server` with `Run`/`ProcessTask`) and a mountable asynqmon
   monitoring handler (`MonitoringHandler`).

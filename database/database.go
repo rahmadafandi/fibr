@@ -14,6 +14,7 @@ import (
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 	"github.com/uptrace/bun/driver/pgdriver"
 	"github.com/uptrace/bun/driver/sqliteshim"
+	"github.com/uptrace/bun/extra/bunotel"
 	"github.com/uptrace/bun/schema"
 )
 
@@ -31,6 +32,7 @@ type config struct {
 	connMaxLifetime time.Duration
 	pingTimeout     time.Duration
 	skipPing        bool
+	tracing         bool
 }
 
 // Option configures the database connection.
@@ -50,6 +52,11 @@ func WithPingTimeout(d time.Duration) Option { return func(c *config) { c.pingTi
 
 // WithoutPing skips the connect-time ping.
 func WithoutPing() Option { return func(c *config) { c.skipPing = true } }
+
+// WithTracing installs Bun's OpenTelemetry query hook so each query is recorded
+// as a span on the active trace. It requires a configured tracer provider (see
+// the tracing package's Setup); without one, spans are dropped.
+func WithTracing() Option { return func(c *config) { c.tracing = true } }
 
 // detectDialect inspects the DSN scheme to choose a Bun dialect. A "postgres://"
 // or "postgresql://" scheme is Postgres; "file:", ":memory:", or a bare path is
@@ -111,6 +118,10 @@ func NewBun(dsn string, opts ...Option) (*bun.DB, error) {
 	}
 
 	db := bun.NewDB(sqldb, dialect)
+
+	if cfg.tracing {
+		db.AddQueryHook(bunotel.NewQueryHook())
+	}
 
 	if !cfg.skipPing {
 		ctx, cancel := context.WithTimeout(context.Background(), cfg.pingTimeout)

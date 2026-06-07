@@ -460,6 +460,10 @@ pass `shutdown` through `Options{Cleanup: []func(context.Context) error{shutdown
 for graceful shutdown. When tracing is active, `RequestLogger` adds `trace_id` /
 `span_id` to request logs. In a generated app, set `TRACING_ENABLED=true`.
 
+When tracing is enabled, generated apps also install Bun's `bunotel` query hook
+(`database.WithTracing()`), so each SQL query becomes a span nested under the
+request span.
+
 ### jobs
 
 Redis-backed background jobs built on [asynq](https://github.com/hibiken/asynq).

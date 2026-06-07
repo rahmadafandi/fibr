@@ -94,7 +94,11 @@ func runWorker() error {
 	if err != nil {
 		return err
 	}
-	db, err := fhdatabase.NewBun(cfg.DatabaseURL)
+	var dbOpts []fhdatabase.Option
+	if cfg.TracingEnabled {
+		dbOpts = append(dbOpts, fhdatabase.WithTracing())
+	}
+	db, err := fhdatabase.NewBun(cfg.DatabaseURL, dbOpts...)
 	if err != nil {
 		return err
 	}
