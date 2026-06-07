@@ -668,6 +668,19 @@ func TestTracingScaffoldWiring(t *testing.T) {
 	}
 }
 
+func TestDBTracingWiring(t *testing.T) {
+	for _, layout := range []string{"ddd", "layered"} {
+		t.Run(layout, func(t *testing.T) {
+			dir := generateInto(t, Options{Name: "app", Module: "example.com/app", DB: "sqlite", Layout: layout})
+			assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "fhdatabase.WithTracing()")
+			assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "dbOpts")
+			if layout == "ddd" {
+				assertFileContains(t, filepath.Join(dir, "internal/infrastructure/database/database.go"), "func New(dsn string, opts ...fhdatabase.Option)")
+			}
+		})
+	}
+}
+
 func TestMailerScaffoldWiring(t *testing.T) {
 	t.Run("mailer-only-ddd", func(t *testing.T) {
 		dir := generateInto(t, Options{Name: "app", Module: "example.com/app", DB: "sqlite", Layout: "ddd", Mailer: true})
