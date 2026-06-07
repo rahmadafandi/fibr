@@ -619,6 +619,33 @@ func TestTracingScaffoldWiring(t *testing.T) {
 	}
 }
 
+func TestMailerScaffoldWiring(t *testing.T) {
+	t.Run("mailer-only-ddd", func(t *testing.T) {
+		dir := generateInto(t, Options{Name: "app", Module: "example.com/app", DB: "sqlite", Layout: "ddd", Mailer: true})
+		assertFileContains(t, filepath.Join(dir, "internal/infrastructure/config/config.go"), "SMTP_FROM")
+		assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "fhmailer.New")
+		assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), `app.Post("/email/test"`)
+		assertFileContains(t, filepath.Join(dir, ".env.example"), "SMTP_PORT=587")
+	})
+
+	t.Run("mailer-queue-layered", func(t *testing.T) {
+		dir := generateInto(t, Options{Name: "app", Module: "example.com/app", DB: "sqlite", Layout: "layered", Mailer: true, Queue: true})
+		jobs := filepath.Join(dir, "internal/jobs/jobs.go")
+		assertFileContains(t, jobs, "type QueueSender struct")
+		assertFileContains(t, jobs, "func RegisterEmail(")
+		assertFileContains(t, jobs, `const EmailType = "email:send"`)
+		assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "appjobs.NewQueueSender(queueClient)")
+		assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "appjobs.RegisterEmail(srv, base)")
+	})
+
+	t.Run("mailer-team-ddd", func(t *testing.T) {
+		dir := generateInto(t, Options{Name: "app", Module: "example.com/app", DB: "sqlite", Layout: "ddd", Team: true, Auth: true, Mailer: true})
+		assertFileContains(t, filepath.Join(dir, "internal/application/team/service.go"), "sender   fhmailer.Sender")
+		assertFileContains(t, filepath.Join(dir, "internal/application/team/service.go"), "You're invited")
+		assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "NewAuthModule(db, cfg.JWTSecret, authStore, mailSender)")
+	})
+}
+
 func TestQueueScaffoldWiring(t *testing.T) {
 	for _, layout := range []string{"ddd", "layered"} {
 		t.Run(layout, func(t *testing.T) {
