@@ -8,10 +8,59 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// migrationVersions returns the sorted timestamp-version prefixes of every
+// generated migration file (the digits before the first underscore).
+func migrationVersions(t *testing.T, dir string) []string {
+	t.Helper()
+	matches, err := filepath.Glob(filepath.Join(dir, "internal/migrations", "*_create_*.go"))
+	require.NoError(t, err)
+	var versions []string
+	for _, m := range matches {
+		base := filepath.Base(m)
+		i := strings.IndexByte(base, '_')
+		require.Positive(t, i, "migration filename %q has no version prefix", base)
+		versions = append(versions, base[:i])
+	}
+	return versions
+}
+
+func TestMigrationTimestampsDistinct(t *testing.T) {
+	fixed := time.Date(2026, 6, 7, 12, 0, 0, 0, time.UTC)
+	orig := now
+	now = func() time.Time { return fixed }
+	defer func() { now = orig }()
+
+	cases := []struct {
+		name  string
+		opts  Options
+		count int
+	}{
+		{"sample+auth", Options{Name: "app", Module: "example.com/app", DB: "sqlite", Layout: "ddd", Sample: true, Auth: true}, 2},
+		{"sample+team", Options{Name: "app", Module: "example.com/app", DB: "sqlite", Layout: "ddd", Sample: true, Team: true}, 7},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.opts.Dir = filepath.Join(t.TempDir(), "app")
+			tc.opts.NoGit, tc.opts.NoTidy = true, true
+			require.NoError(t, Generate(tc.opts, &strings.Builder{}))
+
+			versions := migrationVersions(t, tc.opts.Dir)
+			require.Len(t, versions, tc.count)
+
+			seen := make(map[string]bool, len(versions))
+			for _, v := range versions {
+				require.False(t, seen[v], "duplicate migration version %q in %v", v, versions)
+				seen[v] = true
+			}
+		})
+	}
+}
 
 func TestPlanSelection(t *testing.T) {
 	dests := func(d Data) []string {

@@ -108,7 +108,7 @@ func AddModule(o AddModuleOptions, out io.Writer) error {
 		written = append(written, filepath.Join(o.Dir, s.dest))
 	}
 
-	migPath, err := renderMigration(md, o.Dir)
+	migPath, err := renderMigration(md, o.Dir, newMigrationClock().next())
 	if err != nil {
 		for _, w := range written {
 			_ = os.Remove(w)
