@@ -808,3 +808,37 @@ func TestTracingE2E(t *testing.T) {
 
 	require.Equal(t, 200, getCode(t, base+"/livez", ""))
 }
+
+func TestQueueCompilesE2E(t *testing.T) {
+	if os.Getenv("RUN_E2E") != "1" {
+		t.Skip("set RUN_E2E=1 to run the queue compile test (slow: go build)")
+	}
+	root := repoRoot(t)
+	cases := []struct {
+		layout string
+		auth   bool
+	}{
+		{"ddd", false},
+		{"layered", false},
+		{"ddd", true},
+		{"layered", true},
+	}
+	for _, tc := range cases {
+		name := tc.layout
+		if tc.auth {
+			name += "-auth"
+		}
+		t.Run(name, func(t *testing.T) {
+			dir := filepath.Join(t.TempDir(), "app")
+			require.NoError(t, Generate(Options{
+				Name: "app", Module: "example.com/app",
+				DB: "sqlite", Layout: tc.layout, Queue: true, Auth: tc.auth,
+				Dir: dir, NoGit: true, NoTidy: false, Local: root,
+			}, &strings.Builder{}))
+			build := exec.Command("go", "build", "./...")
+			build.Dir = dir
+			out, err := build.CombinedOutput()
+			require.NoError(t, err, "go build failed:\n%s", out)
+		})
+	}
+}
