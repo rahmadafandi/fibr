@@ -11,7 +11,7 @@ import (
 	"sync"
 	texttemplate "text/template"
 
-	"github.com/rahmadafandi/fiber-helpers/logger"
+	"github.com/rahmadafandi/fibr/logger"
 	"github.com/wneessen/go-mail"
 )
 

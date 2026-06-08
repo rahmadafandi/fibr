@@ -1,0 +1,52 @@
+package service
+
+import (
+	"context"
+	"errors"
+
+	"github.com/rahmadafandi/fibr/auth"
+	"{{.Module}}/internal/model"
+	"{{.Module}}/internal/repository"
+)
+
+// ErrInvalidCredentials is returned when login fails.
+var ErrInvalidCredentials = errors.New("invalid credentials")
+
+// ErrEmailTaken is returned when registering an email that already exists.
+var ErrEmailTaken = errors.New("email already registered")
+
+// AuthService holds account use cases.
+type AuthService struct {
+	repo *repository.AccountRepository
+}
+
+// NewAuthService creates an AuthService.
+func NewAuthService(repo *repository.AccountRepository) *AuthService { return &AuthService{repo: repo} }
+
+// Register hashes the password and creates a new account with the default scope.
+func (s *AuthService) Register(ctx context.Context, email, password string) (*model.Account, error) {
+	if existing, _ := s.repo.FindByEmail(ctx, email); existing != nil {
+		return nil, ErrEmailTaken
+	}
+	hash, err := auth.Hash(password)
+	if err != nil {
+		return nil, err
+	}
+	a := &model.Account{Email: email, PasswordHash: hash, Scopes: "user"}
+	if err := s.repo.Create(ctx, a); err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
+// Authenticate verifies credentials and returns the account on success.
+func (s *AuthService) Authenticate(ctx context.Context, email, password string) (*model.Account, error) {
+	a, err := s.repo.FindByEmail(ctx, email)
+	if err != nil {
+		return nil, ErrInvalidCredentials
+	}
+	if err := auth.Compare(a.PasswordHash, password); err != nil {
+		return nil, ErrInvalidCredentials
+	}
+	return a, nil
+}

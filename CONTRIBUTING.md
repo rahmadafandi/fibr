@@ -1,14 +1,14 @@
 # Contributing
 
-Thanks for your interest in improving fiber-helpers!
+Thanks for your interest in improving fibr!
 
 ## Development
 
 Requires Go 1.26+.
 
 ```bash
-git clone https://github.com/rahmadafandi/fiber-helpers
-cd fiber-helpers
+git clone https://github.com/rahmadafandi/fibr
+cd fibr
 go build ./...
 go test ./...
 ```
@@ -16,7 +16,7 @@ go test ./...
 End-to-end generator tests (slower; they generate and compile apps) are gated:
 
 ```bash
-RUN_E2E=1 go test ./cmd/create-fiber-app/
+RUN_E2E=1 go test ./cmd/fibr/
 ```
 
 ## Before opening a pull request

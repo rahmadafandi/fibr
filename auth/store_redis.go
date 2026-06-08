@@ -6,7 +6,7 @@ import (
 	"context"
 	"time"
 
-	fhredis "github.com/rahmadafandi/fiber-helpers/redis"
+	fhredis "github.com/rahmadafandi/fibr/redis"
 	redislib "github.com/redis/go-redis/v9"
 )
 

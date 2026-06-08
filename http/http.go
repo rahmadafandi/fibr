@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rahmadafandi/fiber-helpers/logger"
+	"github.com/rahmadafandi/fibr/logger"
 	"github.com/valyala/fasthttp"
 )
 

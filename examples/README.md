@@ -1,6 +1,6 @@
 # Examples
 
-Runnable programs showing how to wire fiber-helpers together. This is a separate
+Runnable programs showing how to wire fibr together. This is a separate
 Go module (`replace`-d to the parent), so run the commands from this directory.
 
 | Command | What it shows | Needs |
@@ -18,5 +18,5 @@ REDIS_URL=redis://localhost:6379 go run ./queue
 ```
 
 For per-function API snippets, see the runnable godoc examples on
-[pkg.go.dev](https://pkg.go.dev/github.com/rahmadafandi/fiber-helpers)
+[pkg.go.dev](https://pkg.go.dev/github.com/rahmadafandi/fibr)
 (packages `pagination`, `jwt`, `validator`, `parser`, `response`, `slug`).

@@ -1,4 +1,4 @@
-# fiber-helpers — developer tasks.
+# fibr — developer tasks.
 # Most contributors use mise (see mise.toml); these targets wrap the common
 # go commands so `make <thing>` works the same locally and in CI.
 
@@ -26,8 +26,8 @@ cover: ## Run tests and write a coverage profile.
 	$(GO) tool cover -func=coverage.txt | tail -1
 
 .PHONY: e2e
-e2e: ## Run the create-fiber-app end-to-end generator tests.
-	RUN_E2E=1 $(GO) test ./cmd/create-fiber-app/
+e2e: ## Run the fibr end-to-end generator tests.
+	RUN_E2E=1 $(GO) test ./cmd/fibr/
 
 .PHONY: lint
 lint: ## Run golangci-lint.

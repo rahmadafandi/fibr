@@ -13,11 +13,11 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
-	"github.com/rahmadafandi/fiber-helpers/health"
-	"github.com/rahmadafandi/fiber-helpers/logger"
-	"github.com/rahmadafandi/fiber-helpers/metrics"
-	"github.com/rahmadafandi/fiber-helpers/middleware"
-	"github.com/rahmadafandi/fiber-helpers/server"
+	"github.com/rahmadafandi/fibr/health"
+	"github.com/rahmadafandi/fibr/logger"
+	"github.com/rahmadafandi/fibr/metrics"
+	"github.com/rahmadafandi/fibr/middleware"
+	"github.com/rahmadafandi/fibr/server"
 	"github.com/uptrace/bun"
 )
 

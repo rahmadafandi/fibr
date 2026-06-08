@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fiber-helpers/database"
-	"github.com/rahmadafandi/fiber-helpers/health"
+	"github.com/rahmadafandi/fibr/database"
+	"github.com/rahmadafandi/fibr/health"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"

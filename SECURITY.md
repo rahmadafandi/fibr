@@ -8,7 +8,7 @@ This project has not reached 1.0; only the latest tagged release is supported.
 
 Please report security issues privately rather than opening a public issue.
 
-- Preferred: open a [private security advisory](https://github.com/rahmadafandi/fiber-helpers/security/advisories/new).
+- Preferred: open a [private security advisory](https://github.com/rahmadafandi/fibr/security/advisories/new).
 - Or email the maintainer at rahmadafandinara@gmail.com.
 
 Include a description, affected version(s), and reproduction steps. You will get

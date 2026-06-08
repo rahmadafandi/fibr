@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rahmadafandi/fiber-helpers/auth"
-	"github.com/rahmadafandi/fiber-helpers/jwt"
+	"github.com/rahmadafandi/fibr/auth"
+	"github.com/rahmadafandi/fibr/jwt"
 )
 
 func main() {

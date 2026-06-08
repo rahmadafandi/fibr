@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fiber-helpers/context"
-	"github.com/rahmadafandi/fiber-helpers/logger"
+	"github.com/rahmadafandi/fibr/context"
+	"github.com/rahmadafandi/fibr/logger"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 

@@ -1,15 +1,15 @@
 version: 2
 
-project_name: fiber-helpers
+project_name: fibr
 
 before:
   hooks:
     - go mod tidy
 
 builds:
-  - id: create-fiber-app
-    main: ./cmd/create-fiber-app
-    binary: create-fiber-app
+  - id: fibr
+    main: ./cmd/fibr
+    binary: fibr
     env:
       - CGO_ENABLED=0
     goos:
@@ -23,9 +23,9 @@ builds:
       - -s -w
 
 archives:
-  - id: create-fiber-app
+  - id: fibr
     formats: [tar.gz]
-    name_template: "create-fiber-app_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "fibr_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         formats: [zip]

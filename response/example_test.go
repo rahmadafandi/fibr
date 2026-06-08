@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fiber-helpers/response"
+	"github.com/rahmadafandi/fibr/response"
 )
 
 // SendSuccess wraps the payload in the standard JSON envelope

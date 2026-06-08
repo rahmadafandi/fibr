@@ -4,7 +4,7 @@ package auth
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fiber-helpers/response"
+	"github.com/rahmadafandi/fibr/response"
 )
 
 // ActiveTeam returns the active team id from the "team" claim ("" if absent or

@@ -5,7 +5,7 @@ package validator_test
 import (
 	"fmt"
 
-	"github.com/rahmadafandi/fiber-helpers/validator"
+	"github.com/rahmadafandi/fibr/validator"
 )
 
 // ValidateStruct checks `validate` struct tags and returns one ErrorResponse

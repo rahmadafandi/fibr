@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fiber-helpers/jwt"
-	"github.com/rahmadafandi/fiber-helpers/response"
+	"github.com/rahmadafandi/fibr/jwt"
+	"github.com/rahmadafandi/fibr/response"
 )
 
 // Auth is a middleware that protects routes with JWT authentication.

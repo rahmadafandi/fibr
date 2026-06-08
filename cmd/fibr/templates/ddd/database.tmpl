@@ -1,0 +1,11 @@
+package database
+
+import (
+	fhdatabase "github.com/rahmadafandi/fibr/database"
+	"github.com/uptrace/bun"
+)
+
+// New opens the application's Bun database with the given options.
+func New(dsn string, opts ...fhdatabase.Option) (*bun.DB, error) {
+	return fhdatabase.NewBun(dsn, opts...)
+}
