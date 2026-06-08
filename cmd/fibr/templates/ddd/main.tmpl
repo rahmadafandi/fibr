@@ -38,6 +38,7 @@ func main() {
 	root.AddCommand(serveCmd())
 	root.AddCommand(fhmigrate.NewCommand(openDB, migrations.Migrations))
 {{if .Queue}}	root.AddCommand(workerCmd())
+	root.AddCommand(schedulerCmd())
 {{end}}	if err := root.Execute(); err != nil {
 		log.Fatal(err)
 	}
@@ -87,6 +88,34 @@ func runWorker() error {
 {{else}}	appjobs.Register(srv)
 {{end}}	log.Println("worker started")
 	return srv.Run()
+}
+
+func schedulerCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "scheduler",
+		Short: "run the periodic job scheduler",
+		RunE:  func(cmd *cobra.Command, args []string) error { return runScheduler() },
+	}
+}
+
+func runScheduler() error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	if cfg.RedisURL == "" {
+		return fmt.Errorf("scheduler requires REDIS_URL")
+	}
+	opt, err := fhjobs.RedisConnOpt(cfg.RedisURL)
+	if err != nil {
+		return err
+	}
+	sched := fhjobs.NewScheduler(opt)
+	if err := appjobs.RegisterSchedule(sched); err != nil {
+		return err
+	}
+	log.Println("scheduler started")
+	return sched.Run()
 }
 
 {{end}}func runServe(autoMigrate bool) error {
