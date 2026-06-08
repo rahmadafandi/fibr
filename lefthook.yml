@@ -1,0 +1,19 @@
+# Git hooks via lefthook (https://lefthook.dev).
+# Install once:  go install github.com/evilmartians/lefthook@latest && lefthook install
+# Skip a run:    LEFTHOOK=0 git commit ...
+
+pre-commit:
+  parallel: true
+  commands:
+    gofmt:
+      glob: "*.go"
+      run: test -z "$(gofmt -l {staged_files})"
+      fail_text: "gofmt: files need formatting (run `gofmt -w .`)"
+    lint:
+      glob: "*.go"
+      run: golangci-lint run
+
+pre-push:
+  commands:
+    test:
+      run: go test -race ./...
