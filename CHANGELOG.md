@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `bind` package: `Body[T]`/`Query[T]`/`Params[T]` parse a request into `T`,
+  validate it, and on failure write a `400` (malformed) or `422` (validation,
+  with per-field errors) response — returning `ok=false` so handlers stop with
+  `return nil`.
+
+### Changed
+
+- Generated handlers (module CRUD + auth register/login/refresh) now use
+  `bind.Body` and validate input via struct tags. Missing required fields now
+  return `422` instead of `400`.
+
 ## [0.3.0] - 2026-06-08
 
 ### Changed

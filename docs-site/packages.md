@@ -10,6 +10,7 @@ package below links to its API docs.
 - [`parser`](https://pkg.go.dev/github.com/rahmadafandi/fibr/parser) — Bun pagination/search query modifiers.
 - [`pagination`](https://pkg.go.dev/github.com/rahmadafandi/fibr/pagination) — paginated result envelope with page metadata.
 - [`validator`](https://pkg.go.dev/github.com/rahmadafandi/fibr/validator) — struct validation with custom rules and JSON field names.
+- [`bind`](https://pkg.go.dev/github.com/rahmadafandi/fibr/bind) — parse and validate a request body/query/params into `T` in one call; writes `400`/`422` on failure.
 - [`jwt`](https://pkg.go.dev/github.com/rahmadafandi/fibr/jwt) — JWT generation and validation helpers.
 - [`http`](https://pkg.go.dev/github.com/rahmadafandi/fibr/http) — context-aware JSON HTTP client with retry.
 - [`redis`](https://pkg.go.dev/github.com/rahmadafandi/fibr/redis) — Redis wrapper with `Remember` cache-aside plus `Delete`/`Exists`/`Expire`/`TTL`.
