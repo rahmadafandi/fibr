@@ -1,20 +1,20 @@
-# Fiber Helpers
+# Fibr
 
-[![ci](https://github.com/rahmadafandi/fiber-helpers/actions/workflows/ci.yml/badge.svg)](https://github.com/rahmadafandi/fiber-helpers/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/rahmadafandi/fiber-helpers/branch/master/graph/badge.svg)](https://codecov.io/gh/rahmadafandi/fiber-helpers)
-[![Go Reference](https://pkg.go.dev/badge/github.com/rahmadafandi/fiber-helpers.svg)](https://pkg.go.dev/github.com/rahmadafandi/fiber-helpers)
-[![Go Report Card](https://goreportcard.com/badge/github.com/rahmadafandi/fiber-helpers)](https://goreportcard.com/report/github.com/rahmadafandi/fiber-helpers)
-[![Release](https://img.shields.io/github/v/release/rahmadafandi/fiber-helpers)](https://github.com/rahmadafandi/fiber-helpers/releases/latest)
+[![ci](https://github.com/rahmadafandi/fibr/actions/workflows/ci.yml/badge.svg)](https://github.com/rahmadafandi/fibr/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/rahmadafandi/fibr/branch/master/graph/badge.svg)](https://codecov.io/gh/rahmadafandi/fibr)
+[![Go Reference](https://pkg.go.dev/badge/github.com/rahmadafandi/fibr.svg)](https://pkg.go.dev/github.com/rahmadafandi/fibr)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rahmadafandi/fibr)](https://goreportcard.com/report/github.com/rahmadafandi/fibr)
+[![Release](https://img.shields.io/github/v/release/rahmadafandi/fibr)](https://github.com/rahmadafandi/fibr/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A collection of helper packages for the [Fiber](https://gofiber.io/) web framework.
 
-📖 **[Documentation](https://rahmadafandi.github.io/fiber-helpers/)** · [API reference (pkg.go.dev)](https://pkg.go.dev/github.com/rahmadafandi/fiber-helpers)
+📖 **[Documentation](https://rahmadafandi.github.io/fibr/)** · [API reference (pkg.go.dev)](https://pkg.go.dev/github.com/rahmadafandi/fibr)
 
 ## Install
 
 ```bash
-go get github.com/rahmadafandi/fiber-helpers
+go get github.com/rahmadafandi/fibr
 ```
 
 Requires Go 1.26+. Targets Fiber v2 and Bun ORM (Postgres or SQLite).
@@ -28,11 +28,11 @@ import (
     "fmt"
 
     "github.com/gofiber/fiber/v2"
-    "github.com/rahmadafandi/fiber-helpers/bootstrap"
-    "github.com/rahmadafandi/fiber-helpers/config"
-    "github.com/rahmadafandi/fiber-helpers/database"
-    "github.com/rahmadafandi/fiber-helpers/health"
-    "github.com/rahmadafandi/fiber-helpers/response"
+    "github.com/rahmadafandi/fibr/bootstrap"
+    "github.com/rahmadafandi/fibr/config"
+    "github.com/rahmadafandi/fibr/database"
+    "github.com/rahmadafandi/fibr/health"
+    "github.com/rahmadafandi/fibr/response"
 )
 
 func main() {
@@ -103,7 +103,7 @@ Loads configuration from environment variables (and a `.env` file if present) in
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/config"
+import "github.com/rahmadafandi/fibr/config"
 
 type AppConfig struct {
     Port    int           `mapstructure:"port"     default:"8080"`
@@ -123,7 +123,7 @@ A structured logger based on [zerolog](https://github.com/rs/zerolog).
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/logger"
+import "github.com/rahmadafandi/fibr/logger"
 
 log := logger.Default()
 log.Info("Hello, world!")
@@ -136,7 +136,7 @@ Helper functions for sending standardized JSON responses.
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/response"
+import "github.com/rahmadafandi/fibr/response"
 
 response.SendSuccess(c, data, "Success")
 response.SendError(c, nil, "Error", 400)
@@ -152,7 +152,7 @@ Request body/query/params parsing uses Fiber's built-in `c.BodyParser(&out)`,
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/parser"
+import "github.com/rahmadafandi/fibr/parser"
 
 type MyStruct struct {
     Name string `json:"name"`
@@ -177,7 +177,7 @@ Builds a paginated result envelope (data plus page metadata) for any element typ
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/pagination"
+import "github.com/rahmadafandi/fibr/pagination"
 
 p := pagination.NewPagination(rows, pq.Limit, pq.Page, totalCount)
 // p.Data, p.PageSize, p.Count, p.TotalCount, p.PageCount, p.PageNumber, p.StartNumber
@@ -191,7 +191,7 @@ A helper package for validating structs using [go-playground/validator](https://
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/validator"
+import "github.com/rahmadafandi/fibr/validator"
 
 type MyStruct struct {
     Name string `json:"name" validate:"required"`
@@ -216,7 +216,7 @@ A helper package for working with JSON Web Tokens.
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/jwt"
+import "github.com/rahmadafandi/fibr/jwt"
 
 // Generate a token
 token, err := jwt.GenerateToken(claims, secret)
@@ -235,7 +235,7 @@ A small JSON HTTP client built on [fasthttp](https://github.com/valyala/fasthttp
 import (
     "context"
     "time"
-    fhttp "github.com/rahmadafandi/fiber-helpers/http"
+    fhttp "github.com/rahmadafandi/fibr/http"
 )
 
 h := fhttp.New("https://api.example.com",
@@ -264,7 +264,7 @@ import (
     "context"
     "time"
     "github.com/redis/go-redis/v9"
-    firedis "github.com/rahmadafandi/fiber-helpers/redis"
+    firedis "github.com/rahmadafandi/fibr/redis"
 )
 
 opt, err := firedis.ParseRedisOptions("redis://localhost:6379/0")
@@ -295,7 +295,7 @@ Generates a unique, URL-safe slug for a given table using a [Bun](https://bun.up
 ```go
 import (
     "context"
-    "github.com/rahmadafandi/fiber-helpers/slug"
+    "github.com/rahmadafandi/fibr/slug"
 )
 
 // Returns e.g. "my-first-post-abc123defgh456"
@@ -309,7 +309,7 @@ A helper package for uploading files to local storage. `NewLocalUploader` accept
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/uploader"
+import "github.com/rahmadafandi/fibr/uploader"
 
 // Create a local uploader (max 5 MB, images only)
 up := uploader.NewLocalUploader("./uploads",
@@ -328,7 +328,7 @@ A collection of useful middleware.
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/middleware"
+import "github.com/rahmadafandi/fibr/middleware"
 
 app := fiber.New()
 
@@ -353,7 +353,7 @@ Accessors for values stored on the Fiber context: the request-scoped
 **Usage:**
 
 ```go
-import fhctx "github.com/rahmadafandi/fiber-helpers/context"
+import fhctx "github.com/rahmadafandi/fibr/context"
 
 ctx := fhctx.GetContext(c)        // request-scoped context.Context
 id := fhctx.GetRequestID(c)       // request id (set by ContextMiddleware)
@@ -368,7 +368,7 @@ Opens a [Bun](https://bun.uptrace.dev/) database, picking the dialect from the D
 (`postgres://` → Postgres, `file:`/`:memory:`/path → SQLite).
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/database"
+import "github.com/rahmadafandi/fibr/database"
 
 db, err := database.NewBun("postgres://localhost/app",
     database.WithMaxOpenConns(20),
@@ -421,7 +421,7 @@ scopes := auth.Scopes(c)                // normalized []string
 Liveness (`/livez`) and readiness (`/readyz`) endpoints with concurrent checks.
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/health"
+import "github.com/rahmadafandi/fibr/health"
 
 health.Register(app, health.PingBun(db),
     health.Check("cache", func(ctx context.Context) error { return rds.Ping(ctx) }),
@@ -435,7 +435,7 @@ health.Register(app, health.PingBun(db),
 Prometheus request metrics. Standalone:
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/metrics"
+import "github.com/rahmadafandi/fibr/metrics"
 
 app.Use(metrics.Middleware())
 app.Get("/metrics", metrics.Handler())
@@ -457,7 +457,7 @@ OpenTelemetry distributed tracing. Set up the provider once at startup and defer
 its shutdown:
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/tracing"
+import "github.com/rahmadafandi/fibr/tracing"
 
 shutdown, err := tracing.Setup(ctx, tracing.WithServiceName("my-svc"))
 if err != nil { /* handle */ }
@@ -481,7 +481,7 @@ request span.
 Redis-backed background jobs built on [asynq](https://github.com/hibiken/asynq).
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/jobs"
+import "github.com/rahmadafandi/fibr/jobs"
 
 opt, _ := jobs.RedisConnOpt(os.Getenv("REDIS_URL"))
 
@@ -510,7 +510,7 @@ bootstrap.New(bootstrap.Options{
 })
 ```
 
-Generate an app with the queue scaffolded via `create-fiber-app --queue`: it adds
+Generate an app with the queue scaffolded via `fibr new --queue`: it adds
 a `worker` subcommand, a sample job, the monitoring UI mount, and the
 `REDIS_URL` / `QUEUE_CONCURRENCY` / `ASYNQMON_PATH` config keys. When `REDIS_URL`
 is unset the queue is disabled with a startup warning (the `worker` subcommand
@@ -521,7 +521,7 @@ exits with an error).
 Transactional email through a pluggable `Sender`.
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/mailer"
+import "github.com/rahmadafandi/fibr/mailer"
 
 sender, _ := mailer.New(mailer.SMTPConfig{
     Host: os.Getenv("SMTP_HOST"), Port: 587,
@@ -538,7 +538,7 @@ logs instead of sending (handy in development). A `MemorySender` captures
 messages for tests. Because `Message` is JSON-serializable it doubles as an
 asynq job payload — generated apps with both `--mailer` and `--queue` send
 asynchronously through an `email:send` job; with `--mailer` alone they send
-inline. `create-fiber-app --mailer` also sends the team invitation email (with
+inline. `fibr new --mailer` also sends the team invitation email (with
 `--auth-with-team`) and the welcome job (with `--queue`).
 
 ### `server`
@@ -546,7 +546,7 @@ inline. `create-fiber-app --mailer` also sends the team invitation email (with
 Signal-based graceful shutdown.
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/server"
+import "github.com/rahmadafandi/fibr/server"
 
 err := server.RunGraceful(app, ":3000", 10*time.Second, func(ctx context.Context) error {
     return db.Close()
@@ -559,7 +559,7 @@ Optional one-call wiring of recover, request id, logging, optional CORS / rate
 limit / health, and graceful shutdown.
 
 ```go
-import "github.com/rahmadafandi/fiber-helpers/bootstrap"
+import "github.com/rahmadafandi/fibr/bootstrap"
 
 app := bootstrap.New(bootstrap.Options{
     DB:           db,

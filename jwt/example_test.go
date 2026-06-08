@@ -5,7 +5,7 @@ package jwt_test
 import (
 	"fmt"
 
-	"github.com/rahmadafandi/fiber-helpers/jwt"
+	"github.com/rahmadafandi/fibr/jwt"
 )
 
 // Sign a token, validate it with the same secret, then read a claim back out.

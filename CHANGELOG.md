@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-08
+
+### Changed
+
+- **BREAKING: renamed the project from `fiber-helpers` to `fibr`.** The module
+  path is now `github.com/rahmadafandi/fibr`; update all imports. The repository
+  moved to `github.com/rahmadafandi/fibr` (the old URL redirects).
+- **BREAKING: the generator CLI is now `fibr` with subcommands.** Scaffold a
+  project with `fibr new <name>` (was `create-fiber-app <name>`); `fibr add
+  module <name>` is unchanged. Install with
+  `go install github.com/rahmadafandi/fibr/cmd/fibr@latest`. Release binaries are
+  named `fibr`.
+
 ## [0.2.2] - 2026-06-08
 
 ### Added

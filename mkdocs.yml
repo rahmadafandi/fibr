@@ -1,8 +1,8 @@
-site_name: fiber-helpers
-site_description: Reusable Fiber boilerplate and the create-fiber-app generator for Go.
-site_url: https://rahmadafandi.github.io/fiber-helpers/
-repo_url: https://github.com/rahmadafandi/fiber-helpers
-repo_name: rahmadafandi/fiber-helpers
+site_name: fibr
+site_description: Reusable Fiber boilerplate and the fibr generator for Go.
+site_url: https://rahmadafandi.github.io/fibr/
+repo_url: https://github.com/rahmadafandi/fibr
+repo_name: rahmadafandi/fibr
 docs_dir: docs-site
 
 theme:

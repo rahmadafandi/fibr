@@ -1,4 +1,4 @@
-module github.com/rahmadafandi/fiber-helpers
+module github.com/rahmadafandi/fibr
 
 go 1.26.0
 

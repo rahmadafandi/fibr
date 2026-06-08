@@ -1,4 +1,4 @@
-# create-fiber-app
+# fibr
 
 Scaffolds a batteries-included Fiber project (a cobra single binary with `serve`,
 `migrate`, and — with `--queue` — a `worker` subcommand).
@@ -6,13 +6,13 @@ Scaffolds a batteries-included Fiber project (a cobra single binary with `serve`
 ## Install
 
 ```bash
-go install github.com/rahmadafandi/fiber-helpers/cmd/create-fiber-app@latest
+go install github.com/rahmadafandi/fibr/cmd/fibr@latest
 ```
 
 ## Usage
 
 ```bash
-create-fiber-app <name> --module <module-path> [flags]
+fibr new <name> --module <module-path> [flags]
 ```
 
 | Flag | Description |
@@ -26,14 +26,14 @@ create-fiber-app <name> --module <module-path> [flags]
 | `--queue` | background job queue (asynq) + asynqmon UI + `worker` subcommand |
 | `--mailer` | transactional email (SMTP), wired into invitations and the welcome job |
 | `--dir` | output directory (default `./<name>`) |
-| `--local` | replace fiber-helpers with a local path (unpublished-library development) |
+| `--local` | replace fibr with a local path (unpublished-library development) |
 
 Run without flags to be prompted interactively.
 
 ## Adding modules
 
 ```bash
-create-fiber-app add module product
+fibr add module product
 ```
 
 Generates a Mount-based module and prints the `app.Mount(...)` line to wire it in.

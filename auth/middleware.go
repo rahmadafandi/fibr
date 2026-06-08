@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	fhcontext "github.com/rahmadafandi/fiber-helpers/context"
-	"github.com/rahmadafandi/fiber-helpers/jwt"
-	"github.com/rahmadafandi/fiber-helpers/response"
+	fhcontext "github.com/rahmadafandi/fibr/context"
+	"github.com/rahmadafandi/fibr/jwt"
+	"github.com/rahmadafandi/fibr/response"
 )
 
 func bearerToken(c *fiber.Ctx) string {

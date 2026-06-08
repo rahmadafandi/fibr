@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahmadafandi/fiber-helpers/jwt"
+	"github.com/rahmadafandi/fibr/jwt"
 	"github.com/stretchr/testify/require"
 )
 

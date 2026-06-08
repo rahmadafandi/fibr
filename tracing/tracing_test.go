@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/rahmadafandi/fiber-helpers/tracing"
+	"github.com/rahmadafandi/fibr/tracing"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"

@@ -5,7 +5,7 @@ package parser_test
 import (
 	"fmt"
 
-	"github.com/rahmadafandi/fiber-helpers/parser"
+	"github.com/rahmadafandi/fibr/parser"
 )
 
 // Validate guards the incoming query against an allow-list of sortable columns

@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a problem with fiber-helpers or create-fiber-app
+description: Report a problem with fibr
 labels: [bug]
 body:
   - type: textarea
@@ -19,7 +19,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: fiber-helpers version
+      label: fibr version
       placeholder: v0.2.0
     validations:
       required: true

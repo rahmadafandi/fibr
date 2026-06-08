@@ -1,0 +1,39 @@
+package handler
+
+import (
+	"context"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/rahmadafandi/fibr/bootstrap"
+	"github.com/uptrace/bun"
+
+	"{{.Module}}/internal/repository"
+	"{{.Module}}/internal/service"
+)
+
+// {{.Type}}Module wires the {{.Pkg}} feature: repository -> service -> handler.
+type {{.Type}}Module struct {
+	db      *bun.DB
+	handler *{{.Type}}Handler
+}
+
+// New{{.Type}}Module builds the {{.Pkg}} module. Pass the result to app.Mount.
+func New{{.Type}}Module(db *bun.DB) bootstrap.Module {
+	repo := repository.New{{.Type}}Repository(db)
+	svc := service.New{{.Type}}Service(repo)
+	return &{{.Type}}Module{db: db, handler: New{{.Type}}Handler(svc)}
+}
+
+// Name identifies the module.
+func (m *{{.Type}}Module) Name() string { return "{{.Pkg}}" }
+
+// Register mounts the {{.Pkg}} routes.
+func (m *{{.Type}}Module) Register(r fiber.Router) error {
+	m.handler.RegisterRoutes(r)
+	return nil
+}
+
+// Migrate creates the {{.Plural}} table if it does not exist.
+func (m *{{.Type}}Module) Migrate(ctx context.Context) error {
+	return repository.Migrate{{.Type}}(ctx, m.db)
+}

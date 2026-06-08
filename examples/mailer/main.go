@@ -10,7 +10,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rahmadafandi/fiber-helpers/mailer"
+	"github.com/rahmadafandi/fibr/mailer"
 )
 
 const (
@@ -24,7 +24,7 @@ func main() {
 	// Render the body from templates plus per-recipient data.
 	html, text, err := mailer.Render(htmlTmpl, textTmpl, map[string]string{
 		"Name": "Ada",
-		"App":  "fiber-helpers",
+		"App":  "fibr",
 	})
 	if err != nil {
 		panic(err)

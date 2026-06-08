@@ -10,7 +10,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/rahmadafandi/fiber-helpers/jwt"
+	"github.com/rahmadafandi/fibr/jwt"
 )
 
 // Errors returned by the Issuer. Callers should map both to HTTP 401;

@@ -1,12 +1,12 @@
-module github.com/rahmadafandi/fiber-helpers/examples
+module github.com/rahmadafandi/fibr/examples
 
 go 1.26.0
 
-replace github.com/rahmadafandi/fiber-helpers => ../
+replace github.com/rahmadafandi/fibr => ../
 
 require (
 	github.com/gofiber/fiber/v2 v2.52.13
-	github.com/rahmadafandi/fiber-helpers v0.0.0-00010101000000-000000000000
+	github.com/rahmadafandi/fibr v0.0.0-00010101000000-000000000000
 )
 
 require (

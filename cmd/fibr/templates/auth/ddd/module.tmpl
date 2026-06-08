@@ -1,0 +1,40 @@
+package http
+
+import (
+	"context"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/rahmadafandi/fibr/auth"
+	"github.com/rahmadafandi/fibr/bootstrap"
+	"github.com/uptrace/bun"
+
+	appaccount "{{.Module}}/internal/application/account"
+	"{{.Module}}/internal/infrastructure/persistence"
+)
+
+// AuthModule wires the auth feature: repository -> service -> handler.
+type AuthModule struct {
+	db      *bun.DB
+	handler *AuthHandler
+}
+
+// NewAuthModule builds the auth module. Pass the result to app.Mount.
+func NewAuthModule(db *bun.DB, secret string, store auth.TokenStore) bootstrap.Module {
+	repo := persistence.NewAccountRepository(db)
+	svc := appaccount.NewService(repo)
+	return &AuthModule{db: db, handler: NewAuthHandler(svc, secret, store)}
+}
+
+// Name identifies the module.
+func (m *AuthModule) Name() string { return "auth" }
+
+// Register mounts the auth routes.
+func (m *AuthModule) Register(r fiber.Router) error {
+	m.handler.RegisterRoutes(r)
+	return nil
+}
+
+// Migrate creates the accounts table if it does not exist.
+func (m *AuthModule) Migrate(ctx context.Context) error {
+	return persistence.MigrateAccount(ctx, m.db)
+}
