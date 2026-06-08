@@ -2,6 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/rahmadafandi/fiber-helpers)](https://github.com/rahmadafandi/fiber-helpers/releases/latest)
 [![ci](https://github.com/rahmadafandi/fiber-helpers/actions/workflows/ci.yml/badge.svg)](https://github.com/rahmadafandi/fiber-helpers/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/rahmadafandi/fiber-helpers/branch/master/graph/badge.svg)](https://codecov.io/gh/rahmadafandi/fiber-helpers)
 [![Go Reference](https://pkg.go.dev/badge/github.com/rahmadafandi/fiber-helpers.svg)](https://pkg.go.dev/github.com/rahmadafandi/fiber-helpers)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rahmadafandi/fiber-helpers)](https://goreportcard.com/report/github.com/rahmadafandi/fiber-helpers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/rahmadafandi/fiber-helpers/blob/master/LICENSE)

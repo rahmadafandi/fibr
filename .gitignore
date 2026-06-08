@@ -11,3 +11,6 @@ site/
 
 # local-only planning docs (superpowers specs/plans)
 docs/superpowers/
+
+# test coverage
+coverage.txt

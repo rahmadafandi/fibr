@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Developer tooling: root `Makefile` (build/test/cover/lint/vet/vuln/tidy/check),
+  `lefthook.yml` git hooks (gofmt + golangci-lint on commit, tests on push).
+- CI: `govulncheck` vulnerability scan job; test coverage profile uploaded to
+  Codecov.
+
+## [0.2.1] - 2026-06-08
+
+### Changed
+
+- `go.mod`: retract pre-release tags `[v0.1.0, v0.1.13]`. They predate the
+  project stabilizing and point at commits removed by a history rewrite; they
+  were never intended as supported releases. `go get` and pkg.go.dev now steer
+  users to v0.2.0+.
+
 ## [0.2.0] - 2026-06-07
 
 ### Added

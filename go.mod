@@ -2,6 +2,8 @@ module github.com/rahmadafandi/fiber-helpers
 
 go 1.26.0
 
+toolchain go1.26.4
+
 // Pre-release tags cut before the project stabilized. Git history was later
 // rewritten, so these refer to commits that no longer exist on master. They
 // were never intended as supported releases; start from v0.2.0.
