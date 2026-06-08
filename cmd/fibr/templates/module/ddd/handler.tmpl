@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/rahmadafandi/fibr/bind"
 	"github.com/rahmadafandi/fibr/response"
 	app{{.Pkg}} "{{.Module}}/internal/application/{{.Pkg}}"
 	domain "{{.Module}}/internal/domain/{{.Pkg}}"
@@ -48,9 +49,9 @@ func (h *{{.Type}}Handler) get(c *fiber.Ctx) error {
 }
 
 func (h *{{.Type}}Handler) create(c *fiber.Ctx) error {
-	var e domain.{{.Type}}
-	if err := c.BodyParser(&e); err != nil {
-		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
+	e, ok := bind.Body[domain.{{.Type}}](c)
+	if !ok {
+		return nil
 	}
 	if err := h.svc.Create(c.UserContext(), &e); err != nil {
 		return response.SendError(c, nil, err.Error(), fiber.StatusInternalServerError)
