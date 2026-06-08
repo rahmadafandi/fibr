@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   validate it, and on failure write a `400` (malformed) or `422` (validation,
   with per-field errors) response — returning `ok=false` so handlers stop with
   `return nil`.
+- `jobs.Scheduler`: cron-triggered job scheduling (`Register`/`Run`/`Shutdown`/`Unregister`,
+  `WithLocation`) on top of asynq. Generated `--queue` apps gain a `scheduler`
+  subcommand and a sample daily cleanup cron.
 
 ### Changed
 

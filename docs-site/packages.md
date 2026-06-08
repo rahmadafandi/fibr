@@ -24,7 +24,7 @@ package below links to its API docs.
 - [`health`](https://pkg.go.dev/github.com/rahmadafandi/fibr/health) — liveness (`/livez`) and readiness (`/readyz`) endpoints.
 - [`metrics`](https://pkg.go.dev/github.com/rahmadafandi/fibr/metrics) — Prometheus request metrics middleware + `/metrics` handler.
 - [`tracing`](https://pkg.go.dev/github.com/rahmadafandi/fibr/tracing) — OpenTelemetry tracing setup (OTLP/HTTP) + Fiber spans.
-- [`jobs`](https://pkg.go.dev/github.com/rahmadafandi/fibr/jobs) — Redis-backed background jobs (asynq) + asynqmon monitoring mount.
+- [`jobs`](https://pkg.go.dev/github.com/rahmadafandi/fibr/jobs) — Redis-backed background jobs (asynq) + asynqmon monitoring mount. Includes `Scheduler` for cron-triggered (periodic) jobs.
 - [`mailer`](https://pkg.go.dev/github.com/rahmadafandi/fibr/mailer) — transactional email: pluggable `Sender` (SMTP/log/memory) + template render.
 - [`server`](https://pkg.go.dev/github.com/rahmadafandi/fibr/server) — signal-based graceful shutdown via `RunGraceful`.
 - [`bootstrap`](https://pkg.go.dev/github.com/rahmadafandi/fibr/bootstrap) — one-call app wiring: middleware, health, DB, metrics, tracing, graceful shutdown.

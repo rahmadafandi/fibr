@@ -2,10 +2,10 @@ package jobs
 
 import (
 	"context"
+	"log"
 
 	fhjobs "github.com/rahmadafandi/fibr/jobs"
 {{if .Mailer}}	fhmailer "github.com/rahmadafandi/fibr/mailer"
-{{else}}	"log"
 {{end}})
 
 // WelcomeType is the task type for the welcome-email job.
@@ -29,6 +29,7 @@ func Register(srv *fhjobs.Server, sender fhmailer.Sender) {
 		}
 		return sender.Send(ctx, fhmailer.Message{To: []string{p.Email}, Subject: "Welcome", HTML: html, Text: text})
 	})
+	fhjobs.Handle[CleanupPayload](srv, CleanupType, HandleCleanup)
 }
 
 // EmailType is the generic email-send job type.
@@ -66,5 +67,28 @@ func HandleWelcome(ctx context.Context, p WelcomePayload) error {
 // Register wires this app's job handlers onto the worker server.
 func Register(srv *fhjobs.Server) {
 	fhjobs.Handle[WelcomePayload](srv, WelcomeType, HandleWelcome)
+	fhjobs.Handle[CleanupPayload](srv, CleanupType, HandleCleanup)
 }
 {{end}}
+
+// CleanupType is the task type for the periodic cleanup job.
+const CleanupType = "cleanup:run"
+
+// CleanupPayload is the JSON payload for a cleanup job.
+type CleanupPayload struct {
+	OlderThanDays int `json:"older_than_days"`
+}
+
+// HandleCleanup processes a cleanup job. Replace the body with real cleanup
+// (e.g. delete stale rows) for your app.
+func HandleCleanup(ctx context.Context, p CleanupPayload) error {
+	log.Printf("cleanup: removing data older than %d days", p.OlderThanDays)
+	return nil
+}
+
+// RegisterSchedule registers this app's periodic (cron) jobs on the scheduler.
+func RegisterSchedule(sched *fhjobs.Scheduler) error {
+	// Daily at 02:00 (scheduler time zone; UTC by default).
+	_, err := sched.Register("0 2 * * *", CleanupType, CleanupPayload{OlderThanDays: 30})
+	return err
+}
