@@ -76,6 +76,7 @@ func main() {
 - [`parser`](#parser) — Bun pagination/search query modifiers.
 - [`pagination`](#pagination) — Paginated result envelope with page metadata.
 - [`validator`](#validator) — Struct validation with custom rules and JSON field names.
+- [`bind`](#parse--validate-with-bind) — Parse and validate a request body/query/params into `T` in one call; writes `400`/`422` on failure.
 - [`jwt`](#jwt) — JWT generation and validation helpers.
 - [`http`](#http) — Context-aware JSON HTTP client with retry.
 - [`redis`](#redis) — Redis wrapper with `Remember` cache-aside helper.
@@ -207,6 +208,27 @@ if errs := validator.ValidateStruct(&body); len(errs) > 0 {
 validator.Register("my_rule", func(fl validator.FieldLevel) bool {
     return fl.Field().String() != "forbidden"
 })
+```
+
+### Parse + validate with `bind`
+
+`bind.Body[T]`, `bind.Query[T]`, and `bind.Params[T]` decode a request into `T`
+and run `validator.ValidateStruct` in one call. On malformed input they write a
+`400`; on a validation failure a `422` with per-field errors; otherwise they
+return `(value, true)`.
+
+```go
+type CreateInput struct {
+    Email string `json:"email" validate:"required,email"`
+}
+
+func create(c *fiber.Ctx) error {
+    in, ok := bind.Body[CreateInput](c)
+    if !ok {
+        return nil // bind wrote a 400 (malformed) or 422 (validation) response
+    }
+    return response.SendSuccess(c, in, "ok")
+}
 ```
 
 ### `jwt`

@@ -37,6 +37,11 @@ jobs:
       - uses: golangci/golangci-lint-action@v9
         with:
           version: latest
+          # The repo was renamed (fiber-helpers -> fibr); a stale analysis cache
+          # keyed to the old checkout path made golangci-lint resolve files under
+          # the wrong directory and drop //nolint directives. Skip its cache so
+          # runs are deterministic.
+          skip-cache: true
 
   e2e:
     runs-on: ubuntu-latest

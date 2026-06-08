@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/rahmadafandi/fibr/bind"
 	"github.com/rahmadafandi/fibr/auth"
 	"github.com/rahmadafandi/fibr/jwt"
 	"github.com/rahmadafandi/fibr/response"
@@ -27,12 +28,12 @@ func NewAuthHandler(svc *service.AuthService, secret string, store auth.TokenSto
 }
 
 type credentials struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
 }
 
 type refreshRequest struct {
-	RefreshToken string `json:"refresh_token"`
+	RefreshToken string `json:"refresh_token" validate:"required"`
 }
 
 // RegisterRoutes mounts the /auth routes.
@@ -47,12 +48,9 @@ func (h *AuthHandler) RegisterRoutes(r fiber.Router) {
 }
 
 func (h *AuthHandler) register(c *fiber.Ctx) error {
-	var in credentials
-	if err := c.BodyParser(&in); err != nil {
-		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
-	}
-	if in.Email == "" || in.Password == "" {
-		return response.SendError(c, nil, "email and password are required", fiber.StatusBadRequest)
+	in, ok := bind.Body[credentials](c)
+	if !ok {
+		return nil
 	}
 	a, err := h.svc.Register(c.UserContext(), in.Email, in.Password)
 	if err != nil {
@@ -65,12 +63,9 @@ func (h *AuthHandler) register(c *fiber.Ctx) error {
 }
 
 func (h *AuthHandler) login(c *fiber.Ctx) error {
-	var in credentials
-	if err := c.BodyParser(&in); err != nil {
-		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
-	}
-	if in.Email == "" || in.Password == "" {
-		return response.SendError(c, nil, "email and password are required", fiber.StatusBadRequest)
+	in, ok := bind.Body[credentials](c)
+	if !ok {
+		return nil
 	}
 	a, err := h.svc.Authenticate(c.UserContext(), in.Email, in.Password)
 	if err != nil {
@@ -88,12 +83,9 @@ func (h *AuthHandler) login(c *fiber.Ctx) error {
 }
 
 func (h *AuthHandler) refresh(c *fiber.Ctx) error {
-	var in refreshRequest
-	if err := c.BodyParser(&in); err != nil {
-		return response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)
-	}
-	if in.RefreshToken == "" {
-		return response.SendError(c, nil, "refresh_token is required", fiber.StatusBadRequest)
+	in, ok := bind.Body[refreshRequest](c)
+	if !ok {
+		return nil
 	}
 	pair, err := h.issuer.Refresh(c.UserContext(), in.RefreshToken)
 	if err != nil {
