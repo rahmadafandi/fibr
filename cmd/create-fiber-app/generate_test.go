@@ -735,3 +735,17 @@ func TestQueueScaffoldWiring(t *testing.T) {
 		})
 	}
 }
+
+func TestGeneratesDotenv(t *testing.T) {
+	dir := generateInto(t, Options{Name: "app", Module: "example.com/app", DB: "sqlite", Layout: "ddd", Auth: true})
+
+	example, err := os.ReadFile(filepath.Join(dir, ".env.example"))
+	require.NoError(t, err)
+	dotenv, err := os.ReadFile(filepath.Join(dir, ".env"))
+	require.NoError(t, err)
+
+	// .env is generated alongside .env.example with identical contents
+	// (including the baked dev JWT_SECRET), so a fresh app runs immediately.
+	assert.Equal(t, string(example), string(dotenv))
+	assert.Contains(t, string(dotenv), "JWT_SECRET=")
+}

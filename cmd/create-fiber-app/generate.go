@@ -73,6 +73,7 @@ func plan(d Data) []fileSpec {
 		{"common/gomod.tmpl", "go.mod"},
 		{"common/gitignore.tmpl", ".gitignore"},
 		{"common/env.tmpl", ".env.example"},
+		{"common/env.tmpl", ".env"},
 		{"common/dockerfile.tmpl", "Dockerfile"},
 		{"common/compose.tmpl", "docker-compose.yml"},
 		{"common/makefile.tmpl", "Makefile"},
