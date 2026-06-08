@@ -59,6 +59,7 @@ func TestBodyMalformed(t *testing.T) {
 	resp, err := app.Test(req)
 	require.NoError(t, err)
 	require.Equal(t, 400, resp.StatusCode)
+	require.Contains(t, bodyOf(t, resp), `"status":"error"`)
 }
 
 func TestBodyValidationFails(t *testing.T) {
@@ -104,10 +105,13 @@ func TestQueryValidAndInvalid(t *testing.T) {
 	bad, err := app.Test(httptest.NewRequest("GET", "/?sort=bogus", nil))
 	require.NoError(t, err)
 	require.Equal(t, 422, bad.StatusCode)
+	require.Contains(t, bodyOf(t, bad), `"status":"error"`)
 }
 
+// min=1 (not required): a route id is always present but `required` on an int
+// means "non-zero", which would 422 a legitimate /items/0. min=1 is the intent.
 type idParam struct {
-	ID int `params:"id" validate:"required"`
+	ID int `params:"id" validate:"min=1"`
 }
 
 func TestParamsValidAndInvalid(t *testing.T) {
@@ -127,4 +131,5 @@ func TestParamsValidAndInvalid(t *testing.T) {
 	bad, err := app.Test(httptest.NewRequest("GET", "/items/abc", nil))
 	require.NoError(t, err)
 	require.Equal(t, 400, bad.StatusCode) // ParamsParser fails to parse "abc" into int
+	require.Contains(t, bodyOf(t, bad), `"status":"error"`)
 }
