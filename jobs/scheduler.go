@@ -46,6 +46,10 @@ func (s *Scheduler) Register(cronspec, typename string, payload any, opts ...asy
 	return s.inner.Register(cronspec, asynq.NewTask(typename, b), opts...)
 }
 
+// Unregister removes a previously registered entry by the id returned from
+// Register, so it stops being enqueued.
+func (s *Scheduler) Unregister(entryID string) error { return s.inner.Unregister(entryID) }
+
 // Run starts the scheduler and blocks until the process receives SIGTERM/SIGINT.
 func (s *Scheduler) Run() error { return s.inner.Run() }
 

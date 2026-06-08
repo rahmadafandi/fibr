@@ -4,6 +4,7 @@ package jobs_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rahmadafandi/fibr/jobs"
@@ -47,8 +48,18 @@ func TestWithLocation(t *testing.T) {
 	opt, err := jobs.RedisConnOpt("redis://" + mr.Addr())
 	require.NoError(t, err)
 
-	sched := jobs.NewScheduler(opt, jobs.WithLocation(nil))
+	// Pass a real (non-nil) location so the option path is actually exercised.
+	sched := jobs.NewScheduler(opt, jobs.WithLocation(time.UTC))
 	id, err := sched.Register("@every 1h", "cleanup:run", nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, id)
+}
+
+func TestSchedulerUnregister(t *testing.T) {
+	sched := newSchedulerForTest(t)
+	id, err := sched.Register("@every 1h", "cleanup:run", nil)
+	require.NoError(t, err)
+
+	require.NoError(t, sched.Unregister(id))
+	require.Error(t, sched.Unregister("no-such-id"))
 }
