@@ -12,7 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Developer tooling: root `Makefile` (build/test/cover/lint/vet/vuln/tidy/check),
   `lefthook.yml` git hooks (gofmt + golangci-lint on commit, tests on push).
 - CI: `govulncheck` vulnerability scan job; test coverage profile uploaded to
-  Codecov.
+  Codecov; `examples` build/vet job.
+- Documentation: runnable godoc `Example` functions for `pagination`, `jwt`,
+  `validator`, `parser`, `response`, and `slug` (rendered on pkg.go.dev).
+- `examples/`: runnable demo apps for `auth`, `mailer`, and `queue`, plus a
+  README index.
 
 ## [0.2.1] - 2026-06-08
 
