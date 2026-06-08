@@ -5,6 +5,7 @@
 # compiled example binary
 /examples/examples
 /fibr
+/create-fiber-app
 
 # mkdocs build output
 site/
