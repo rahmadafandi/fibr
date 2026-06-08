@@ -90,7 +90,7 @@ func main() {
 - [`health`](#health) — Liveness (`/livez`) and readiness (`/readyz`) endpoints.
 - [`metrics`](#metrics) — Prometheus request metrics middleware + `/metrics` handler.
 - [`tracing`](#tracing) — OpenTelemetry tracing setup (OTLP/HTTP) + Fiber spans.
-- [`jobs`](#jobs) — Redis-backed background jobs (asynq) + asynqmon monitoring mount.
+- [`jobs`](#jobs) — Redis-backed background jobs (asynq) + asynqmon monitoring mount. Includes `Scheduler` for cron-triggered (periodic) jobs.
 - [`mailer`](#mailer) — Transactional email: pluggable `Sender` (SMTP/log/memory) + template render.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
 - [`bootstrap`](#bootstrap) — One-call app wiring: middleware, health, DB, and graceful shutdown.
@@ -537,6 +537,16 @@ a `worker` subcommand, a sample job, the monitoring UI mount, and the
 `REDIS_URL` / `QUEUE_CONCURRENCY` / `ASYNQMON_PATH` config keys. When `REDIS_URL`
 is unset the queue is disabled with a startup warning (the `worker` subcommand
 exits with an error).
+
+### Scheduled jobs with `jobs.Scheduler`
+
+```go
+sched := jobs.NewScheduler(opt) // opt from jobs.RedisConnOpt(redisURL)
+if _, err := sched.Register("0 2 * * *", "cleanup:run", CleanupPayload{OlderThanDays: 30}); err != nil {
+    log.Fatal(err)
+}
+log.Fatal(sched.Run()) // run ONE instance; workers process the enqueued tasks
+```
 
 ### mailer
 
