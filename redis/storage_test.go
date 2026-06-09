@@ -60,9 +60,20 @@ func TestStorageResetScoped(t *testing.T) {
 
 	ga, _ := s.Get("a")
 	assert.Nil(t, ga)
+	gb, _ := s.Get("b")
+	assert.Nil(t, gb)
 	val, err := client.Get(context.Background(), "other").Result()
 	require.NoError(t, err)
 	assert.Equal(t, "keep", val)
+}
+
+func TestStorageSetExpiry(t *testing.T) {
+	s, mr, _ := newTestStorage(t)
+	require.NoError(t, s.Set("k", []byte("v"), time.Minute))
+	mr.FastForward(2 * time.Minute)
+	got, err := s.Get("k")
+	require.NoError(t, err)
+	assert.Nil(t, got)
 }
 
 func TestStorageWithPrefix(t *testing.T) {
