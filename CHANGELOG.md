@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   minio-go, behind the existing `Uploader` interface, with `WithKeyPrefix` /
   `WithBaseURL`. Validation (size, MIME, filename) is now shared with
   `LocalUploader`; the `Option` type is unified across both.
+- `redis.Storage` (`NewStorage`/`WithPrefix`): a `fiber.Storage` adapter over
+  go-redis, plus `bootstrap.Options.RateLimitStorage`. Generated apps use a
+  Redis-backed (multi-instance-consistent) rate limiter when `REDIS_URL` is set.
 
 ### Changed
 

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	goredis "github.com/redis/go-redis/v9"
 	fibrredis "github.com/rahmadafandi/fibr/redis"
+	goredis "github.com/redis/go-redis/v9"
 )
 
 // NewStorage adapts a go-redis client to fiber.Storage, e.g. for a

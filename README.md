@@ -79,7 +79,7 @@ func main() {
 - [`bind`](#parse--validate-with-bind) — Parse and validate a request body/query/params into `T` in one call; writes `400`/`422` on failure.
 - [`jwt`](#jwt) — JWT generation and validation helpers.
 - [`http`](#http) — Context-aware JSON HTTP client with retry.
-- [`redis`](#redis) — Redis wrapper with `Remember` cache-aside helper.
+- [`redis`](#redis) — Redis wrapper with `Remember` cache-aside helper. Includes a `Storage` adapter (`NewStorage`) for Redis-backed rate limiting.
 - [`slug`](#slug) — Unique URL-safe slug generator backed by a Bun database.
 - [`uploader`](#uploader) — Local file uploader with size and MIME limits. Also includes `S3Uploader` for S3-compatible storage (AWS S3, MinIO, R2).
 - [`middleware`](#middleware) — Recover, request logging, auth, and request-id middleware.
@@ -307,6 +307,16 @@ result, err := firedis.Remember(ctx, rds, "key", time.Minute, func() (MyType, er
 
 Invalidate and inspect entries with `Delete(ctx, keys...)`, `Exists(ctx, key)`,
 `Expire(ctx, key, ttl)`, and `TTL(ctx, key)`.
+
+### Redis-backed rate limiting
+
+```go
+client := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
+app := bootstrap.New(bootstrap.Options{
+    RateLimit:        100,
+    RateLimitStorage: fibrredis.NewStorage(client), // shared across instances
+})
+```
 
 ### `slug`
 
