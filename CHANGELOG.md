@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `jobs.Scheduler`: cron-triggered job scheduling (`Register`/`Run`/`Shutdown`/`Unregister`,
   `WithLocation`) on top of asynq. Generated `--queue` apps gain a `scheduler`
   subcommand and a sample daily cleanup cron.
+- `uploader.S3Uploader`: S3-compatible uploads (AWS S3, MinIO, R2, ...) via
+  minio-go, behind the existing `Uploader` interface, with `WithKeyPrefix` /
+  `WithBaseURL`. Validation (size, MIME, filename) is now shared with
+  `LocalUploader`; the `Option` type is unified across both.
 
 ### Changed
 

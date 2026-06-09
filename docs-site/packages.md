@@ -15,7 +15,7 @@ package below links to its API docs.
 - [`http`](https://pkg.go.dev/github.com/rahmadafandi/fibr/http) — context-aware JSON HTTP client with retry.
 - [`redis`](https://pkg.go.dev/github.com/rahmadafandi/fibr/redis) — Redis wrapper with `Remember` cache-aside plus `Delete`/`Exists`/`Expire`/`TTL`.
 - [`slug`](https://pkg.go.dev/github.com/rahmadafandi/fibr/slug) — unique URL-safe slug generator backed by a Bun database.
-- [`uploader`](https://pkg.go.dev/github.com/rahmadafandi/fibr/uploader) — local file uploader with size and MIME limits.
+- [`uploader`](https://pkg.go.dev/github.com/rahmadafandi/fibr/uploader) — local file uploader with size and MIME limits. Includes `S3Uploader` for S3-compatible storage (AWS S3, MinIO, R2).
 - [`middleware`](https://pkg.go.dev/github.com/rahmadafandi/fibr/middleware) — recover, request logging, auth, and request-id middleware.
 - [`context`](https://pkg.go.dev/github.com/rahmadafandi/fibr/context) — request context, request-id, and type-safe local accessors.
 - [`database`](https://pkg.go.dev/github.com/rahmadafandi/fibr/database) — Bun connector with Postgres/SQLite dialect auto-detection (plus `WithTracing`).
