@@ -67,6 +67,14 @@ func TestS3UploadValidationBlocksPut(t *testing.T) {
 	assert.Equal(t, 0, fp.calls)
 }
 
+func TestS3UploadDisallowedMimeBlocksPut(t *testing.T) {
+	fp := &fakePutter{}
+	u := newS3Uploader(fp, "b", WithAllowedMime([]string{"image/png"}))
+	_, err := u.Upload(newFile([]byte("plain text, not png")), "note.txt")
+	require.Error(t, err)
+	assert.Equal(t, 0, fp.calls)
+}
+
 func TestS3ImplementsUploader(t *testing.T) {
 	var _ Uploader = (*S3Uploader)(nil)
 }

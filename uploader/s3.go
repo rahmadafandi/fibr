@@ -37,6 +37,9 @@ func newS3Uploader(client objectPutter, bucket string, opts ...Option) *S3Upload
 
 // Upload validates the file, then puts it at <keyPrefix><sanitized-name> in the
 // bucket. It returns the object key, or <baseURL>+key when WithBaseURL is set.
+//
+// The Uploader interface carries no context, so the put uses
+// context.Background(); a per-call context would require an interface change.
 func (u *S3Uploader) Upload(file multipart.File, filename string) (string, error) {
 	safe, mimeType, err := u.cfg.validate(file, filename)
 	if err != nil {

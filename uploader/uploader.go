@@ -34,10 +34,12 @@ func WithMaxSize(bytes int64) Option { return func(c *config) { c.maxSize = byte
 // WithAllowedMime rejects uploads whose detected MIME type is not in the list.
 func WithAllowedMime(mimes []string) Option { return func(c *config) { c.allowedMime = mimes } }
 
-// WithBaseURL makes S3Uploader.Upload return baseURL+key instead of just the key.
+// WithBaseURL makes S3Uploader.Upload return baseURL+key instead of just the
+// key. For S3Uploader only; LocalUploader ignores it.
 func WithBaseURL(url string) Option { return func(c *config) { c.baseURL = url } }
 
-// WithKeyPrefix namespaces S3 object keys (e.g. "avatars/").
+// WithKeyPrefix namespaces S3 object keys (e.g. "avatars/"). For S3Uploader
+// only; LocalUploader ignores it.
 func WithKeyPrefix(prefix string) Option { return func(c *config) { c.keyPrefix = prefix } }
 
 func newConfig(opts ...Option) config {
