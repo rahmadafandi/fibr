@@ -9,12 +9,12 @@ import (
 	fhdatabase "github.com/rahmadafandi/fibr/database"
 	"github.com/rahmadafandi/fibr/health"
 	fhmigrate "github.com/rahmadafandi/fibr/migrate"
+	fhredis "github.com/rahmadafandi/fibr/redis"
 	"github.com/rahmadafandi/fibr/tracing"
 	"github.com/spf13/cobra"
 	"github.com/uptrace/bun"
-{{if .Auth}}	fhauth "github.com/rahmadafandi/fibr/auth"
-	fhredis "github.com/rahmadafandi/fibr/redis"
 	redislib "github.com/redis/go-redis/v9"
+{{if .Auth}}	fhauth "github.com/rahmadafandi/fibr/auth"
 	zlog "github.com/rs/zerolog/log"
 {{end}}{{if or .Queue .Mailer}}	"github.com/gofiber/fiber/v2"
 {{end}}{{if .Queue}}	fhjobs "github.com/rahmadafandi/fibr/jobs"
@@ -171,7 +171,7 @@ func runScheduler() error {
 {{if .Queue}}	if queueClient != nil {
 		mailSender = appjobs.NewQueueSender(queueClient)
 	}
-{{end}}{{end}}	app := bootstrap.New(bootstrap.Options{
+{{end}}{{end}}	opts := bootstrap.Options{
 		DB:           db,
 		AutoMigrate:  cfg.AutoMigrate || autoMigrate,
 		Metrics:      cfg.MetricsEnabled,
@@ -181,7 +181,13 @@ func runScheduler() error {
 {{end}}		EnableCORS:   true,
 		RateLimit:    100,
 		HealthChecks: []health.NamedCheck{health.PingBun(db)},
-	})
+	}
+	if cfg.RedisURL != "" {
+		if ropt, rerr := fhredis.ParseRedisOptions(cfg.RedisURL); rerr == nil {
+			opts.RateLimitStorage = fhredis.NewStorage(redislib.NewClient(ropt))
+		}
+	}
+	app := bootstrap.New(opts)
 
 	// app.App is the embedded *fiber.App; app.Mount (below) is bootstrap.App's module-aware method.
 	router.Register(app.App)

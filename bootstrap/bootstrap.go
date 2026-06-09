@@ -42,19 +42,20 @@ type AsynqmonMount struct {
 
 // Options configures the bootstrapped app. All fields are optional.
 type Options struct {
-	Logger          *logger.Logger
-	RequestTimeout  time.Duration
-	ShutdownTimeout time.Duration
-	DB              *bun.DB
-	EnableCORS      bool
-	RateLimit       int
-	AutoMigrate     bool
-	Metrics         bool
-	Tracing         bool
-	Cleanup         []func(context.Context) error
-	Asynqmon        *AsynqmonMount
-	HealthChecks    []health.NamedCheck
-	FiberConfig     fiber.Config
+	Logger           *logger.Logger
+	RequestTimeout   time.Duration
+	ShutdownTimeout  time.Duration
+	DB               *bun.DB
+	EnableCORS       bool
+	RateLimit        int
+	RateLimitStorage fiber.Storage
+	AutoMigrate      bool
+	Metrics          bool
+	Tracing          bool
+	Cleanup          []func(context.Context) error
+	Asynqmon         *AsynqmonMount
+	HealthChecks     []health.NamedCheck
+	FiberConfig      fiber.Config
 }
 
 // New builds a Fiber app wired with recover, request-id/context, request
@@ -112,7 +113,7 @@ func New(o Options) *App {
 		f.Use(cors.New())
 	}
 	if o.RateLimit > 0 {
-		f.Use(limiter.New(limiter.Config{Max: o.RateLimit, Expiration: time.Minute}))
+		f.Use(limiter.New(limiter.Config{Max: o.RateLimit, Expiration: time.Minute, Storage: o.RateLimitStorage}))
 	}
 
 	if o.DB != nil {
