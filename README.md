@@ -81,7 +81,7 @@ func main() {
 - [`http`](#http) — Context-aware JSON HTTP client with retry.
 - [`redis`](#redis) — Redis wrapper with `Remember` cache-aside helper.
 - [`slug`](#slug) — Unique URL-safe slug generator backed by a Bun database.
-- [`uploader`](#uploader) — Local file uploader with size and MIME limits.
+- [`uploader`](#uploader) — Local file uploader with size and MIME limits. Also includes `S3Uploader` for S3-compatible storage (AWS S3, MinIO, R2).
 - [`middleware`](#middleware) — Recover, request logging, auth, and request-id middleware.
 - [`context`](#context) — Request context, request-id, and type-safe local accessors.
 - [`database`](#database) — Bun connector with Postgres/SQLite dialect auto-detection.
@@ -341,6 +341,17 @@ up := uploader.NewLocalUploader("./uploads",
 
 // Upload a file (filename is sanitized before saving)
 path, err := up.Upload(file, filename)
+```
+
+### S3-compatible uploads with `uploader.S3Uploader`
+
+```go
+client, _ := minio.New(endpoint, &minio.Options{Creds: creds, Secure: true})
+up := uploader.NewS3Uploader(client, "my-bucket",
+    uploader.WithKeyPrefix("avatars/"),
+    uploader.WithBaseURL("https://cdn.example.com/"),
+)
+url, err := up.Upload(file, "photo.png") // -> https://cdn.example.com/avatars/photo.png
 ```
 
 ### `middleware`
