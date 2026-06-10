@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   middleware (replays the cached response for a repeated `X-Idempotency-Key` on
   unsafe methods). Generated apps enable it, backed by Redis when `REDIS_URL` is
   set.
+- `webhook` package: HMAC-SHA256 `Sign`/`Verify` (Stripe-style `t=,v1=` with
+  timestamp replay protection) and a `Middleware` that guards inbound webhook
+  routes (401 on bad signature).
 
 ### Changed
 

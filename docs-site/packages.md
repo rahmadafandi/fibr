@@ -30,4 +30,5 @@ package below links to its API docs.
 - [`mailer`](https://pkg.go.dev/github.com/rahmadafandi/fibr/mailer) — transactional email: pluggable `Sender` (SMTP/log/memory) + template render.
 - [`server`](https://pkg.go.dev/github.com/rahmadafandi/fibr/server) — signal-based graceful shutdown via `RunGraceful`.
 - [`apierror`](https://pkg.go.dev/github.com/rahmadafandi/fibr/apierror) — typed HTTP errors (`NotFound`, `Conflict`, ...) + a Fiber `ErrorHandler` that renders them as the JSON envelope; wired by `bootstrap` automatically.
+- [`webhook`](https://pkg.go.dev/github.com/rahmadafandi/fibr/webhook) — HMAC sign/verify (Stripe-style, replay-protected) + inbound verification middleware.
 - [`bootstrap`](https://pkg.go.dev/github.com/rahmadafandi/fibr/bootstrap) — one-call app wiring: middleware, health, DB, metrics, tracing, security headers (helmet), compression, idempotency keys, graceful shutdown.
