@@ -11,7 +11,9 @@ import (
 	otelfiber "github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
+	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/rahmadafandi/fibr/apierror"
 	"github.com/rahmadafandi/fibr/health"
@@ -50,6 +52,8 @@ type Options struct {
 	EnableCORS       bool
 	RateLimit        int
 	RateLimitStorage fiber.Storage
+	SecurityHeaders  bool
+	Compression      bool
 	AutoMigrate      bool
 	Metrics          bool
 	Tracing          bool
@@ -78,6 +82,12 @@ func New(o Options) *App {
 	f := fiber.New(o.FiberConfig)
 	f.Use(middleware.Recover(o.Logger))
 	f.Use(middleware.ContextMiddleware(o.RequestTimeout))
+	if o.SecurityHeaders {
+		f.Use(helmet.New())
+	}
+	if o.Compression {
+		f.Use(compress.New())
+	}
 	if o.Tracing {
 		f.Use(otelfiber.Middleware())
 	}
