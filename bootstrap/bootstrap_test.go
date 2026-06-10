@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/rahmadafandi/fibr/apierror"
 	"github.com/rahmadafandi/fibr/database"
 	"github.com/rahmadafandi/fibr/health"
 	"github.com/stretchr/testify/assert"
@@ -145,4 +146,31 @@ func TestCleanupHooksRegistered(t *testing.T) {
 		_ = fn(context.Background())
 	}
 	require.True(t, called, "Options.Cleanup hooks must be registered as cleanup")
+}
+
+func TestDefaultErrorHandlerRendersAPIError(t *testing.T) {
+	app := New(Options{})
+	app.Get("/boom", func(c *fiber.Ctx) error {
+		return apierror.NotFound("nope").WithCode("gone")
+	})
+	resp, err := app.Test(httptest.NewRequest("GET", "/boom", nil))
+	require.NoError(t, err)
+	body, _ := io.ReadAll(resp.Body)
+	assert.Equal(t, 404, resp.StatusCode)
+	assert.Contains(t, string(body), `"error":"gone"`)
+}
+
+func TestUserErrorHandlerNotOverridden(t *testing.T) {
+	sentinel := func(c *fiber.Ctx, err error) error {
+		return c.Status(418).SendString("teapot")
+	}
+	app := New(Options{FiberConfig: fiber.Config{ErrorHandler: sentinel}})
+	app.Get("/boom", func(c *fiber.Ctx) error {
+		return apierror.NotFound("nope")
+	})
+	resp, err := app.Test(httptest.NewRequest("GET", "/boom", nil))
+	require.NoError(t, err)
+	body, _ := io.ReadAll(resp.Body)
+	assert.Equal(t, 418, resp.StatusCode)
+	assert.Equal(t, "teapot", string(body))
 }
