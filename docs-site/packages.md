@@ -13,7 +13,7 @@ package below links to its API docs.
 - [`bind`](https://pkg.go.dev/github.com/rahmadafandi/fibr/bind) — parse and validate a request body/query/params into `T` in one call; writes `400`/`422` on failure.
 - [`jwt`](https://pkg.go.dev/github.com/rahmadafandi/fibr/jwt) — JWT generation and validation helpers.
 - [`http`](https://pkg.go.dev/github.com/rahmadafandi/fibr/http) — context-aware JSON HTTP client with retry.
-- [`redis`](https://pkg.go.dev/github.com/rahmadafandi/fibr/redis) — Redis wrapper with `Remember` cache-aside plus `Delete`/`Exists`/`Expire`/`TTL`. Includes a `Storage` adapter (fiber.Storage) for Redis-backed rate limiting.
+- [`redis`](https://pkg.go.dev/github.com/rahmadafandi/fibr/redis) — Redis wrapper with `Remember` cache-aside plus `Delete`/`Exists`/`Expire`/`TTL`. Includes a `Storage` adapter (fiber.Storage) for Redis-backed rate limiting, and `Publish`/`Subscribe[T]` pub/sub for cross-instance events.
 
   `redis.NewStorage(client)` adapts a go-redis client to `fiber.Storage` — pass it as `bootstrap.Options.RateLimitStorage` for a rate limiter consistent across instances.
 - [`slug`](https://pkg.go.dev/github.com/rahmadafandi/fibr/slug) — unique URL-safe slug generator backed by a Bun database.

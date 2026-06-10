@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `webhook` package: HMAC-SHA256 `Sign`/`Verify` (Stripe-style `t=,v1=` with
   timestamp replay protection) and a `Middleware` that guards inbound webhook
   routes (401 on bad signature).
+- `redis` pub/sub: `(*Redis).Publish` and generic `Subscribe[T]` (background
+  goroutine + `Subscription.Close`) for cross-instance events like cache
+  invalidation and broadcasts.
 
 ### Changed
 
