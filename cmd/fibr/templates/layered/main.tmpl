@@ -178,9 +178,11 @@ func runScheduler() error {
 		Tracing:      cfg.TracingEnabled,
 		Cleanup:      cleanups,
 {{if .Queue}}		Asynqmon:     asynqmonMount,
-{{end}}		EnableCORS:   true,
-		RateLimit:    100,
-		HealthChecks: []health.NamedCheck{health.PingBun(db)},
+{{end}}		EnableCORS:      true,
+		RateLimit:       100,
+		SecurityHeaders: true,
+		Compression:     true,
+		HealthChecks:    []health.NamedCheck{health.PingBun(db)},
 	}
 	if cfg.RedisURL != "" {
 		if ropt, rerr := fhredis.ParseRedisOptions(cfg.RedisURL); rerr == nil {
