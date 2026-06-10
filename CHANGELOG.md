@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as the JSON envelope. Adds an optional `error` field to `response.Response`.
   Generated auth handlers now return typed errors.
 
+- `bootstrap.Options.SecurityHeaders` (helmet security response headers) and
+  `Compression` (gzip/deflate/brotli) opt-in middlewares; generated apps enable
+  both by default.
+
 ### Changed
 
 - Generated handlers (module CRUD + auth register/login/refresh) now use
