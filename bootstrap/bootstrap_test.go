@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
@@ -173,4 +174,30 @@ func TestUserErrorHandlerNotOverridden(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, 418, resp.StatusCode)
 	assert.Equal(t, "teapot", string(body))
+}
+
+func TestSecurityHeaders(t *testing.T) {
+	app := New(Options{SecurityHeaders: true})
+	app.Get("/", func(c *fiber.Ctx) error { return c.SendString("ok") })
+	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	require.NoError(t, err)
+	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
+}
+
+func TestNoSecurityHeadersByDefault(t *testing.T) {
+	app := New(Options{})
+	app.Get("/", func(c *fiber.Ctx) error { return c.SendString("ok") })
+	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	require.NoError(t, err)
+	assert.Empty(t, resp.Header.Get("X-Content-Type-Options"))
+}
+
+func TestCompression(t *testing.T) {
+	app := New(Options{Compression: true})
+	app.Get("/", func(c *fiber.Ctx) error { return c.SendString(strings.Repeat("a", 2048)) })
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, "gzip", resp.Header.Get("Content-Encoding"))
 }
