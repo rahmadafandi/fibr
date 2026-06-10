@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -200,4 +201,44 @@ func TestCompression(t *testing.T) {
 	resp, err := app.Test(req)
 	require.NoError(t, err)
 	assert.Equal(t, "gzip", resp.Header.Get("Content-Encoding"))
+}
+
+func TestIdempotencyReplaysResponse(t *testing.T) {
+	app := New(Options{Idempotency: true})
+	var calls int
+	app.Post("/pay", func(c *fiber.Ctx) error {
+		calls++
+		return c.SendString(strconv.Itoa(calls))
+	})
+
+	key := "11111111-1111-1111-1111-111111111111" // 36-char UUID
+	do := func() string {
+		req := httptest.NewRequest("POST", "/pay", nil)
+		req.Header.Set("X-Idempotency-Key", key)
+		resp, err := app.Test(req)
+		require.NoError(t, err)
+		b, _ := io.ReadAll(resp.Body)
+		return string(b)
+	}
+
+	first := do()
+	second := do()
+	assert.Equal(t, "1", first)
+	assert.Equal(t, "1", second) // replayed cached response
+	assert.Equal(t, 1, calls)    // handler ran once
+}
+
+func TestIdempotencyNoKeyPassesThrough(t *testing.T) {
+	app := New(Options{Idempotency: true})
+	var calls int
+	app.Post("/pay", func(c *fiber.Ctx) error {
+		calls++
+		return c.SendString(strconv.Itoa(calls))
+	})
+	for i := 0; i < 3; i++ {
+		resp, err := app.Test(httptest.NewRequest("POST", "/pay", nil))
+		require.NoError(t, err)
+		_ = resp
+	}
+	assert.Equal(t, 3, calls)
 }

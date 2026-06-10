@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
+	"github.com/gofiber/fiber/v2/middleware/idempotency"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/rahmadafandi/fibr/apierror"
 	"github.com/rahmadafandi/fibr/health"
@@ -45,22 +46,24 @@ type AsynqmonMount struct {
 
 // Options configures the bootstrapped app. All fields are optional.
 type Options struct {
-	Logger           *logger.Logger
-	RequestTimeout   time.Duration
-	ShutdownTimeout  time.Duration
-	DB               *bun.DB
-	EnableCORS       bool
-	RateLimit        int
-	RateLimitStorage fiber.Storage
-	SecurityHeaders  bool
-	Compression      bool
-	AutoMigrate      bool
-	Metrics          bool
-	Tracing          bool
-	Cleanup          []func(context.Context) error
-	Asynqmon         *AsynqmonMount
-	HealthChecks     []health.NamedCheck
-	FiberConfig      fiber.Config
+	Logger             *logger.Logger
+	RequestTimeout     time.Duration
+	ShutdownTimeout    time.Duration
+	DB                 *bun.DB
+	EnableCORS         bool
+	RateLimit          int
+	RateLimitStorage   fiber.Storage
+	SecurityHeaders    bool
+	Compression        bool
+	Idempotency        bool
+	IdempotencyStorage fiber.Storage
+	AutoMigrate        bool
+	Metrics            bool
+	Tracing            bool
+	Cleanup            []func(context.Context) error
+	Asynqmon           *AsynqmonMount
+	HealthChecks       []health.NamedCheck
+	FiberConfig        fiber.Config
 }
 
 // New builds a Fiber app wired with recover, request-id/context, request
@@ -87,6 +90,9 @@ func New(o Options) *App {
 	}
 	if o.Compression {
 		f.Use(compress.New())
+	}
+	if o.Idempotency {
+		f.Use(idempotency.New(idempotency.Config{Storage: o.IdempotencyStorage}))
 	}
 	if o.Tracing {
 		f.Use(otelfiber.Middleware())

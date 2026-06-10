@@ -182,11 +182,14 @@ func runScheduler() error {
 		RateLimit:       100,
 		SecurityHeaders: true,
 		Compression:     true,
+		Idempotency:     true,
 		HealthChecks:    []health.NamedCheck{health.PingBun(db)},
 	}
 	if cfg.RedisURL != "" {
 		if ropt, rerr := fhredis.ParseRedisOptions(cfg.RedisURL); rerr == nil {
-			opts.RateLimitStorage = fhredis.NewStorage(redislib.NewClient(ropt))
+			rc := redislib.NewClient(ropt)
+			opts.RateLimitStorage = fhredis.NewStorage(rc)
+			opts.IdempotencyStorage = fhredis.NewStorage(rc, fhredis.WithPrefix("idempotency:"))
 		}
 	}
 	app := bootstrap.New(opts)
