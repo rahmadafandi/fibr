@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   go-redis, plus `bootstrap.Options.RateLimitStorage`. Generated apps use a
   Redis-backed (multi-instance-consistent) rate limiter when `REDIS_URL` is set.
 
+- `apierror` package: typed HTTP errors (`BadRequest`/`Unauthorized`/`NotFound`/
+  `Conflict`/`Internal`/...) with `WithCode`/`WithDetails`/`Wrap`, plus a Fiber
+  `ErrorHandler`. `bootstrap` installs it by default, so a returned error renders
+  as the JSON envelope. Adds an optional `error` field to `response.Response`.
+  Generated auth handlers now return typed errors.
+
 ### Changed
 
 - Generated handlers (module CRUD + auth register/login/refresh) now use

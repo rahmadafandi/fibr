@@ -93,6 +93,7 @@ func main() {
 - [`jobs`](#jobs) — Redis-backed background jobs (asynq) + asynqmon monitoring mount. Includes `Scheduler` for cron-triggered (periodic) jobs.
 - [`mailer`](#mailer) — Transactional email: pluggable `Sender` (SMTP/log/memory) + template render.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
+- [`apierror`](#typed-errors-with-apierror) — Typed HTTP errors (`BadRequest`, `NotFound`, `Conflict`, ...) with a Fiber `ErrorHandler`; installed automatically by `bootstrap`.
 - [`bootstrap`](#bootstrap) — One-call app wiring: middleware, health, DB, and graceful shutdown.
 
 ## Packages
@@ -604,6 +605,22 @@ import "github.com/rahmadafandi/fibr/server"
 err := server.RunGraceful(app, ":3000", 10*time.Second, func(ctx context.Context) error {
     return db.Close()
 })
+```
+
+### Typed errors with `apierror`
+
+`apierror.NotFound("...")`, `Conflict`, `Unauthorized`, ... return typed `*Error` values. `bootstrap` installs `apierror.Handler` as the default `ErrorHandler`, so returning one from a handler renders a consistent JSON error.
+
+```go
+func getUser(c *fiber.Ctx) error {
+    u, err := svc.Find(c.UserContext(), id)
+    if err != nil {
+        return apierror.NotFound("user not found").WithCode("user_not_found")
+    }
+    return response.SendSuccess(c, u, "ok")
+}
+// bootstrap.New installs apierror.Handler, so the return renders as:
+// {"code":404,"message":"user not found","error":"user_not_found","status":"error"}
 ```
 
 ### `bootstrap`

@@ -13,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
+	"github.com/rahmadafandi/fibr/apierror"
 	"github.com/rahmadafandi/fibr/health"
 	"github.com/rahmadafandi/fibr/logger"
 	"github.com/rahmadafandi/fibr/metrics"
@@ -71,6 +72,9 @@ func New(o Options) *App {
 		o.ShutdownTimeout = 10 * time.Second
 	}
 
+	if o.FiberConfig.ErrorHandler == nil {
+		o.FiberConfig.ErrorHandler = apierror.Handler
+	}
 	f := fiber.New(o.FiberConfig)
 	f.Use(middleware.Recover(o.Logger))
 	f.Use(middleware.ContextMiddleware(o.RequestTimeout))

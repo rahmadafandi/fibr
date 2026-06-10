@@ -9,6 +9,7 @@ import (
 	"github.com/rahmadafandi/fibr/bind"
 	"github.com/rahmadafandi/fibr/auth"
 	"github.com/rahmadafandi/fibr/jwt"
+	"github.com/rahmadafandi/fibr/apierror"
 	"github.com/rahmadafandi/fibr/response"
 	"github.com/rs/zerolog/log"
 	"{{.Module}}/internal/service"
@@ -55,9 +56,9 @@ func (h *AuthHandler) register(c *fiber.Ctx) error {
 	a, err := h.svc.Register(c.UserContext(), in.Email, in.Password)
 	if err != nil {
 		if errors.Is(err, service.ErrEmailTaken) {
-			return response.SendError(c, nil, "email already registered", fiber.StatusConflict)
+			return apierror.Conflict("email already registered").WithCode("email_taken")
 		}
-		return response.SendError(c, nil, "could not create account", fiber.StatusInternalServerError)
+		return apierror.Internal("could not create account")
 	}
 	return response.SendSuccess(c, fiber.Map{"id": a.ID, "email": a.Email, "scopes": strings.Split(a.Scopes, ",")}, "created", fiber.StatusCreated)
 }
@@ -69,7 +70,7 @@ func (h *AuthHandler) login(c *fiber.Ctx) error {
 	}
 	a, err := h.svc.Authenticate(c.UserContext(), in.Email, in.Password)
 	if err != nil {
-		return response.SendError(c, nil, "invalid credentials", fiber.StatusUnauthorized)
+		return apierror.Unauthorized("invalid credentials")
 	}
 	pair, err := h.issuer.Issue(c.UserContext(), jwt.MapClaims{
 		"sub":    strconv.FormatInt(a.ID, 10),
@@ -77,7 +78,7 @@ func (h *AuthHandler) login(c *fiber.Ctx) error {
 		"scopes": strings.Split(a.Scopes, ","),
 	})
 	if err != nil {
-		return response.SendError(c, nil, "could not issue token", fiber.StatusInternalServerError)
+		return apierror.Internal("could not issue token")
 	}
 	return response.SendSuccess(c, pair, "ok")
 }
@@ -92,7 +93,7 @@ func (h *AuthHandler) refresh(c *fiber.Ctx) error {
 		if errors.Is(err, auth.ErrTokenReuse) {
 			log.Warn().Str("event", "refresh_reuse").Msg("refresh token reuse detected")
 		}
-		return response.SendError(c, nil, "invalid refresh token", fiber.StatusUnauthorized)
+		return apierror.Unauthorized("invalid refresh token")
 	}
 	return response.SendSuccess(c, pair, "ok")
 }
@@ -108,7 +109,7 @@ func (h *AuthHandler) logout(c *fiber.Ctx) error {
 	var in refreshRequest
 	_ = c.BodyParser(&in)
 	if err := h.issuer.Logout(c.UserContext(), access, in.RefreshToken); err != nil {
-		return response.SendError(c, nil, "could not log out", fiber.StatusInternalServerError)
+		return apierror.Internal("could not log out")
 	}
 	return response.SendSuccess(c, fiber.Map{"ok": true}, "logged out")
 }

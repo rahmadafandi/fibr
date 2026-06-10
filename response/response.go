@@ -8,6 +8,7 @@ import "github.com/gofiber/fiber/v2"
 type Response struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`
+	Error   string      `json:"error,omitempty"` // machine-readable code; set on errors only
 	Data    interface{} `json:"data,omitempty"`
 	Status  string      `json:"status"`
 }
