@@ -27,7 +27,7 @@ func TestConstructors(t *testing.T) {
 		{apierror.Conflict("m"), 409, "conflict"},
 		{apierror.UnprocessableEntity("m"), 422, "unprocessable_entity"},
 		{apierror.TooManyRequests("m"), 429, "too_many_requests"},
-		{apierror.Internal("m"), 500, "internal"},
+		{apierror.Internal("m"), 500, "internal_server_error"},
 	}
 	for _, c := range cases {
 		assert.Equal(t, c.status, c.err.Status)
@@ -72,7 +72,18 @@ func TestHandlerWithDetails(t *testing.T) {
 	resp, _ := app.Test(httptest.NewRequest("GET", "/", nil))
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, 400, resp.StatusCode)
-	assert.Contains(t, string(body), `"data":["x"]`)
+	assert.JSONEq(t, `{"code":400,"message":"bad","error":"bad_request","data":["x"],"status":"error"}`, string(body))
+}
+
+func TestHandlerWrappedCauseNoLeak(t *testing.T) {
+	app := fiber.New(fiber.Config{ErrorHandler: apierror.Handler})
+	app.Get("/", func(c *fiber.Ctx) error {
+		return apierror.Internal("oops").Wrap(errors.New("db password leaked"))
+	})
+	resp, _ := app.Test(httptest.NewRequest("GET", "/", nil))
+	body, _ := io.ReadAll(resp.Body)
+	assert.Equal(t, 500, resp.StatusCode)
+	assert.NotContains(t, string(body), "db password leaked")
 }
 
 func TestHandlerFiberError(t *testing.T) {

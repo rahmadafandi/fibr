@@ -36,14 +36,17 @@ func (e *Error) Error() string {
 // Unwrap returns the wrapped cause, if any.
 func (e *Error) Unwrap() error { return e.err }
 
-// WithCode overrides the default machine code (e.g. "email_taken").
-func (e *Error) WithCode(code string) *Error { e.Code = code; return e }
+// WithCode overrides the default machine code (e.g. "email_taken"). It returns a
+// copy, so it is safe to call on shared/sentinel values.
+func (e *Error) WithCode(code string) *Error { cp := *e; cp.Code = code; return &cp }
 
-// WithDetails attaches details rendered into the response "data" field.
-func (e *Error) WithDetails(d any) *Error { e.Details = d; return e }
+// WithDetails attaches details rendered into the response "data" field. It
+// returns a copy, so it is safe to call on shared/sentinel values.
+func (e *Error) WithDetails(d any) *Error { cp := *e; cp.Details = d; return &cp }
 
-// Wrap attaches an underlying cause. The cause is never exposed in the response.
-func (e *Error) Wrap(err error) *Error { e.err = err; return e }
+// Wrap attaches an underlying cause (never exposed in the response). It returns a
+// copy, so it is safe to call on shared/sentinel values.
+func (e *Error) Wrap(err error) *Error { cp := *e; cp.err = err; return &cp }
 
 // New builds an Error with an explicit status and code.
 func New(status int, code, message string) *Error {
@@ -79,7 +82,7 @@ func TooManyRequests(message string) *Error {
 
 // Internal returns a 500 Error.
 func Internal(message string) *Error {
-	return New(fiber.StatusInternalServerError, "internal", message)
+	return New(fiber.StatusInternalServerError, "internal_server_error", message)
 }
 
 // Handler is a fiber.ErrorHandler that renders errors as the standard JSON
