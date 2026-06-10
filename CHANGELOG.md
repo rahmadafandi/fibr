@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `bootstrap.Options.SecurityHeaders` (helmet security response headers) and
   `Compression` (gzip/deflate/brotli) opt-in middlewares; generated apps enable
   both by default.
+- `bootstrap.Options.Idempotency` + `IdempotencyStorage`: opt-in idempotency-key
+  middleware (replays the cached response for a repeated `X-Idempotency-Key` on
+  unsafe methods). Generated apps enable it, backed by Redis when `REDIS_URL` is
+  set.
 
 ### Changed
 
