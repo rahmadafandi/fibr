@@ -175,7 +175,15 @@ func runScheduler() error {
 {{if .Queue}}	if queueClient != nil {
 		mailSender = appjobs.NewQueueSender(queueClient)
 	}
-{{end}}{{end}}	opts := bootstrap.Options{
+{{end}}{{end}}	// One Redis client shared by rate-limit + idempotency storage{{if .Realtime}}, the realtime backplane{{end}}{{if .Auth}}, and the auth token store{{end}}.
+	var redisClient *redislib.Client
+	if cfg.RedisURL != "" {
+		if ropt, rerr := fhredis.ParseRedisOptions(cfg.RedisURL); rerr == nil {
+			redisClient = redislib.NewClient(ropt)
+			cleanups = append(cleanups, func(context.Context) error { return redisClient.Close() })
+		}
+	}
+	opts := bootstrap.Options{
 		DB:           db,
 		AutoMigrate:  cfg.AutoMigrate || autoMigrate,
 		Metrics:      cfg.MetricsEnabled,
@@ -189,12 +197,9 @@ func runScheduler() error {
 		Idempotency:     true,
 		HealthChecks:    []health.NamedCheck{health.PingBun(db)},
 	}
-	if cfg.RedisURL != "" {
-		if ropt, rerr := fhredis.ParseRedisOptions(cfg.RedisURL); rerr == nil {
-			rc := redislib.NewClient(ropt)
-			opts.RateLimitStorage = fhredis.NewStorage(rc)
-			opts.IdempotencyStorage = fhredis.NewStorage(rc, fhredis.WithPrefix("idempotency:"))
-		}
+	if redisClient != nil {
+		opts.RateLimitStorage = fhredis.NewStorage(redisClient)
+		opts.IdempotencyStorage = fhredis.NewStorage(redisClient, fhredis.WithPrefix("idempotency:"))
 	}
 	oapi := fhopenapi.New(fhopenapi.Info{Title: "{{.Name}}", Version: "0.1.0"})
 	httpiface.RegisterDocs(oapi)
@@ -211,10 +216,8 @@ func runScheduler() error {
 	// app.App is the embedded *fiber.App; app.Mount (below) is bootstrap.App's module-aware method.
 	httpiface.Register(app.App)
 {{if .Realtime}}	var rtRedis *fhredis.Redis
-	if cfg.RedisURL != "" {
-		if ropt, rerr := fhredis.ParseRedisOptions(cfg.RedisURL); rerr == nil {
-			rtRedis = fhredis.New(redislib.NewClient(ropt))
-		}
+	if redisClient != nil {
+		rtRedis = fhredis.New(redisClient)
 	}
 	httpiface.RegisterRealtime(app.App, rtRedis)
 {{end}}{{if .I18n}}	httpiface.RegisterI18n(app.App)
@@ -239,12 +242,8 @@ func runScheduler() error {
 		return err
 	}
 {{end}}{{if .Auth}}	var authStore fhauth.TokenStore
-	if cfg.RedisURL != "" {
-		opt, err := fhredis.ParseRedisOptions(cfg.RedisURL)
-		if err != nil {
-			return err
-		}
-		authStore = fhauth.NewRedisStore(fhredis.New(redislib.NewClient(opt)))
+	if redisClient != nil {
+		authStore = fhauth.NewRedisStore(fhredis.New(redisClient))
 	} else {
 		zlog.Warn().Msg("auth revocation using in-memory store — set REDIS_URL for production")
 		authStore = fhauth.NewMemoryStore()
