@@ -22,6 +22,7 @@ type Options struct {
 	Queue          bool
 	Mailer         bool
 	Realtime       bool
+	I18n           bool
 	Dir            string
 	NoGit          bool
 	NoTidy         bool

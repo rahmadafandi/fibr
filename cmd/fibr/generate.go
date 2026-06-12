@@ -48,6 +48,7 @@ type Data struct {
 	Queue          bool
 	Mailer         bool
 	Realtime       bool
+	I18n           bool
 	JWTSecret      string
 	HelpersVersion string
 	LocalReplace   string
@@ -112,7 +113,7 @@ func Generate(o Options, out io.Writer) error {
 
 	d := Data{
 		Name: o.Name, Module: o.Module, DB: o.DB, Layout: o.Layout,
-		Sample: o.Sample, Queue: o.Queue, Mailer: o.Mailer, Realtime: o.Realtime, HelpersVersion: o.HelpersVersion, LocalReplace: o.Local,
+		Sample: o.Sample, Queue: o.Queue, Mailer: o.Mailer, Realtime: o.Realtime, I18n: o.I18n, HelpersVersion: o.HelpersVersion, LocalReplace: o.Local,
 	}
 
 	if o.Auth {
@@ -186,6 +187,15 @@ func Generate(o Options, out io.Writer) error {
 
 	if o.Realtime {
 		for _, fsp := range planRealtime(d) {
+			if err := renderFile(fsp, d, o.Dir); err != nil {
+				_ = os.RemoveAll(o.Dir)
+				return fmt.Errorf("render %s: %w", fsp.tmpl, err)
+			}
+		}
+	}
+
+	if o.I18n {
+		for _, fsp := range planI18n(d) {
 			if err := renderFile(fsp, d, o.Dir); err != nil {
 				_ = os.RemoveAll(o.Dir)
 				return fmt.Errorf("render %s: %w", fsp.tmpl, err)
@@ -278,6 +288,21 @@ func planRealtime(d Data) []fileSpec {
 		return []fileSpec{{"realtime/layered/handler.tmpl", "internal/handler/realtime_handler.go"}}
 	default:
 		return []fileSpec{{"realtime/ddd/handler.tmpl", "internal/interface/http/realtime_handler.go"}}
+	}
+}
+
+// planI18n returns the i18n sample fileSpecs for the layout.
+func planI18n(d Data) []fileSpec {
+	specs := []fileSpec{
+		{"i18n/locales.tmpl", "internal/locales/locales.go"},
+		{"i18n/en.tmpl", "internal/locales/en.json"},
+		{"i18n/id.tmpl", "internal/locales/id.json"},
+	}
+	switch d.Layout {
+	case "layered":
+		return append(specs, fileSpec{"i18n/layered/handler.tmpl", "internal/handler/i18n_handler.go"})
+	default:
+		return append(specs, fileSpec{"i18n/ddd/handler.tmpl", "internal/interface/http/i18n_handler.go"})
 	}
 }
 

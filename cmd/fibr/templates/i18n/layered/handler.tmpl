@@ -1,0 +1,15 @@
+package handler
+
+import (
+	"github.com/gofiber/fiber/v2"
+	"github.com/rahmadafandi/fibr/i18n"
+	"github.com/rahmadafandi/fibr/response"
+)
+
+// RegisterI18n mounts a sample localized route: GET /hello?lang=id&name=Sam.
+func RegisterI18n(app fiber.Router) {
+	app.Get("/hello", func(c *fiber.Ctx) error {
+		name := c.Query("name", "world")
+		return response.SendSuccess(c, fiber.Map{"locale": i18n.Locale(c)}, i18n.T(c, "welcome", i18n.M{"name": name}))
+	})
+}
