@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `openapi` package: build an OpenAPI 3.0.3 spec from registered routes and
+  reflected request/response structs (json + validator tags → JSON Schema with
+  `$ref`s, enums, formats, and min/max constraints). Serve it at `/openapi.json`
+  with a CDN-backed Swagger UI at `/docs`. New `bootstrap.Options.OpenAPI`
+  (plus `OpenAPISpecURL`/`OpenAPIDocsURL`) mounts both endpoints, and generated
+  apps expose API docs out of the box (auth routes pre-registered when `--auth`).
+
 ## [0.4.0] - 2026-06-10
 
 ### Added
