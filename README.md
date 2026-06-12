@@ -68,6 +68,11 @@ func main() {
 }
 ```
 
+## Architecture
+
+For how the packages layer and how `bootstrap` composes them into an app, see
+[ARCHITECTURE.md](ARCHITECTURE.md).
+
 ## Package Index
 
 - [`config`](#config) — Load env vars into typed structs with `default` and `required` tags.
