@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with a CDN-backed Swagger UI at `/docs`. New `bootstrap.Options.OpenAPI`
   (plus `OpenAPISpecURL`/`OpenAPIDocsURL`) mounts both endpoints, and generated
   apps expose API docs out of the box (auth routes pre-registered when `--auth`).
+- `ws` package: typed WebSocket `Hub[T]` (rooms, `Broadcast`/`ToRoom`, per-connection
+  write pump, keepalive ping) on gofiber/contrib/websocket, with an optional Redis
+  backplane (`WithRedis`) bridging broadcasts across replicas via the existing `redis`
+  pub/sub.
+- `sse` package: Server-Sent Events stream helper (`Handler` + `Stream.Send`/`SendRaw`/
+  `Comment`/`Event`) with JSON encoding and multi-line data framing.
+- Generator: new `fibr new --realtime` flag scaffolds a WebSocket chat (`/ws/:room`) +
+  SSE counter (`/events`); backplane auto-enabled when `REDIS_URL` is set.
 
 ## [0.4.0] - 2026-06-10
 
