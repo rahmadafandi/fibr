@@ -9,6 +9,7 @@ import (
 	fhdatabase "github.com/rahmadafandi/fibr/database"
 	"github.com/rahmadafandi/fibr/health"
 	fhmigrate "github.com/rahmadafandi/fibr/migrate"
+	fhopenapi "github.com/rahmadafandi/fibr/openapi"
 	fhredis "github.com/rahmadafandi/fibr/redis"
 	"github.com/rahmadafandi/fibr/tracing"
 	"github.com/spf13/cobra"
@@ -192,6 +193,11 @@ func runScheduler() error {
 			opts.IdempotencyStorage = fhredis.NewStorage(rc, fhredis.WithPrefix("idempotency:"))
 		}
 	}
+	oapi := fhopenapi.New(fhopenapi.Info{Title: "{{.Name}}", Version: "0.1.0"})
+	router.RegisterDocs(oapi)
+{{if .Auth}}	oapi.WithBearerAuth()
+	handler.RegisterAuthDocs(oapi)
+{{end}}	opts.OpenAPI = oapi
 	app := bootstrap.New(opts)
 
 	// app.App is the embedded *fiber.App; app.Mount (below) is bootstrap.App's module-aware method.
