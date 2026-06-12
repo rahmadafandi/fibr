@@ -15,6 +15,7 @@ import (
 	"github.com/rahmadafandi/fibr/apierror"
 	"github.com/rahmadafandi/fibr/database"
 	"github.com/rahmadafandi/fibr/health"
+	"github.com/rahmadafandi/fibr/openapi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
@@ -241,4 +242,19 @@ func TestIdempotencyNoKeyPassesThrough(t *testing.T) {
 		_ = resp
 	}
 	assert.Equal(t, 3, calls)
+}
+
+func TestOpenAPIMounted(t *testing.T) {
+	oapi := openapi.New(openapi.Info{Title: "T", Version: "1.0.0"})
+	oapi.Register("GET", "/ping", openapi.Op{Summary: "ping"})
+
+	app := New(Options{OpenAPI: oapi})
+
+	specResp, err := app.Test(httptest.NewRequest("GET", "/openapi.json", nil))
+	require.NoError(t, err)
+	require.Equal(t, 200, specResp.StatusCode)
+
+	docsResp, err := app.Test(httptest.NewRequest("GET", "/docs", nil))
+	require.NoError(t, err)
+	require.Equal(t, 200, docsResp.StatusCode)
 }

@@ -2,12 +2,18 @@ package router
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/rahmadafandi/fibr/openapi"
 	"github.com/rahmadafandi/fibr/response"
 )
 
 // Register wires the root route. Feature routes are mounted via app.Mount.
 func Register(app fiber.Router) {
 	app.Get("/", root)
+}
+
+// RegisterDocs registers the root route in the OpenAPI spec.
+func RegisterDocs(oapi *openapi.Spec) {
+	oapi.Register("GET", "/", openapi.Op{Summary: "Service info", Tags: []string{"meta"}})
 }
 
 func root(c *fiber.Ctx) error {

@@ -10,10 +10,27 @@ import (
 	"github.com/rahmadafandi/fibr/auth"
 	"github.com/rahmadafandi/fibr/jwt"
 	"github.com/rahmadafandi/fibr/apierror"
+	"github.com/rahmadafandi/fibr/openapi"
 	"github.com/rahmadafandi/fibr/response"
 	"github.com/rs/zerolog/log"
 	appaccount "{{.Module}}/internal/application/account"
 )
+
+// RegisterAuthDocs documents the auth routes in the OpenAPI spec.
+func RegisterAuthDocs(oapi *openapi.Spec) {
+	oapi.Register("POST", "/auth/register", openapi.Op{
+		Summary: "Register a new account", Tags: []string{"auth"},
+		Request: credentials{}, Status: 201,
+	})
+	oapi.Register("POST", "/auth/login", openapi.Op{
+		Summary: "Log in", Tags: []string{"auth"},
+		Request: credentials{}, Response: auth.TokenPair{},
+	})
+	oapi.Register("POST", "/auth/refresh", openapi.Op{
+		Summary: "Refresh tokens", Tags: []string{"auth"},
+		Request: refreshRequest{}, Response: auth.TokenPair{},
+	})
+}
 
 // AuthHandler exposes the auth routes.
 type AuthHandler struct {

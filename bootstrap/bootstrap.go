@@ -21,6 +21,7 @@ import (
 	"github.com/rahmadafandi/fibr/logger"
 	"github.com/rahmadafandi/fibr/metrics"
 	"github.com/rahmadafandi/fibr/middleware"
+	"github.com/rahmadafandi/fibr/openapi"
 	"github.com/rahmadafandi/fibr/server"
 	"github.com/uptrace/bun"
 )
@@ -64,6 +65,12 @@ type Options struct {
 	Asynqmon           *AsynqmonMount
 	HealthChecks       []health.NamedCheck
 	FiberConfig        fiber.Config
+
+	// OpenAPI, if non-nil, mounts the OpenAPI document at OpenAPISpecURL and a
+	// Swagger UI at OpenAPIDocsURL.
+	OpenAPI        *openapi.Spec
+	OpenAPISpecURL string // default "/openapi.json"
+	OpenAPIDocsURL string // default "/docs"
 }
 
 // New builds a Fiber app wired with recover, request-id/context, request
@@ -143,6 +150,19 @@ func New(o Options) *App {
 		})
 	}
 	app.cleanup = append(app.cleanup, o.Cleanup...)
+
+	if o.OpenAPI != nil {
+		specURL := o.OpenAPISpecURL
+		if specURL == "" {
+			specURL = "/openapi.json"
+		}
+		docsURL := o.OpenAPIDocsURL
+		if docsURL == "" {
+			docsURL = "/docs"
+		}
+		f.Get(specURL, o.OpenAPI.SpecHandler())
+		f.Get(docsURL, o.OpenAPI.UIHandler(specURL))
+	}
 
 	return app
 }
