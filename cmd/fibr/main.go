@@ -82,6 +82,7 @@ func newNewCmd() *cobra.Command {
 	f.BoolVar(&o.Queue, "queue", false, "include background job queue (asynq + asynqmon)")
 	f.BoolVar(&o.Mailer, "mailer", false, "include transactional email (SMTP mailer)")
 	f.BoolVar(&o.Realtime, "realtime", false, "include a realtime sample (WebSocket chat + SSE stream)")
+	f.BoolVar(&o.I18n, "i18n", false, "include an i18n sample (locale detection + en/id catalogs)")
 	f.StringVar(&o.Dir, "dir", "", "output directory (default ./<name>)")
 	f.BoolVar(&o.NoGit, "no-git", false, "skip git init")
 	f.BoolVar(&o.NoTidy, "no-tidy", false, "skip go mod tidy")

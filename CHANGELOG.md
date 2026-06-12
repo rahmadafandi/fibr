@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Comment`/`Event`) with JSON encoding and multi-line data framing.
 - Generator: new `fibr new --realtime` flag scaffolds a WebSocket chat (`/ws/:room`) +
   SSE counter (`/events`); backplane auto-enabled when `REDIS_URL` is set.
+- `i18n` package: dependency-free internationalization — a message `Bundle` loaded from
+  nested JSON (flattened to dotted keys) with `{placeholder}` substitution, one/other
+  pluralization (`Plural`/`N`), and a fallback locale; a locale-detection middleware
+  (query > cookie > `Accept-Language`) and `T`/`N`/`Locale` request helpers. New
+  `bootstrap.Options.I18n` mounts the middleware, and `fibr new --i18n` scaffolds en/id
+  catalogs + a sample localized route.
 
 ## [0.4.0] - 2026-06-10
 

@@ -769,3 +769,21 @@ func TestRealtimeScaffoldArtifacts(t *testing.T) {
 		})
 	}
 }
+
+func TestI18nScaffoldArtifacts(t *testing.T) {
+	cases := []struct{ layout, handler string }{
+		{"ddd", "internal/interface/http/i18n_handler.go"},
+		{"layered", "internal/handler/i18n_handler.go"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.layout, func(t *testing.T) {
+			dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "sqlite", Layout: tc.layout, I18n: true})
+			assertFileContains(t, filepath.Join(dir, tc.handler), "func RegisterI18n(")
+			assertFileContains(t, filepath.Join(dir, "internal/locales/locales.go"), "embed.FS")
+			assertFileContains(t, filepath.Join(dir, "internal/locales/en.json"), "welcome")
+			assertFileContains(t, filepath.Join(dir, "internal/locales/id.json"), "Halo")
+			assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "opts.I18n = i18nBundle")
+			assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "RegisterI18n(app.App")
+		})
+	}
+}

@@ -15,6 +15,7 @@ import (
 	"github.com/rahmadafandi/fibr/apierror"
 	"github.com/rahmadafandi/fibr/database"
 	"github.com/rahmadafandi/fibr/health"
+	"github.com/rahmadafandi/fibr/i18n"
 	"github.com/rahmadafandi/fibr/openapi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -257,4 +258,19 @@ func TestOpenAPIMounted(t *testing.T) {
 	docsResp, err := app.Test(httptest.NewRequest("GET", "/docs", nil))
 	require.NoError(t, err)
 	require.Equal(t, 200, docsResp.StatusCode)
+}
+
+func TestI18nMiddlewareMounted(t *testing.T) {
+	b := i18n.New(i18n.WithFallback("en"))
+	b.LoadMap("en", map[string]any{"welcome": "Hello"})
+	b.LoadMap("id", map[string]any{"welcome": "Halo"})
+
+	app := New(Options{I18n: b})
+	app.Get("/x", func(c *fiber.Ctx) error { return c.SendString(i18n.T(c, "welcome", nil)) })
+
+	req := httptest.NewRequest("GET", "/x?lang=id", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	body, _ := io.ReadAll(resp.Body)
+	require.Equal(t, "Halo", string(body))
 }

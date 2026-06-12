@@ -11,6 +11,9 @@ import (
 	fhmigrate "github.com/rahmadafandi/fibr/migrate"
 	fhopenapi "github.com/rahmadafandi/fibr/openapi"
 	fhredis "github.com/rahmadafandi/fibr/redis"
+{{if .I18n}}	fhi18n "github.com/rahmadafandi/fibr/i18n"
+	"{{.Module}}/internal/locales"
+{{end}}
 	"github.com/rahmadafandi/fibr/tracing"
 	"github.com/spf13/cobra"
 	"github.com/uptrace/bun"
@@ -198,7 +201,12 @@ func runScheduler() error {
 {{if .Auth}}	oapi.WithBearerAuth()
 	httpiface.RegisterAuthDocs(oapi)
 {{end}}	opts.OpenAPI = oapi
-	app := bootstrap.New(opts)
+{{if .I18n}}	i18nBundle := fhi18n.New(fhi18n.WithFallback("en"))
+	if err := i18nBundle.LoadFS(locales.FS, "."); err != nil {
+		return err
+	}
+	opts.I18n = i18nBundle
+{{end}}	app := bootstrap.New(opts)
 
 	// app.App is the embedded *fiber.App; app.Mount (below) is bootstrap.App's module-aware method.
 	httpiface.Register(app.App)
@@ -209,6 +217,7 @@ func runScheduler() error {
 		}
 	}
 	httpiface.RegisterRealtime(app.App, rtRedis)
+{{end}}{{if .I18n}}	httpiface.RegisterI18n(app.App)
 {{end}}
 {{if .Queue}}	if queueClient != nil {
 		app.Post("/jobs/welcome", func(c *fiber.Ctx) error {

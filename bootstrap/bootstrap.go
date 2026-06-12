@@ -18,6 +18,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/rahmadafandi/fibr/apierror"
 	"github.com/rahmadafandi/fibr/health"
+	"github.com/rahmadafandi/fibr/i18n"
 	"github.com/rahmadafandi/fibr/logger"
 	"github.com/rahmadafandi/fibr/metrics"
 	"github.com/rahmadafandi/fibr/middleware"
@@ -71,6 +72,10 @@ type Options struct {
 	OpenAPI        *openapi.Spec
 	OpenAPISpecURL string // default "/openapi.json"
 	OpenAPIDocsURL string // default "/docs"
+
+	// I18n, if set, mounts the locale-detection middleware so handlers can use
+	// i18n.T / i18n.Locale.
+	I18n *i18n.Bundle
 }
 
 // New builds a Fiber app wired with recover, request-id/context, request
@@ -92,6 +97,9 @@ func New(o Options) *App {
 	f := fiber.New(o.FiberConfig)
 	f.Use(middleware.Recover(o.Logger))
 	f.Use(middleware.ContextMiddleware(o.RequestTimeout))
+	if o.I18n != nil {
+		f.Use(i18n.Middleware(o.I18n))
+	}
 	if o.SecurityHeaders {
 		f.Use(helmet.New())
 	}
