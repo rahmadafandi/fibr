@@ -749,3 +749,23 @@ func TestGeneratesDotenv(t *testing.T) {
 	assert.Equal(t, string(example), string(dotenv))
 	assert.Contains(t, string(dotenv), "JWT_SECRET=")
 }
+
+func TestRealtimeScaffoldArtifacts(t *testing.T) {
+	cases := []struct {
+		layout string
+		path   string
+	}{
+		{"ddd", "internal/interface/http/realtime_handler.go"},
+		{"layered", "internal/handler/realtime_handler.go"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.layout, func(t *testing.T) {
+			dir := generateInto(t, Options{Name: "app", Module: "github.com/me/app", DB: "sqlite", Layout: tc.layout, Realtime: true})
+			body := filepath.Join(dir, tc.path)
+			assertFileContains(t, body, "func RegisterRealtime(")
+			assertFileContains(t, body, "ws.NewHub[Message]")
+			assertFileContains(t, body, "sse.Handler(")
+			assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "RegisterRealtime(app.App")
+		})
+	}
+}

@@ -1,0 +1,49 @@
+package http
+
+import (
+	"time"
+
+	"github.com/gofiber/fiber/v2"
+	fhredis "github.com/rahmadafandi/fibr/redis"
+	"github.com/rahmadafandi/fibr/sse"
+	"github.com/rahmadafandi/fibr/ws"
+)
+
+// Message is a realtime chat message.
+type Message struct {
+	Text string `json:"text"`
+}
+
+// RegisterRealtime mounts the realtime sample routes:
+//   - GET /ws/:room  WebSocket chat that echoes messages to a room
+//   - GET /events    Server-Sent Events counter
+//
+// When rds is non-nil the hub uses a Redis backplane so broadcasts reach every
+// replica.
+func RegisterRealtime(app fiber.Router, rds *fhredis.Redis) {
+	var opts []ws.Option
+	if rds != nil {
+		opts = append(opts, ws.WithRedis(rds, "realtime"))
+	}
+	hub := ws.NewHub[Message](opts...)
+
+	app.Get("/ws/:room", hub.Handle(ws.Handler[Message]{
+		OnConnect: func(c *ws.Conn[Message]) error { c.Join(c.Params("room")); return nil },
+		OnMessage: func(c *ws.Conn[Message], m Message) { hub.ToRoom(c.Params("room"), m) },
+	}))
+
+	app.Get("/events", sse.Handler(func(c *fiber.Ctx, s *sse.Stream) {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for n := 0; ; n++ {
+			if err := s.Send("tick", fiber.Map{"count": n}); err != nil {
+				return
+			}
+			select {
+			case <-c.Context().Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}))
+}

@@ -47,6 +47,7 @@ type Data struct {
 	Team           bool
 	Queue          bool
 	Mailer         bool
+	Realtime       bool
 	JWTSecret      string
 	HelpersVersion string
 	LocalReplace   string
@@ -111,7 +112,7 @@ func Generate(o Options, out io.Writer) error {
 
 	d := Data{
 		Name: o.Name, Module: o.Module, DB: o.DB, Layout: o.Layout,
-		Sample: o.Sample, Queue: o.Queue, Mailer: o.Mailer, HelpersVersion: o.HelpersVersion, LocalReplace: o.Local,
+		Sample: o.Sample, Queue: o.Queue, Mailer: o.Mailer, Realtime: o.Realtime, HelpersVersion: o.HelpersVersion, LocalReplace: o.Local,
 	}
 
 	if o.Auth {
@@ -176,6 +177,15 @@ func Generate(o Options, out io.Writer) error {
 
 	if o.Queue {
 		for _, fsp := range planQueue(d) {
+			if err := renderFile(fsp, d, o.Dir); err != nil {
+				_ = os.RemoveAll(o.Dir)
+				return fmt.Errorf("render %s: %w", fsp.tmpl, err)
+			}
+		}
+	}
+
+	if o.Realtime {
+		for _, fsp := range planRealtime(d) {
 			if err := renderFile(fsp, d, o.Dir); err != nil {
 				_ = os.RemoveAll(o.Dir)
 				return fmt.Errorf("render %s: %w", fsp.tmpl, err)
@@ -259,6 +269,16 @@ func planQueue(d Data) []fileSpec {
 		return []fileSpec{{"queue/jobs.tmpl", "internal/jobs/jobs.go"}}
 	}
 	return nil
+}
+
+// planRealtime returns the realtime sample handler fileSpec for the layout.
+func planRealtime(d Data) []fileSpec {
+	switch d.Layout {
+	case "layered":
+		return []fileSpec{{"realtime/layered/handler.tmpl", "internal/handler/realtime_handler.go"}}
+	default:
+		return []fileSpec{{"realtime/ddd/handler.tmpl", "internal/interface/http/realtime_handler.go"}}
+	}
 }
 
 // renderAuthMigration writes the timestamped accounts migration.
