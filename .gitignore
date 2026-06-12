@@ -13,5 +13,8 @@ site/
 # local-only planning docs (superpowers specs/plans)
 docs/superpowers/
 
+# graphify knowledge-graph output (local only)
+graphify-out/
+
 # test coverage
 coverage.txt
