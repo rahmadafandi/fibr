@@ -32,4 +32,6 @@ package below links to its API docs.
 - [`apierror`](https://pkg.go.dev/github.com/rahmadafandi/fibr/apierror) — typed HTTP errors (`NotFound`, `Conflict`, ...) + a Fiber `ErrorHandler` that renders them as the JSON envelope; wired by `bootstrap` automatically.
 - [`webhook`](https://pkg.go.dev/github.com/rahmadafandi/fibr/webhook) — HMAC sign/verify (Stripe-style, replay-protected) + inbound verification middleware.
 - [`openapi`](https://pkg.go.dev/github.com/rahmadafandi/fibr/openapi) — generate an OpenAPI 3.0.3 document from registered routes + reflected request/response structs (json + validator tags), served as `/openapi.json` with a CDN-backed Swagger UI at `/docs`. Wired by `bootstrap` via `Options.OpenAPI`.
+- [`ws`](https://pkg.go.dev/github.com/rahmadafandi/fibr/ws) — typed WebSocket `Hub[T]` with rooms and JSON broadcast on top of gofiber/contrib/websocket; optional Redis backplane (`WithRedis`) for multi-replica fanout.
+- [`sse`](https://pkg.go.dev/github.com/rahmadafandi/fibr/sse) — Server-Sent Events: a one-way `text/event-stream` helper with JSON event encoding.
 - [`bootstrap`](https://pkg.go.dev/github.com/rahmadafandi/fibr/bootstrap) — one-call app wiring: middleware, health, DB, metrics, tracing, security headers (helmet), compression, idempotency keys, OpenAPI docs, graceful shutdown.

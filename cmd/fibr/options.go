@@ -21,6 +21,7 @@ type Options struct {
 	Team           bool
 	Queue          bool
 	Mailer         bool
+	Realtime       bool
 	Dir            string
 	NoGit          bool
 	NoTidy         bool
