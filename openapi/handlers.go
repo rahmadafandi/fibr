@@ -4,6 +4,8 @@ package openapi
 
 import (
 	"encoding/json"
+	"html/template"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -38,9 +40,10 @@ func (s *Spec) UIHandler(specURL string) fiber.Handler {
 	}
 }
 
-func swaggerHTML(specURL string) string {
-	u, _ := json.Marshal(specURL) // JSON-encode to safely embed in the script
-	return `<!DOCTYPE html>
+// swaggerTmpl renders the Swagger UI page. html/template is context-aware: in
+// the JavaScript context, {{.SpecURL}} is emitted as a safely quoted+escaped JS
+// string literal, so a hostile spec URL cannot break out of the script.
+var swaggerTmpl = template.Must(template.New("swagger").Parse(`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
@@ -53,9 +56,14 @@ func swaggerHTML(specURL string) string {
 <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist/swagger-ui-bundle.js" crossorigin></script>
 <script>
 window.onload = function () {
-  window.ui = SwaggerUIBundle({ url: ` + string(u) + `, dom_id: "#swagger-ui" });
+  window.ui = SwaggerUIBundle({ url: {{.SpecURL}}, dom_id: "#swagger-ui" });
 };
 </script>
 </body>
-</html>`
+</html>`))
+
+func swaggerHTML(specURL string) string {
+	var b strings.Builder
+	_ = swaggerTmpl.Execute(&b, struct{ SpecURL string }{specURL})
+	return b.String()
 }
