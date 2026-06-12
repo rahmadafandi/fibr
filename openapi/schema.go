@@ -16,7 +16,7 @@ var timeType = reflect.TypeOf(time.Time{})
 // via $ref.
 func (s *Spec) schemaFor(t reflect.Type) *Schema {
 	nullable := false
-	for t.Kind() == reflect.Ptr {
+	for t.Kind() == reflect.Pointer {
 		nullable = true
 		t = t.Elem()
 	}
@@ -85,7 +85,7 @@ func (s *Spec) objectSchema(t reflect.Type) *Schema {
 		// Untagged embedded struct: flatten its fields.
 		if f.Anonymous && f.Tag.Get("json") == "" {
 			ft := f.Type
-			for ft.Kind() == reflect.Ptr {
+			for ft.Kind() == reflect.Pointer {
 				ft = ft.Elem()
 			}
 			if ft.Kind() == reflect.Struct && ft != timeType {
@@ -166,7 +166,7 @@ func parseValidate(tag string) validateRules {
 }
 
 func applyValidate(sc *Schema, vr validateRules, t reflect.Type) {
-	for t.Kind() == reflect.Ptr {
+	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	isString := t.Kind() == reflect.String

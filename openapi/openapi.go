@@ -111,7 +111,7 @@ func (s *Spec) Register(method, path string, op Op) *Spec {
 
 func (s *Spec) queryParams(v any) []Parameter {
 	t := reflect.TypeOf(v)
-	for t.Kind() == reflect.Ptr {
+	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	if t.Kind() != reflect.Struct {
