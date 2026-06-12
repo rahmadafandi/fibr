@@ -16,6 +16,7 @@ type Conn[T any] struct {
 	ws   *websocket.Conn
 	hub  *Hub[T]
 	send chan []byte
+	done chan struct{} // closed when the write pump has fully stopped
 
 	mu     sync.Mutex
 	rooms  map[string]struct{}
@@ -94,7 +95,8 @@ func (c *Conn[T]) Close() {
 }
 
 func (c *Conn[T]) writePump(ping time.Duration) {
-	defer c.ws.Close()
+	defer close(c.done)                 // runs last: signals the handler it is safe to return
+	defer func() { _ = c.ws.Close() }() // runs first: close the underlying conn
 	var tick <-chan time.Time
 	if ping > 0 {
 		t := time.NewTicker(ping)

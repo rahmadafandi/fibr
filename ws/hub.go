@@ -84,6 +84,7 @@ func (h *Hub[T]) Handle(cfg Handler[T]) fiber.Handler {
 			ws:    wc,
 			hub:   h,
 			send:  make(chan []byte, h.cfg.sendBuf),
+			done:  make(chan struct{}),
 			rooms: map[string]struct{}{},
 		}
 		if cfg.OnConnect != nil {
@@ -99,6 +100,10 @@ func (h *Hub[T]) Handle(cfg Handler[T]) fiber.Handler {
 		}
 		h.unregister(c)
 		c.Close()
+		// Wait for the write pump to stop before returning: gofiber/contrib
+		// recycles the *websocket.Conn once this handler returns, which would
+		// race with the write pump still touching it.
+		<-c.done
 	})
 	return func(c *fiber.Ctx) error {
 		if !websocket.IsWebSocketUpgrade(c) {
