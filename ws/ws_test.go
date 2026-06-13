@@ -144,3 +144,16 @@ func TestRedisBackplane(t *testing.T) {
 	hubA.Broadcast(chatMsg{Text: "cross"})
 	require.Equal(t, "cross", readMsg(t, client).Text)
 }
+
+func TestBackplaneErrSurfaced(t *testing.T) {
+	// Point at a dead address so Subscribe's initial Receive fails fast.
+	r := fhredis.New(goredis.NewClient(&goredis.Options{Addr: "127.0.0.1:1"}))
+	hub := ws.NewHub[chatMsg](ws.WithPingInterval(0), ws.WithRedis(r, "rt"))
+	defer hub.Close()
+	require.Eventually(t, func() bool { return hub.BackplaneErr() != nil }, 3*time.Second, 20*time.Millisecond)
+}
+
+func TestBackplaneErrNilWhenHealthy(t *testing.T) {
+	hub := ws.NewHub[chatMsg]() // no backplane configured
+	require.NoError(t, hub.BackplaneErr())
+}
