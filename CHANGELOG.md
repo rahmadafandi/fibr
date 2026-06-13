@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-13
+
+### Added
+
+- `redis`: bulk and atomic helpers — `MSet`/`MGet` (pipelined), `Incr`/`Decr`,
+  `SetNX`, `GetSet`.
+- `http`: `PostForm` (urlencoded) and `PostMultipart` (file upload) requests.
+- `jobs`: option helpers `WithRetry`/`WithPriority`/`WithProcessIn`/`WithDeadline`
+  (return `asynq.Option`, so callers need not import asynq).
+- `i18n`: CLDR cardinal plural categories (zero/one/two/few/many/other) for
+  en/fr/ru/uk/pl/ar and the no-plural languages; unknown locales use the English
+  rule. `Plural` now resolves `<key>.<category>`.
+- `ws`: `(*Hub[T]).BackplaneErr()` surfaces a failed Redis backplane subscription
+  (the hub still serves local connections).
+
+### Changed
+
+- Added `// Package` doc comments to 16 packages; replaced `interface{}` with `any`.
+- Stricter golangci-lint set (revive, unconvert, unparam, …) enforced in CI.
+
+### Removed
+
+- **Breaking:** `http.Http` renamed to `http.HTTP` and `http.HTTPError` to
+  `http.Error` (stutter fixes). Update references accordingly.
+- **Breaking:** `middleware.Auth` removed — use `auth.RequireAuth` (adds token
+  revocation and scope checks).
+
 ## [0.5.0] - 2026-06-11
 
 ### Added
