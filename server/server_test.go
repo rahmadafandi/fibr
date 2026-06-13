@@ -21,7 +21,7 @@ func TestRunCleanupOrder(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- run(app, "127.0.0.1:0", 5*time.Second, shutdown, c1, c2)
+		done <- run(app, "127.0.0.1:0", shutdown, Config{Timeout: 5 * time.Second, Cleanup: []func(context.Context) error{c1, c2}})
 	}()
 
 	time.Sleep(100 * time.Millisecond)
@@ -42,8 +42,10 @@ func TestRunCleanupErrorReturned(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- run(app, "127.0.0.1:0", 5*time.Second, shutdown,
-			func(ctx context.Context) error { return assert.AnError })
+		done <- run(app, "127.0.0.1:0", shutdown, Config{
+			Timeout: 5 * time.Second,
+			Cleanup: []func(context.Context) error{func(ctx context.Context) error { return assert.AnError }},
+		})
 	}()
 	time.Sleep(100 * time.Millisecond)
 	close(shutdown)
@@ -55,6 +57,36 @@ func TestRunCleanupErrorReturned(t *testing.T) {
 func TestRunListenError(t *testing.T) {
 	app := fiber.New()
 	shutdown := make(chan struct{})
-	err := run(app, "256.256.256.256:99999", time.Second, shutdown)
+	err := run(app, "256.256.256.256:99999", shutdown, Config{Timeout: time.Second})
 	assert.Error(t, err)
+}
+
+func TestRunPreShutdownRunsBeforeCleanup(t *testing.T) {
+	app := fiber.New()
+	shutdown := make(chan struct{})
+
+	var order []string
+	cfg := Config{
+		Timeout:    5 * time.Second,
+		DrainDelay: 10 * time.Millisecond,
+		PreShutdown: []func(context.Context) error{
+			func(context.Context) error { order = append(order, "pre"); return nil },
+		},
+		Cleanup: []func(context.Context) error{
+			func(context.Context) error { order = append(order, "cleanup"); return nil },
+		},
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- run(app, "127.0.0.1:0", shutdown, cfg) }()
+	time.Sleep(100 * time.Millisecond)
+	close(shutdown)
+
+	select {
+	case err := <-done:
+		assert.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("run did not return after shutdown")
+	}
+	assert.Equal(t, []string{"pre", "cleanup"}, order)
 }
