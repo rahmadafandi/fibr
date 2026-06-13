@@ -18,7 +18,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-// HTTP method constants re-exported from fasthttp for use with Http.FireAndForget
+// HTTP method constants re-exported from fasthttp for use with HTTP.FireAndForget
 // and similar helpers.
 const (
 	Post    = fasthttp.MethodPost
@@ -32,18 +32,18 @@ const (
 	Trace   = fasthttp.MethodTrace
 )
 
-// HTTPError is returned when the server responds with a non-2xx status code.
-type HTTPError struct { //nolint:revive // stutter (http.HTTPError) addressed in the v0.6.0 breaking rename pass
+// Error is returned when the server responds with a non-2xx status code.
+type Error struct {
 	Code int
 	Body []byte
 }
 
-func (e *HTTPError) Error() string {
+func (e *Error) Error() string {
 	return fmt.Sprintf("http: status %d: %s", e.Code, string(e.Body))
 }
 
-// Http is a small JSON HTTP client built on fasthttp.
-type Http struct {
+// HTTP is a small JSON HTTP client built on fasthttp.
+type HTTP struct {
 	BaseURL string
 	Client  *fasthttp.Client
 
@@ -55,30 +55,30 @@ type Http struct {
 	logger  *logger.Logger
 }
 
-// Option configures an Http client.
-type Option func(*Http)
+// Option configures an HTTP client.
+type Option func(*HTTP)
 
 // WithTimeout sets the per-request timeout used when no context deadline is present.
-func WithTimeout(d time.Duration) Option { return func(h *Http) { h.timeout = d } }
+func WithTimeout(d time.Duration) Option { return func(h *HTTP) { h.timeout = d } }
 
 // WithRetry configures the number of additional retry attempts and the backoff
 // duration between them. Only 5xx errors and transport failures are retried.
 func WithRetry(n int, backoff time.Duration) Option {
-	return func(h *Http) { h.retries = n; h.backoff = backoff }
+	return func(h *HTTP) { h.retries = n; h.backoff = backoff }
 }
 
 // WithHeader adds a default header sent with every request.
-func WithHeader(key, value string) Option { return func(h *Http) { h.headers[key] = value } }
+func WithHeader(key, value string) Option { return func(h *HTTP) { h.headers[key] = value } }
 
 // WithClient replaces the underlying fasthttp client.
-func WithClient(c *fasthttp.Client) Option { return func(h *Http) { h.Client = c } }
+func WithClient(c *fasthttp.Client) Option { return func(h *HTTP) { h.Client = c } }
 
 // WithLogger attaches a logger used to report FireAndForget errors.
-func WithLogger(l *logger.Logger) Option { return func(h *Http) { h.logger = l } }
+func WithLogger(l *logger.Logger) Option { return func(h *HTTP) { h.logger = l } }
 
-// New creates a new Http client.
-func New(baseURL string, opts ...Option) *Http {
-	h := &Http{
+// New creates a new HTTP client.
+func New(baseURL string, opts ...Option) *HTTP {
+	h := &HTTP{
 		BaseURL: baseURL,
 		Client:  &fasthttp.Client{},
 		headers: make(map[string]string),
@@ -90,13 +90,13 @@ func New(baseURL string, opts ...Option) *Http {
 }
 
 // SetHeader sets a default header sent with every request.
-func (h *Http) SetHeader(key, value string) {
+func (h *HTTP) SetHeader(key, value string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.headers[key] = value
 }
 
-func (h *Http) snapshotHeaders() map[string]string {
+func (h *HTTP) snapshotHeaders() map[string]string {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	out := make(map[string]string, len(h.headers))
@@ -107,27 +107,27 @@ func (h *Http) snapshotHeaders() map[string]string {
 }
 
 // Get sends a GET request to path and JSON-decodes the response into out.
-func (h *Http) Get(ctx context.Context, path string, out any) (int, error) {
+func (h *HTTP) Get(ctx context.Context, path string, out any) (int, error) {
 	return h.request(ctx, fasthttp.MethodGet, path, nil, out)
 }
 
 // Post sends a POST request with a JSON-encoded body and decodes the response into out.
-func (h *Http) Post(ctx context.Context, path string, body, out any) (int, error) {
+func (h *HTTP) Post(ctx context.Context, path string, body, out any) (int, error) {
 	return h.request(ctx, fasthttp.MethodPost, path, body, out)
 }
 
 // Put sends a PUT request with a JSON-encoded body and decodes the response into out.
-func (h *Http) Put(ctx context.Context, path string, body, out any) (int, error) {
+func (h *HTTP) Put(ctx context.Context, path string, body, out any) (int, error) {
 	return h.request(ctx, fasthttp.MethodPut, path, body, out)
 }
 
 // Patch sends a PATCH request with a JSON-encoded body and decodes the response into out.
-func (h *Http) Patch(ctx context.Context, path string, body, out any) (int, error) {
+func (h *HTTP) Patch(ctx context.Context, path string, body, out any) (int, error) {
 	return h.request(ctx, fasthttp.MethodPatch, path, body, out)
 }
 
 // Delete sends a DELETE request to path and JSON-decodes the response into out.
-func (h *Http) Delete(ctx context.Context, path string, out any) (int, error) {
+func (h *HTTP) Delete(ctx context.Context, path string, out any) (int, error) {
 	return h.request(ctx, fasthttp.MethodDelete, path, nil, out)
 }
 
@@ -140,14 +140,14 @@ type FileField struct {
 
 // PostForm sends an application/x-www-form-urlencoded POST and JSON-decodes the
 // response into out.
-func (h *Http) PostForm(ctx context.Context, path string, values url.Values, out any) (int, error) {
+func (h *HTTP) PostForm(ctx context.Context, path string, values url.Values, out any) (int, error) {
 	return h.requestRaw(ctx, fasthttp.MethodPost, path, []byte(values.Encode()),
 		"application/x-www-form-urlencoded", out)
 }
 
 // PostMultipart sends a multipart/form-data POST with the given fields and files
 // and JSON-decodes the response into out.
-func (h *Http) PostMultipart(ctx context.Context, path string, fields map[string]string, files []FileField, out any) (int, error) {
+func (h *HTTP) PostMultipart(ctx context.Context, path string, fields map[string]string, files []FileField, out any) (int, error) {
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 	for k, v := range fields {
@@ -173,7 +173,7 @@ func (h *Http) PostMultipart(ctx context.Context, path string, fields map[string
 // FireAndForget sends a request in the background, logging any error if a
 // logger was configured via WithLogger. The caller's context values are kept
 // but its cancellation/deadline are dropped so the request outlives the caller.
-func (h *Http) FireAndForget(ctx context.Context, method, path string, body any) {
+func (h *HTTP) FireAndForget(ctx context.Context, method, path string, body any) {
 	bgCtx := context.WithoutCancel(ctx)
 	go func() {
 		if _, err := h.request(bgCtx, method, path, body, nil); err != nil && h.logger != nil {
@@ -182,7 +182,7 @@ func (h *Http) FireAndForget(ctx context.Context, method, path string, body any)
 	}()
 }
 
-func (h *Http) request(ctx context.Context, method, path string, body, out any) (int, error) {
+func (h *HTTP) request(ctx context.Context, method, path string, body, out any) (int, error) {
 	var payload []byte
 	if body != nil {
 		b, err := json.Marshal(body)
@@ -196,7 +196,7 @@ func (h *Http) request(ctx context.Context, method, path string, body, out any) 
 
 // requestRaw sends a pre-encoded body with an explicit content type, applying
 // the configured retry/backoff policy and JSON-decoding the response into out.
-func (h *Http) requestRaw(ctx context.Context, method, path string, payload []byte, contentType string, out any) (int, error) {
+func (h *HTTP) requestRaw(ctx context.Context, method, path string, payload []byte, contentType string, out any) (int, error) {
 	headers := h.snapshotHeaders()
 	attempts := h.retries + 1
 	if attempts < 1 {
@@ -224,7 +224,7 @@ func (h *Http) requestRaw(ctx context.Context, method, path string, payload []by
 		}
 
 		if code < 200 || code >= 300 {
-			httpErr := &HTTPError{Code: code, Body: respBody}
+			httpErr := &Error{Code: code, Body: respBody}
 			// Retry only server errors (5xx). Client errors (4xx) are returned immediately.
 			if code >= 500 && i < attempts-1 {
 				lastErr = httpErr
@@ -245,7 +245,7 @@ func (h *Http) requestRaw(ctx context.Context, method, path string, payload []by
 		return code, nil
 	}
 
-	if httpErr, ok := lastErr.(*HTTPError); ok {
+	if httpErr, ok := lastErr.(*Error); ok {
 		return httpErr.Code, httpErr
 	}
 	return lastCode, lastErr
@@ -264,7 +264,7 @@ func sleepWithContext(ctx context.Context, d time.Duration) error {
 	}
 }
 
-func (h *Http) doOnce(ctx context.Context, method, path string, payload []byte, contentType string, headers map[string]string) (int, []byte, error) {
+func (h *HTTP) doOnce(ctx context.Context, method, path string, payload []byte, contentType string, headers map[string]string) (int, []byte, error) {
 	req := fasthttp.AcquireRequest()
 	resp := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseRequest(req)

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/rahmadafandi/fibr/logger"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -31,33 +30,6 @@ func TestMiddleware(t *testing.T) {
 		resp, _ := app.Test(req)
 
 		assert.Equal(t, fiber.StatusInternalServerError, resp.StatusCode)
-	})
-
-	t.Run("Auth", func(t *testing.T) {
-		secret := "secret"
-		app.Get("/auth", Auth(secret), func(c *fiber.Ctx) error {
-			return c.SendStatus(fiber.StatusOK)
-		})
-
-		// Valid token
-		claims := jwt.MapClaims{
-			"name": "test",
-			"exp":  time.Now().Add(time.Hour * 24).Unix(),
-		}
-		token, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))
-
-		req := httptest.NewRequest("GET", "/auth", nil)
-		req.Header.Set("Authorization", "Bearer "+token)
-		resp, _ := app.Test(req)
-
-		assert.Equal(t, fiber.StatusOK, resp.StatusCode)
-
-		// Invalid token
-		req = httptest.NewRequest("GET", "/auth", nil)
-		req.Header.Set("Authorization", "Bearer invalid")
-		resp, _ = app.Test(req)
-
-		assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
 	})
 
 	t.Run("RequestLogger", func(t *testing.T) {

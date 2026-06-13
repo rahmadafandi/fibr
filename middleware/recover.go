@@ -1,6 +1,6 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
-// Package middleware provides Fiber middleware: recover, request logging, request IDs, and auth.
+// Package middleware provides Fiber middleware: recover, request logging, and request IDs.
 package middleware
 
 import (

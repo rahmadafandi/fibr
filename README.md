@@ -87,7 +87,7 @@ For how the packages layer and how `bootstrap` composes them into an app, see
 - [`redis`](#redis) — Redis wrapper with `Remember` cache-aside helper. Includes a `Storage` adapter (`NewStorage`) for Redis-backed rate limiting.
 - [`slug`](#slug) — Unique URL-safe slug generator backed by a Bun database.
 - [`uploader`](#uploader) — Local file uploader with size and MIME limits. Also includes `S3Uploader` for S3-compatible storage (AWS S3, MinIO, R2).
-- [`middleware`](#middleware) — Recover, request logging, auth, and request-id middleware.
+- [`middleware`](#middleware) — Recover, request logging, and request-id middleware.
 - [`context`](#context) — Request context, request-id, and type-safe local accessors.
 - [`database`](#database) — Bun connector with Postgres/SQLite dialect auto-detection.
 - [`migrate`](#migrate) — Versioned migrations with `bun/migrate` and a ready cobra command.
@@ -387,8 +387,8 @@ app.Use(middleware.Recover(logger))
 // Log requests
 app.Use(middleware.RequestLogger(logger))
 
-// Protect routes
-app.Use(middleware.Auth(secret))
+// Protect routes (JWT bearer + revocation/scopes)
+app.Use(auth.RequireAuth(secret))
 
 // Context
 app.Use(middleware.ContextMiddleware(10 * time.Second))
