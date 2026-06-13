@@ -118,6 +118,7 @@ For how the packages layer and how `bootstrap` composes them into an app, see
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
 - [`apierror`](#typed-errors-with-apierror) — Typed HTTP errors (`BadRequest`, `NotFound`, `Conflict`, ...) with a Fiber `ErrorHandler`; installed automatically by `bootstrap`.
 - [`bootstrap`](#bootstrap) — One-call app wiring: middleware, health, DB, and graceful shutdown.
+- [`fibrtest`](#fibrtest) — Test harness: fluent HTTP client over `*fiber.App`, response assertions, in-memory DB + JWT helpers.
 
 ## Packages
 
@@ -729,6 +730,28 @@ app := bootstrap.New(bootstrap.Options{
 app.Get("/", handler)
 log.Fatal(app.Run(":3000")) // graceful shutdown + db.Close handled
 ```
+
+### `fibrtest`
+
+A test harness that removes the `httptest` / `app.Test` / decode / assert boilerplate from handler tests. A fluent client drives the app; responses assert their own status and decode JSON.
+
+```go
+import "github.com/rahmadafandi/fibr/fibrtest"
+
+func TestCreateThing(t *testing.T) {
+    app := bootstrap.New(bootstrap.Options{DB: fibrtest.NewDB(t)})
+    app.Post("/things", createThing)
+
+    c := fibrtest.New(t, app.App).
+        WithBearer(fibrtest.Token(t, secret, jwt.MapClaims{"sub": "u1"}))
+
+    var out Thing
+    c.Post("/things", ThingReq{Name: "x"}).ExpectStatus(201).JSON(&out)
+    assert.Equal(t, "x", out.Name)
+}
+```
+
+`New` takes any `*testing.T` (via a minimal `TB` interface). Use the `Get`/`Post`/`Put`/`Patch`/`Delete` shortcuts, or `Request(method, path)` for a builder with `JSON`/`Body`/`Header`/`Bearer`/`Query`. `NewDB` returns a throwaway in-memory SQLite Bun DB (auto-closed) and `Token` mints a signed JWT for authed routes.
 
 ### Modules
 
