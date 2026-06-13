@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `http`: optional circuit breaker via `WithCircuitBreaker(maxFailures, openTimeout)` — rejects calls with `ErrCircuitOpen` while a dependency is failing, with a half-open probe after the timeout.
 - `redis.Remember`: in-process singleflight deduplication so concurrent misses for the same key run the loader once (cache-stampede protection).
 - `events` package: in-process typed event bus (`Subscribe[T]`/`Publish[T]`), synchronous by default with an opt-in async mode (`WithAsync`). Complements `outbox` for intra-process fan-out.
+- `featureflag` package: runtime flags (boolean, percentage rollout, per-user/group targeting) via a pluggable `Provider` — `Static`, `Rules`, and `Redis` — plus a Fiber `Middleware` and `Enabled(c, flag)` helper.
 
 ## [1.1.0] - 2026-06-13
 
