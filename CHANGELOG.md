@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-06-13
+
 ### Fixed
 
 - `lock`: `Acquire` now reports `ErrNotAcquired` when the context is cancelled or times out during an acquisition attempt (previously the raw Redis transport error could leak through, so `errors.Is(err, ErrNotAcquired)` was unreliable).
