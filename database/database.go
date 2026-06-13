@@ -1,5 +1,6 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
+// Package database connects to Postgres or SQLite via Bun, with dialect auto-detection and optional tracing.
 package database
 
 import (

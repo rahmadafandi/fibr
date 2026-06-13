@@ -1,5 +1,6 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
+// Package redis wraps go-redis with cache-aside, a fiber.Storage adapter, pub/sub, and bulk/atomic helpers.
 package redis
 
 import (
@@ -28,7 +29,7 @@ func New(client *Client) *Redis {
 }
 
 // Set JSON-encodes value and stores it under key with the given expiration.
-func (r *Redis) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+func (r *Redis) Set(ctx context.Context, key string, value any, expiration time.Duration) error {
 	p, err := json.Marshal(value)
 	if err != nil {
 		return err
@@ -37,7 +38,7 @@ func (r *Redis) Set(ctx context.Context, key string, value interface{}, expirati
 }
 
 // Get reads key and JSON-decodes it into dest. Returns an error on cache miss.
-func (r *Redis) Get(ctx context.Context, key string, dest interface{}) error {
+func (r *Redis) Get(ctx context.Context, key string, dest any) error {
 	p, err := r.Client.Get(ctx, key).Bytes()
 	if err != nil {
 		return err

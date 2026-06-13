@@ -22,7 +22,7 @@ func RequestLogger(logger *logger.Logger) fiber.Handler {
 
 		stop := time.Now()
 
-		fields := []interface{}{
+		fields := []any{
 			"method", c.Method(),
 			"path", c.Path(),
 			"status", c.Response().StatusCode(),

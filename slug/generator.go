@@ -1,5 +1,6 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
+// Package slug generates unique URL-safe slugs backed by a Bun database.
 package slug
 
 import (

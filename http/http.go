@@ -1,5 +1,6 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
+// Package http is a context-aware JSON HTTP client with retries.
 package http
 
 import (
@@ -28,7 +29,7 @@ const (
 )
 
 // HTTPError is returned when the server responds with a non-2xx status code.
-type HTTPError struct {
+type HTTPError struct { //nolint:revive // stutter (http.HTTPError) addressed in the v0.6.0 breaking rename pass
 	Code int
 	Body []byte
 }
@@ -102,34 +103,34 @@ func (h *Http) snapshotHeaders() map[string]string {
 }
 
 // Get sends a GET request to path and JSON-decodes the response into out.
-func (h *Http) Get(ctx context.Context, path string, out interface{}) (int, error) {
+func (h *Http) Get(ctx context.Context, path string, out any) (int, error) {
 	return h.request(ctx, fasthttp.MethodGet, path, nil, out)
 }
 
 // Post sends a POST request with a JSON-encoded body and decodes the response into out.
-func (h *Http) Post(ctx context.Context, path string, body, out interface{}) (int, error) {
+func (h *Http) Post(ctx context.Context, path string, body, out any) (int, error) {
 	return h.request(ctx, fasthttp.MethodPost, path, body, out)
 }
 
 // Put sends a PUT request with a JSON-encoded body and decodes the response into out.
-func (h *Http) Put(ctx context.Context, path string, body, out interface{}) (int, error) {
+func (h *Http) Put(ctx context.Context, path string, body, out any) (int, error) {
 	return h.request(ctx, fasthttp.MethodPut, path, body, out)
 }
 
 // Patch sends a PATCH request with a JSON-encoded body and decodes the response into out.
-func (h *Http) Patch(ctx context.Context, path string, body, out interface{}) (int, error) {
+func (h *Http) Patch(ctx context.Context, path string, body, out any) (int, error) {
 	return h.request(ctx, fasthttp.MethodPatch, path, body, out)
 }
 
 // Delete sends a DELETE request to path and JSON-decodes the response into out.
-func (h *Http) Delete(ctx context.Context, path string, out interface{}) (int, error) {
+func (h *Http) Delete(ctx context.Context, path string, out any) (int, error) {
 	return h.request(ctx, fasthttp.MethodDelete, path, nil, out)
 }
 
 // FireAndForget sends a request in the background, logging any error if a
 // logger was configured via WithLogger. The caller's context values are kept
 // but its cancellation/deadline are dropped so the request outlives the caller.
-func (h *Http) FireAndForget(ctx context.Context, method, path string, body interface{}) {
+func (h *Http) FireAndForget(ctx context.Context, method, path string, body any) {
 	bgCtx := context.WithoutCancel(ctx)
 	go func() {
 		if _, err := h.request(bgCtx, method, path, body, nil); err != nil && h.logger != nil {
@@ -138,7 +139,7 @@ func (h *Http) FireAndForget(ctx context.Context, method, path string, body inte
 	}()
 }
 
-func (h *Http) request(ctx context.Context, method, path string, body, out interface{}) (int, error) {
+func (h *Http) request(ctx context.Context, method, path string, body, out any) (int, error) {
 	var payload []byte
 	if body != nil {
 		b, err := json.Marshal(body)

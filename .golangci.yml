@@ -3,7 +3,20 @@ version: "2"
 linters:
   enable:
     - misspell
+    - revive
+    - unconvert
+    - unparam
   settings:
+    revive:
+      rules:
+        - name: exported
+        - name: error-naming
+        - name: error-strings
+        - name: context-as-argument
+        - name: unreachable-code
+        - name: indent-error-flow
+        - name: var-declaration
+        - name: receiver-naming
     errcheck:
       exclude-functions:
         - fmt.Fprint
@@ -14,6 +27,8 @@ linters:
       - path: _test\.go
         linters:
           - errcheck
+          - unparam
+          - revive
 
 formatters:
   enable:

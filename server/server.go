@@ -1,5 +1,6 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
+// Package server runs a Fiber app with signal-based graceful shutdown.
 package server
 
 import (
