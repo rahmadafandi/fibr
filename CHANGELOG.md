@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `health.ReadinessGate` + `server.RunGracefulWithConfig`/`server.Config`: flip `/readyz` to not-ready and wait a drain delay before shutting down, so a load balancer stops routing first. `server.RunGraceful` is unchanged (delegates with the new defaults).
 - `http`: optional circuit breaker via `WithCircuitBreaker(maxFailures, openTimeout)` — rejects calls with `ErrCircuitOpen` while a dependency is failing, with a half-open probe after the timeout.
 - `redis.Remember`: in-process singleflight deduplication so concurrent misses for the same key run the loader once (cache-stampede protection).
+- `events` package: in-process typed event bus (`Subscribe[T]`/`Publish[T]`), synchronous by default with an opt-in async mode (`WithAsync`). Complements `outbox` for intra-process fan-out.
 
 ## [1.1.0] - 2026-06-13
 
