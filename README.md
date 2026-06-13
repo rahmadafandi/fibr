@@ -114,6 +114,7 @@ For how the packages layer and how `bootstrap` composes them into an app, see
 - [`jobs`](#jobs) — Redis-backed background jobs (asynq) + asynqmon monitoring mount. Includes `Scheduler` for cron-triggered (periodic) jobs.
 - [`lock`](#lock) — Single-instance Redis distributed mutex (`TryAcquire`/`Acquire`/`Do`, owner-only `Release`/`Extend`) for single-execution across replicas.
 - [`outbox`](#outbox) — Transactional outbox: enqueue events in the same DB transaction as your writes; a background relay publishes them at-least-once.
+- [`events`](#events) — In-process typed event bus (`Subscribe[T]`/`Publish[T]`), sync by default with opt-in async.
 - [`mailer`](#mailer) — Transactional email: pluggable `Sender` (SMTP/log/memory) + template render.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
 - [`apierror`](#typed-errors-with-apierror) — Typed HTTP errors (`BadRequest`, `NotFound`, `Conflict`, ...) with a Fiber `ErrorHandler`; installed automatically by `bootstrap`.
@@ -677,6 +678,26 @@ go relay.Run(ctx)
 ```
 
 Consumers subscribe with `redis.Subscribe[OrderCreated](...)` — the relay publishes the stored JSON bytes verbatim, so they decode directly. Published rows are kept (for audit); purge them with `DELETE FROM outbox WHERE published_at < ?` on your own schedule.
+
+### `events`
+
+An in-process typed event bus for decoupling domain-event producers from handlers. Handlers are keyed by event type; `Publish` is synchronous by default (handlers run inline, errors joined) with an opt-in async mode. For durable, cross-process delivery use `outbox` instead.
+
+```go
+import "github.com/rahmadafandi/fibr/events"
+
+type OrderCreated struct{ ID int }
+
+bus := events.New() // or events.New(events.WithAsync())
+events.Subscribe(bus, func(ctx context.Context, e OrderCreated) error {
+    return mailer.SendOrderConfirmation(ctx, e.ID)
+})
+
+// Producer — runs handlers now, returns their joined errors (sync mode).
+if err := events.Publish(ctx, bus, OrderCreated{ID: order.ID}); err != nil {
+    log.Error(err, "order.created handlers failed")
+}
+```
 
 ### mailer
 
