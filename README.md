@@ -115,6 +115,7 @@ For how the packages layer and how `bootstrap` composes them into an app, see
 - [`lock`](#lock) — Single-instance Redis distributed mutex (`TryAcquire`/`Acquire`/`Do`, owner-only `Release`/`Extend`) for single-execution across replicas.
 - [`outbox`](#outbox) — Transactional outbox: enqueue events in the same DB transaction as your writes; a background relay publishes them at-least-once.
 - [`events`](#events) — In-process typed event bus (`Subscribe[T]`/`Publish[T]`), sync by default with opt-in async.
+- [`featureflag`](#featureflag) — Runtime flags (boolean, percentage rollout, per-user/group) via Static/Rules/Redis providers + Fiber helper.
 - [`mailer`](#mailer) — Transactional email: pluggable `Sender` (SMTP/log/memory) + template render.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
 - [`apierror`](#typed-errors-with-apierror) — Typed HTTP errors (`BadRequest`, `NotFound`, `Conflict`, ...) with a Fiber `ErrorHandler`; installed automatically by `bootstrap`.
@@ -698,6 +699,34 @@ if err := events.Publish(ctx, bus, OrderCreated{ID: order.ID}); err != nil {
     log.Error(err, "order.created handlers failed")
 }
 ```
+
+### `featureflag`
+
+Runtime feature flags with pluggable providers: `Static` (on/off map), `Rules` (boolean + percentage rollout + per-user/group allowlists), and `Redis` (toggle live without a redeploy). Percentage rollout buckets users by a stable hash, so a user's membership doesn't flicker between checks.
+
+```go
+import "github.com/rahmadafandi/fibr/featureflag"
+
+flags := featureflag.New(featureflag.Rules(map[string]featureflag.Rule{
+    "new_checkout": {Percentage: 25, Users: []string{"vip"}},
+}))
+
+// Direct evaluation:
+if flags.Enabled(ctx, "new_checkout", featureflag.Eval{UserID: uid}) { ... }
+
+// Or via Fiber: derive the eval context from the request, then check per-handler.
+app.Use(flags.Middleware(func(c *fiber.Ctx) featureflag.Eval {
+    return featureflag.Eval{UserID: auth.UserID(c)}
+}))
+app.Get("/checkout", func(c *fiber.Ctx) error {
+    if featureflag.Enabled(c, "new_checkout") {
+        return newCheckout(c)
+    }
+    return oldCheckout(c)
+})
+```
+
+With the `Redis` provider, each flag is a key (`prefix+flag`) holding `"true"`/`"false"` or a JSON `Rule`, so ops can flip flags without a deploy.
 
 ### mailer
 
