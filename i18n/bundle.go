@@ -112,18 +112,21 @@ func (b *Bundle) Translate(locale, key string, args M) string {
 	return key
 }
 
-// Plural resolves "<key>.one" when n == 1 else "<key>.other"; {n} is set to n
-// (unless already provided in args).
+// Plural resolves "<key>.<category>" where category is the locale's CLDR plural
+// form for n (one of zero/one/two/few/many/other), falling back to "<key>.other"
+// then the normal fallback chain. {n} is set to n unless already in args.
 func (b *Bundle) Plural(locale, key string, n int, args M) string {
-	suffix := "other"
-	if n == 1 {
-		suffix = "one"
-	}
 	merged := M{"n": n}
 	for k, v := range args {
 		merged[k] = v
 	}
-	return b.Translate(locale, key+"."+suffix, merged)
+	cat := pluralCategory(locale, n)
+	full := key + "." + cat
+	if _, ok := b.lookup(locale, full); ok {
+		return substitute(b.messages[locale][full], merged)
+	}
+	// Category missing in this locale: fall back to "other", then the chain.
+	return b.Translate(locale, key+".other", merged)
 }
 
 func (b *Bundle) lookup(locale, key string) (string, bool) {

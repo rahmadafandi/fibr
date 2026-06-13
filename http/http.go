@@ -4,9 +4,13 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
+	"net/url"
 	"sync"
 	"time"
 
@@ -127,6 +131,45 @@ func (h *Http) Delete(ctx context.Context, path string, out any) (int, error) {
 	return h.request(ctx, fasthttp.MethodDelete, path, nil, out)
 }
 
+// FileField is one file part of a multipart request.
+type FileField struct {
+	Field    string    // form field name
+	Filename string    // file name reported to the server
+	Content  io.Reader // file contents
+}
+
+// PostForm sends an application/x-www-form-urlencoded POST and JSON-decodes the
+// response into out.
+func (h *Http) PostForm(ctx context.Context, path string, values url.Values, out any) (int, error) {
+	return h.requestRaw(ctx, fasthttp.MethodPost, path, []byte(values.Encode()),
+		"application/x-www-form-urlencoded", out)
+}
+
+// PostMultipart sends a multipart/form-data POST with the given fields and files
+// and JSON-decodes the response into out.
+func (h *Http) PostMultipart(ctx context.Context, path string, fields map[string]string, files []FileField, out any) (int, error) {
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for k, v := range fields {
+		if err := w.WriteField(k, v); err != nil {
+			return 0, err
+		}
+	}
+	for _, f := range files {
+		fw, err := w.CreateFormFile(f.Field, f.Filename)
+		if err != nil {
+			return 0, err
+		}
+		if _, err := io.Copy(fw, f.Content); err != nil {
+			return 0, err
+		}
+	}
+	if err := w.Close(); err != nil {
+		return 0, err
+	}
+	return h.requestRaw(ctx, fasthttp.MethodPost, path, buf.Bytes(), w.FormDataContentType(), out)
+}
+
 // FireAndForget sends a request in the background, logging any error if a
 // logger was configured via WithLogger. The caller's context values are kept
 // but its cancellation/deadline are dropped so the request outlives the caller.
@@ -148,7 +191,12 @@ func (h *Http) request(ctx context.Context, method, path string, body, out any) 
 		}
 		payload = b
 	}
+	return h.requestRaw(ctx, method, path, payload, "application/json", out)
+}
 
+// requestRaw sends a pre-encoded body with an explicit content type, applying
+// the configured retry/backoff policy and JSON-decoding the response into out.
+func (h *Http) requestRaw(ctx context.Context, method, path string, payload []byte, contentType string, out any) (int, error) {
 	headers := h.snapshotHeaders()
 	attempts := h.retries + 1
 	if attempts < 1 {
@@ -163,7 +211,7 @@ func (h *Http) request(ctx context.Context, method, path string, body, out any) 
 			return 0, err
 		}
 
-		code, respBody, err := h.doOnce(ctx, method, path, payload, headers)
+		code, respBody, err := h.doOnce(ctx, method, path, payload, contentType, headers)
 		if err != nil {
 			lastErr = err
 			lastCode = 0
@@ -216,7 +264,7 @@ func sleepWithContext(ctx context.Context, d time.Duration) error {
 	}
 }
 
-func (h *Http) doOnce(ctx context.Context, method, path string, payload []byte, headers map[string]string) (int, []byte, error) {
+func (h *Http) doOnce(ctx context.Context, method, path string, payload []byte, contentType string, headers map[string]string) (int, []byte, error) {
 	req := fasthttp.AcquireRequest()
 	resp := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseRequest(req)
@@ -229,7 +277,10 @@ func (h *Http) doOnce(ctx context.Context, method, path string, payload []byte, 
 	}
 	if payload != nil {
 		req.SetBody(payload)
-		req.Header.SetContentType("application/json")
+		if contentType == "" {
+			contentType = "application/json"
+		}
+		req.Header.SetContentType(contentType)
 	}
 
 	var err error
