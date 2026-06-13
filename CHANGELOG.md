@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `lock` package: single-instance Redis distributed mutex (`TryAcquire`/`Acquire`/`Do`, owner-only `Release`/`Extend`) for single-execution across replicas.
 - Keyset (cursor) pagination: `parser.Keyset` Bun modifier with opaque cursors (`EncodeCursor`/`DecodeCursor`) and `pagination.CursorPage`/`NewCursorPage` with forward and backward navigation. Complements the existing offset pagination.
+- `outbox` package: transactional outbox (`Enqueue` within a Bun transaction + a background `Relay` that publishes pending events at-least-once, with `NewRedisPublisher` and optional single-relay coordination via `lock`). Solves the dual-write problem between the database and Redis pub/sub.
 
 ## [1.0.0] - 2026-06-13
 

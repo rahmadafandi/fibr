@@ -113,6 +113,7 @@ For how the packages layer and how `bootstrap` composes them into an app, see
 - [`tracing`](#tracing) — OpenTelemetry tracing setup (OTLP/HTTP) + Fiber spans.
 - [`jobs`](#jobs) — Redis-backed background jobs (asynq) + asynqmon monitoring mount. Includes `Scheduler` for cron-triggered (periodic) jobs.
 - [`lock`](#lock) — Single-instance Redis distributed mutex (`TryAcquire`/`Acquire`/`Do`, owner-only `Release`/`Extend`) for single-execution across replicas.
+- [`outbox`](#outbox) — Transactional outbox: enqueue events in the same DB transaction as your writes; a background relay publishes them at-least-once.
 - [`mailer`](#mailer) — Transactional email: pluggable `Sender` (SMTP/log/memory) + template render.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
 - [`apierror`](#typed-errors-with-apierror) — Typed HTTP errors (`BadRequest`, `NotFound`, `Conflict`, ...) with a Fiber `ErrorHandler`; installed automatically by `bootstrap`.
@@ -632,6 +633,31 @@ if err != nil && !errors.Is(err, lock.ErrNotAcquired) {
 ```
 
 For finer control: `TryAcquire` (one non-blocking attempt), `Acquire` (blocks until the lock is free or the context ends), and on the returned handle `Extend` (renew the TTL for long-running work) and `Release`. Release and Extend are owner-only — a token guards against deleting or renewing a lock another replica has since taken over.
+
+### `outbox`
+
+A transactional outbox: write an event into the `outbox` table in the same DB transaction as your business data, then let a background relay publish it. This avoids the dual-write problem — you can't atomically commit to the database *and* publish to Redis, so instead the event is committed with your data and published afterwards (at-least-once; make consumers idempotent).
+
+```go
+// Once, at startup:
+_ = outbox.Migrate(ctx, db)
+
+// In your handler/service, within the business transaction:
+err := db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+    if _, err := tx.NewInsert().Model(&order).Exec(ctx); err != nil {
+        return err
+    }
+    return outbox.Enqueue(ctx, tx, "order.created", OrderCreated{ID: order.ID})
+})
+
+// In a background worker (run one logical relay; pass a lock.Locker to make it
+// safe to run on every replica — only one relays at a time):
+relay := outbox.NewRelay(db, outbox.NewRedisPublisher(redisClient),
+    outbox.WithLock(lock.New(redisClient), "outbox:relay", 30*time.Second))
+go relay.Run(ctx)
+```
+
+Consumers subscribe with `redis.Subscribe[OrderCreated](...)` — the relay publishes the stored JSON bytes verbatim, so they decode directly. Published rows are kept (for audit); purge them with `DELETE FROM outbox WHERE published_at < ?` on your own schedule.
 
 ### mailer
 
