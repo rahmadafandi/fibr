@@ -310,6 +310,7 @@ import (
 h := fhttp.New("https://api.example.com",
     fhttp.WithTimeout(10*time.Second),
     fhttp.WithRetry(3, 500*time.Millisecond),
+    fhttp.WithCircuitBreaker(5, 30*time.Second), // open after 5 consecutive failures
     fhttp.WithHeader("Authorization", "Bearer "+token),
 )
 
@@ -322,9 +323,11 @@ code, err = h.Post(ctx, "/resource", requestBody, &result)
 h.FireAndForget(ctx, fhttp.Post, "/events", eventPayload)
 ```
 
+`WithCircuitBreaker` makes the client fail fast with `http.ErrCircuitOpen` once a dependency has failed (transport error or 5xx) `maxFailures` times in a row, then lets a single probe through after the open timeout. 4xx responses do not trip it.
+
 ### `redis`
 
-A Redis wrapper with JSON serialization helpers and a generic `Remember` cache-aside function.
+A Redis wrapper with JSON serialization helpers and a generic `Remember` cache-aside function. `Remember` deduplicates concurrent misses for the same key within the process (singleflight), so a hot-key expiry triggers one loader call rather than a stampede.
 
 **Usage:**
 
@@ -513,11 +516,26 @@ Liveness (`/livez`) and readiness (`/readyz`) endpoints with concurrent checks.
 ```go
 import "github.com/rahmadafandi/fibr/health"
 
-health.Register(app, health.PingBun(db),
-    health.Check("cache", func(ctx context.Context) error { return rds.Ping(ctx) }),
+gate := health.NewReadinessGate() // fails /readyz once closed (during drain)
+health.Register(app,
+    health.PingBun(db),
+    health.PingRedis(redisClient),
+    health.PingHTTP("payments", "https://payments.internal/healthz"),
+    gate.Check(),
 )
 // GET /livez  -> 200 {"status":"ok"}
 // GET /readyz -> 200/503 {"status":"...","checks":{...}}
+```
+
+Built-in dependency probes: `PingBun`, `PingRedis`, `PingHTTP`, `PingTCP`. For zero-downtime rollouts, pair `ReadinessGate` with `server.RunGracefulWithConfig` so `/readyz` flips to not-ready and waits a drain delay before the server stops:
+
+```go
+server.RunGracefulWithConfig(app, ":3000", server.Config{
+    Timeout:     15 * time.Second,
+    DrainDelay:  5 * time.Second,
+    PreShutdown: []func(context.Context) error{func(context.Context) error { gate.Close(); return nil }},
+    Cleanup:     []func(context.Context) error{func(context.Context) error { return db.Close() }},
+})
 ```
 
 ### `metrics`

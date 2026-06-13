@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/sync/singleflight"
 )
 
 type (
@@ -21,6 +22,10 @@ type (
 // Redis wraps a go-redis client with JSON (de)serialization helpers.
 type Redis struct {
 	Client *Client
+
+	// group deduplicates concurrent Remember loads for the same key within this
+	// process, preventing a cache stampede on a miss.
+	group singleflight.Group
 }
 
 // New creates a new Redis wrapper.
@@ -48,22 +53,33 @@ func (r *Redis) Get(ctx context.Context, key string, dest any) error {
 
 // Remember returns the cached value for key, or runs loader on a cache miss,
 // stores its result with ttl, and returns it. A failure to store the loaded
-// value does not fail the call.
+// value does not fail the call. Concurrent misses for the same key within this
+// process are deduplicated so loader runs once (cache-stampede protection).
 func Remember[T any](ctx context.Context, r *Redis, key string, ttl time.Duration, loader func() (T, error)) (T, error) {
 	var out T
 	if err := r.Get(ctx, key, &out); err == nil {
 		return out, nil
 	}
 
-	val, err := loader()
+	v, err, _ := r.group.Do(key, func() (any, error) {
+		// Another flight may have populated the cache while we waited.
+		var inner T
+		if err := r.Get(ctx, key, &inner); err == nil {
+			return inner, nil
+		}
+		val, err := loader()
+		if err != nil {
+			return nil, err
+		}
+		// Best-effort cache write; ignore store errors so the loaded value is still returned.
+		_ = r.Set(ctx, key, val, ttl)
+		return val, nil
+	})
 	if err != nil {
 		var zero T
 		return zero, err
 	}
-
-	// Best-effort cache write; ignore store errors so the loaded value is still returned.
-	_ = r.Set(ctx, key, val, ttl)
-	return val, nil
+	return v.(T), nil
 }
 
 // Delete removes the given keys. It is a no-op (returns nil) when no keys are

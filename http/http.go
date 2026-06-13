@@ -52,6 +52,7 @@ type HTTP struct {
 	timeout time.Duration
 	retries int
 	backoff time.Duration
+	breaker *breaker
 	logger  *logger.Logger
 }
 
@@ -65,6 +66,13 @@ func WithTimeout(d time.Duration) Option { return func(h *HTTP) { h.timeout = d 
 // duration between them. Only 5xx errors and transport failures are retried.
 func WithRetry(n int, backoff time.Duration) Option {
 	return func(h *HTTP) { h.retries = n; h.backoff = backoff }
+}
+
+// WithCircuitBreaker enables a circuit breaker: after maxFailures consecutive
+// failures (transport errors or 5xx responses) the client rejects requests with
+// ErrCircuitOpen until openTimeout elapses, then allows a single probe.
+func WithCircuitBreaker(maxFailures int, openTimeout time.Duration) Option {
+	return func(h *HTTP) { h.breaker = newBreaker(maxFailures, openTimeout) }
 }
 
 // WithHeader adds a default header sent with every request.
@@ -197,6 +205,33 @@ func (h *HTTP) request(ctx context.Context, method, path string, body, out any) 
 // requestRaw sends a pre-encoded body with an explicit content type, applying
 // the configured retry/backoff policy and JSON-decoding the response into out.
 func (h *HTTP) requestRaw(ctx context.Context, method, path string, payload []byte, contentType string, out any) (int, error) {
+	if h.breaker != nil {
+		if !h.breaker.allow() {
+			return 0, ErrCircuitOpen
+		}
+		code, err := h.requestRawAttempts(ctx, method, path, payload, contentType, out)
+		if breakerFailure(code, err) {
+			h.breaker.onFailure()
+		} else {
+			h.breaker.onSuccess()
+		}
+		return code, err
+	}
+	return h.requestRawAttempts(ctx, method, path, payload, contentType, out)
+}
+
+// breakerFailure reports whether an outcome counts as a dependency failure for
+// the circuit breaker: a transport error (no status) or a 5xx response. Client
+// errors (4xx) and decode errors on a 2xx do not trip the breaker.
+func breakerFailure(code int, err error) bool {
+	if err != nil && code == 0 {
+		return true
+	}
+	return code >= 500
+}
+
+// requestRawAttempts runs the retry/backoff loop for a single logical request.
+func (h *HTTP) requestRawAttempts(ctx context.Context, method, path string, payload []byte, contentType string, out any) (int, error) {
 	headers := h.snapshotHeaders()
 	attempts := h.retries + 1
 	if attempts < 1 {
