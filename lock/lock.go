@@ -72,6 +72,11 @@ func (l *Locker) Acquire(ctx context.Context, key string, ttl time.Duration) (*L
 	for {
 		lk, ok, err := l.TryAcquire(ctx, key, ttl)
 		if err != nil {
+			// A context cancellation/deadline surfaces here as a Redis transport
+			// error; report it as ErrNotAcquired so callers can match it.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return nil, fmt.Errorf("%w: %w", ErrNotAcquired, ctxErr)
+			}
 			return nil, err
 		}
 		if ok {

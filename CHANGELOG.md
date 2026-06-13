@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `lock`: `Acquire` now reports `ErrNotAcquired` when the context is cancelled or times out during an acquisition attempt (previously the raw Redis transport error could leak through, so `errors.Is(err, ErrNotAcquired)` was unreliable).
+
 ### Added
 
 - `lock` package: single-instance Redis distributed mutex (`TryAcquire`/`Acquire`/`Do`, owner-only `Release`/`Extend`) for single-execution across replicas.
