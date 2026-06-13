@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-13
+
+First stable release. The public API is now covered by the compatibility
+guarantee in the README — no breaking changes will land within the v1.x series;
+anything breaking will go to v2.
+
+No functional changes since v0.6.0. This release marks the API as stable after
+the v0.6.0 hardening pass (idiomatic-Go cleanup, stricter linters, fuzz tests
+for the parser surfaces, and the final breaking renames).
+
 ## [0.6.0] - 2026-06-13
 
 ### Added

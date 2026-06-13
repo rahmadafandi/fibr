@@ -19,6 +19,22 @@ go get github.com/rahmadafandi/fibr
 
 Requires Go 1.26+. Targets Fiber v2 and Bun ORM (Postgres or SQLite).
 
+## Stability
+
+fibr follows [Semantic Versioning](https://semver.org/). As of **v1.0.0** the
+public API is stable:
+
+- **No breaking changes within v1.x.** Exported identifiers will not be removed
+  or changed incompatibly until a v2 major release.
+- New functionality arrives in backward-compatible **minor** releases; fixes in
+  **patch** releases.
+- Anything breaking is deferred to v2 (a new module path, `…/fibr/v2`).
+- The generated-app scaffolding (`fibr new`) follows the same library version but
+  generated code is a starting point you own — regenerating is never required.
+
+Not covered by the guarantee: unexported APIs, behavior explicitly documented as
+experimental, and transitive dependency internals.
+
 ## Quickstart
 
 ```go
