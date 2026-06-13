@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `lock` package: single-instance Redis distributed mutex (`TryAcquire`/`Acquire`/`Do`, owner-only `Release`/`Extend`) for single-execution across replicas.
+- Keyset (cursor) pagination: `parser.Keyset` Bun modifier with opaque cursors (`EncodeCursor`/`DecodeCursor`) and `pagination.CursorPage`/`NewCursorPage` with forward and backward navigation. Complements the existing offset pagination.
 
 ## [1.0.0] - 2026-06-13
 
