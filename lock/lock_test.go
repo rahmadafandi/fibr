@@ -115,8 +115,29 @@ func TestAcquireRespectsContextDeadline(t *testing.T) {
 	require.True(t, ok)
 	defer func() { _ = held.Release(context.Background()) }()
 
+	// A timed-out context must surface ErrNotAcquired whether the deadline
+	// trips during the retry sleep or inside a TryAcquire round.
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
 	defer cancel()
+	_, err = l.Acquire(ctx, "job", time.Minute)
+	assert.ErrorIs(t, err, ErrNotAcquired)
+}
+
+func TestAcquireOnCancelledContext(t *testing.T) {
+	_, c := newTestClient(t)
+	l := New(c)
+
+	// Hold the lock so Acquire cannot succeed immediately.
+	held, ok, err := l.TryAcquire(context.Background(), "job", time.Minute)
+	require.NoError(t, err)
+	require.True(t, ok)
+	defer func() { _ = held.Release(context.Background()) }()
+
+	// An already-cancelled context makes the first TryAcquire's Redis call fail
+	// with the context error; Acquire must still report ErrNotAcquired
+	// deterministically (regression test for the un-wrapped transport error).
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
 	_, err = l.Acquire(ctx, "job", time.Minute)
 	assert.ErrorIs(t, err, ErrNotAcquired)
 }
