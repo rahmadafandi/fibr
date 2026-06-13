@@ -116,6 +116,7 @@ For how the packages layer and how `bootstrap` composes them into an app, see
 - [`outbox`](#outbox) — Transactional outbox: enqueue events in the same DB transaction as your writes; a background relay publishes them at-least-once.
 - [`events`](#events) — In-process typed event bus (`Subscribe[T]`/`Publish[T]`), sync by default with opt-in async.
 - [`featureflag`](#featureflag) — Runtime flags (boolean, percentage rollout, per-user/group) via Static/Rules/Redis providers + Fiber helper.
+- [`audit`](#audit) — Structured audit log (actor/action/target) persisted via Bun, with a Fiber request helper.
 - [`mailer`](#mailer) — Transactional email: pluggable `Sender` (SMTP/log/memory) + template render.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
 - [`apierror`](#typed-errors-with-apierror) — Typed HTTP errors (`BadRequest`, `NotFound`, `Conflict`, ...) with a Fiber `ErrorHandler`; installed automatically by `bootstrap`.
@@ -727,6 +728,35 @@ app.Get("/checkout", func(c *fiber.Ctx) error {
 ```
 
 With the `Redis` provider, each flag is a key (`prefix+flag`) holding `"true"`/`"false"` or a JSON `Rule`, so ops can flip flags without a deploy.
+
+### `audit`
+
+An append-only audit trail of who did what. A `Recorder` writes `Entry` records (actor, action, target, metadata, IP, request id) through a pluggable `Sink`; the built-in Bun sink persists them and `List` reads them back.
+
+```go
+import "github.com/rahmadafandi/fibr/audit"
+
+_ = audit.Migrate(ctx, db) // once at startup
+
+rec := audit.New(audit.NewBunSink(db), audit.WithActor(func(c *fiber.Ctx) string {
+    return auth.Subject(c) // who is acting
+}))
+
+app.Delete("/orders/:id", func(c *fiber.Ctx) error {
+    if err := orders.Delete(c.UserContext(), c.Params("id")); err != nil {
+        return err
+    }
+    e := rec.FromRequest(c) // prefills actor, IP, request id
+    e.Action, e.Target, e.TargetID = "order.delete", "order", c.Params("id")
+    _ = rec.Record(c.UserContext(), e)
+    return c.SendStatus(fiber.StatusNoContent)
+})
+
+// Read back:
+entries, _ := audit.List(ctx, db, audit.Filter{Actor: "u1", Limit: 50})
+```
+
+`Record` is synchronous; for hot paths route it through `outbox` or a goroutine. Implement `Sink` to send entries elsewhere (e.g. a SIEM) instead of the database.
 
 ### mailer
 
