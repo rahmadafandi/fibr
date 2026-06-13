@@ -112,6 +112,7 @@ For how the packages layer and how `bootstrap` composes them into an app, see
 - [`metrics`](#metrics) — Prometheus request metrics middleware + `/metrics` handler.
 - [`tracing`](#tracing) — OpenTelemetry tracing setup (OTLP/HTTP) + Fiber spans.
 - [`jobs`](#jobs) — Redis-backed background jobs (asynq) + asynqmon monitoring mount. Includes `Scheduler` for cron-triggered (periodic) jobs.
+- [`lock`](#lock) — Single-instance Redis distributed mutex (`TryAcquire`/`Acquire`/`Do`, owner-only `Release`/`Extend`) for single-execution across replicas.
 - [`mailer`](#mailer) — Transactional email: pluggable `Sender` (SMTP/log/memory) + template render.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
 - [`apierror`](#typed-errors-with-apierror) — Typed HTTP errors (`BadRequest`, `NotFound`, `Conflict`, ...) with a Fiber `ErrorHandler`; installed automatically by `bootstrap`.
@@ -590,6 +591,25 @@ if _, err := sched.Register("0 2 * * *", "cleanup:run", CleanupPayload{OlderThan
 }
 log.Fatal(sched.Run()) // run ONE instance; workers process the enqueued tasks
 ```
+
+### `lock`
+
+A single-instance Redis distributed mutex. Across multiple replicas, it guarantees that a unit of work runs on at most one of them at a time — for example, so a `jobs.Scheduler` cron task does not fire once per replica.
+
+```go
+locker := lock.New(redisClient) // redisClient is a redis.UniversalClient
+
+// Run-once across replicas: acquires, runs fn, releases. Returns
+// lock.ErrNotAcquired (without running fn) if another replica holds it.
+err := locker.Do(ctx, "cron:nightly-cleanup", 30*time.Second, func() error {
+    return cleanup(ctx)
+})
+if err != nil && !errors.Is(err, lock.ErrNotAcquired) {
+    log.Fatal(err)
+}
+```
+
+For finer control: `TryAcquire` (one non-blocking attempt), `Acquire` (blocks until the lock is free or the context ends), and on the returned handle `Extend` (renew the TTL for long-running work) and `Release`. Release and Extend are owner-only — a token guards against deleting or renewing a lock another replica has since taken over.
 
 ### mailer
 

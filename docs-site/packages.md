@@ -16,6 +16,7 @@ package below links to its API docs.
 - [`redis`](https://pkg.go.dev/github.com/rahmadafandi/fibr/redis) — Redis wrapper with `Remember` cache-aside plus `Delete`/`Exists`/`Expire`/`TTL` and bulk/atomic ops (`MSet`/`MGet`/`Incr`/`Decr`/`SetNX`/`GetSet`). Includes a `Storage` adapter (fiber.Storage) for Redis-backed rate limiting, and `Publish`/`Subscribe[T]` pub/sub for cross-instance events.
 
   `redis.NewStorage(client)` adapts a go-redis client to `fiber.Storage` — pass it as `bootstrap.Options.RateLimitStorage` for a rate limiter consistent across instances.
+- [`lock`](https://pkg.go.dev/github.com/rahmadafandi/fibr/lock) — single-instance Redis distributed mutex: `TryAcquire`/`Acquire`/`Do` (run-once across replicas) with owner-only `Release`/`Extend`. Guards single-execution of scheduler/cron work in multi-replica deploys.
 - [`slug`](https://pkg.go.dev/github.com/rahmadafandi/fibr/slug) — unique URL-safe slug generator backed by a Bun database.
 - [`uploader`](https://pkg.go.dev/github.com/rahmadafandi/fibr/uploader) — local file uploader with size and MIME limits. Includes `S3Uploader` for S3-compatible storage (AWS S3, MinIO, R2).
 - [`middleware`](https://pkg.go.dev/github.com/rahmadafandi/fibr/middleware) — recover, request logging, and request-id middleware.
