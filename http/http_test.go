@@ -108,7 +108,7 @@ func TestHttpNon2xx(t *testing.T) {
 	assert.Equal(t, 404, code)
 	assert.Error(t, err)
 
-	var httpErr *HTTPError
+	var httpErr *Error
 	assert.ErrorAs(t, err, &httpErr)
 	assert.Equal(t, 404, httpErr.Code)
 	assert.Equal(t, "not found", string(httpErr.Body))
