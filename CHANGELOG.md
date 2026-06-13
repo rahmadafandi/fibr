@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `redis.Remember`: in-process singleflight deduplication so concurrent misses for the same key run the loader once (cache-stampede protection).
 - `events` package: in-process typed event bus (`Subscribe[T]`/`Publish[T]`), synchronous by default with an opt-in async mode (`WithAsync`). Complements `outbox` for intra-process fan-out.
 - `featureflag` package: runtime flags (boolean, percentage rollout, per-user/group targeting) via a pluggable `Provider` — `Static`, `Rules`, and `Redis` — plus a Fiber `Middleware` and `Enabled(c, flag)` helper.
+- `audit` package: structured audit log — a `Recorder` writes actor/action/target entries through a pluggable `Sink` (`NewBunSink` + `Migrate` + `List`), with a Fiber `FromRequest` helper prefilling actor/IP/request-id.
 
 ## [1.1.0] - 2026-06-13
 
