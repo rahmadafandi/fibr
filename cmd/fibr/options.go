@@ -52,19 +52,19 @@ func (o *Options) Resolve(in io.Reader, out io.Writer, interactive bool, changed
 			o.Layout = prompt(r, out, "Layout (ddd/layered)", o.Layout)
 		}
 		if !changed("sample") && !o.Sample {
-			o.Sample = yesNo(r, out, "Include sample CRUD?", false)
+			o.Sample = yesNo(r, out, "Include sample CRUD?")
 		}
 		if !changed("auth") && !o.Auth {
-			o.Auth = yesNo(r, out, "Include auth (JWT + accounts)?", false)
+			o.Auth = yesNo(r, out, "Include auth (JWT + accounts)?")
 		}
 		if o.Auth && !changed("auth-with-team") && !o.Team {
-			o.Team = yesNo(r, out, "Include teams/workspaces?", false)
+			o.Team = yesNo(r, out, "Include teams/workspaces?")
 		}
 		if !changed("queue") && !o.Queue {
-			o.Queue = yesNo(r, out, "Include background job queue (asynq)?", false)
+			o.Queue = yesNo(r, out, "Include background job queue (asynq)?")
 		}
 		if !changed("mailer") && !o.Mailer {
-			o.Mailer = yesNo(r, out, "Include transactional email (SMTP mailer)?", false)
+			o.Mailer = yesNo(r, out, "Include transactional email (SMTP mailer)?")
 		}
 	}
 	return o.Validate()
@@ -110,17 +110,11 @@ func prompt(r *bufio.Reader, out io.Writer, label, def string) string {
 	return line
 }
 
-func yesNo(r *bufio.Reader, out io.Writer, label string, def bool) bool {
-	d := "y/N"
-	if def {
-		d = "Y/n"
-	}
-	fmt.Fprintf(out, "%s [%s]: ", label, d)
+// yesNo prompts label and returns true only on an explicit yes (default no).
+func yesNo(r *bufio.Reader, out io.Writer, label string) bool {
+	fmt.Fprintf(out, "%s [y/N]: ", label)
 	line, _ := r.ReadString('\n')
 	line = strings.ToLower(strings.TrimSpace(line))
-	if line == "" {
-		return def
-	}
 	return line == "y" || line == "yes"
 }
 

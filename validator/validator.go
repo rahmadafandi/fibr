@@ -1,5 +1,6 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
+// Package validator validates structs using go-playground/validator with JSON field names.
 package validator
 
 import (
@@ -43,7 +44,7 @@ func newValidate() *govalidator.Validate {
 // ValidateStruct validates a struct and returns a slice of ErrorResponse.
 // If payload is nil or not a struct, it returns a single ErrorResponse with
 // Tag "invalid" rather than panicking.
-func ValidateStruct(payload interface{}) []*ErrorResponse {
+func ValidateStruct(payload any) []*ErrorResponse {
 	var result []*ErrorResponse
 	err := validate.Struct(payload)
 	if err == nil {

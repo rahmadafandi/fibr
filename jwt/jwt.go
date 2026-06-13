@@ -1,5 +1,6 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
+// Package jwt generates and validates JSON Web Tokens.
 package jwt
 
 import (
@@ -40,7 +41,7 @@ func GenerateTokenWithExpiry(claims MapClaims, secret string, ttl time.Duration)
 
 // ValidateToken validates a JWT token.
 func ValidateToken(tokenString string, secret string) (*Token, error) {
-	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	return jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}

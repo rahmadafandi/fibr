@@ -97,7 +97,7 @@ func (s *Spec) objectSchema(t reflect.Type) *Schema {
 				continue
 			}
 		}
-		name, omitempty, skip := jsonName(f)
+		name, skip := jsonName(f)
 		if skip {
 			continue
 		}
@@ -107,7 +107,6 @@ func (s *Spec) objectSchema(t reflect.Type) *Schema {
 		if rules.required {
 			required = append(required, name)
 		}
-		_ = omitempty
 		obj.Properties[name] = fs
 	}
 	if len(required) > 0 {
@@ -116,24 +115,18 @@ func (s *Spec) objectSchema(t reflect.Type) *Schema {
 	return obj
 }
 
-// jsonName returns the property name, whether it is omitempty, and whether the
-// field should be skipped (json:"-" or empty name).
-func jsonName(f reflect.StructField) (name string, omitempty, skip bool) {
+// jsonName returns the property name and whether the field should be skipped
+// (json:"-" or empty name).
+func jsonName(f reflect.StructField) (name string, skip bool) {
 	tag := f.Tag.Get("json")
 	if tag == "-" {
-		return "", false, true
+		return "", true
 	}
-	parts := strings.Split(tag, ",")
 	name = f.Name
-	if parts[0] != "" {
-		name = parts[0]
+	if before, _, _ := strings.Cut(tag, ","); before != "" {
+		name = before
 	}
-	for _, p := range parts[1:] {
-		if p == "omitempty" {
-			omitempty = true
-		}
-	}
-	return name, omitempty, false
+	return name, false
 }
 
 type validateRules struct {

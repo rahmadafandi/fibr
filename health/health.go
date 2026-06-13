@@ -1,5 +1,6 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
+// Package health exposes liveness and readiness HTTP endpoints backed by named checks.
 package health
 
 import (

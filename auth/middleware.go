@@ -113,7 +113,7 @@ func Subject(c *fiber.Ctx, opts ...Option) string {
 }
 
 // Scopes reads the "scopes" claim (a JSON array of strings) set when the token
-// was issued; it normalizes the JWT-decoded []interface{} (or []string) form to
+// was issued; it normalizes the JWT-decoded []any (or []string) form to
 // []string. This library's RequireScope, HasScope, and Scopes all read that key.
 func Scopes(c *fiber.Ctx, opts ...Option) []string {
 	claims, ok := Claims(c, opts...)
@@ -127,7 +127,7 @@ func toStringSlice(v any) []string {
 	switch s := v.(type) {
 	case []string:
 		return s
-	case []interface{}:
+	case []any:
 		out := make([]string, 0, len(s))
 		for _, e := range s {
 			if str, ok := e.(string); ok {

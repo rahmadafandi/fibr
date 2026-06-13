@@ -1,5 +1,6 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
+// Package pagination provides a paginated result envelope with page metadata.
 package pagination
 
 // Pagination holds a single page of results together with the metadata needed

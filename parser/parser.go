@@ -1,5 +1,6 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
+// Package parser builds Bun pagination and search query modifiers from request query parameters.
 package parser
 
 import (
@@ -85,7 +86,7 @@ func applySearch(q *bun.SelectQuery, search string, columnsSearchable []string) 
 	// columnsSearchable = []string{"name", "slug"}, search = "test"
 	// WHERE name ILIKE '%test%' OR slug ILIKE '%test%'
 
-	args := make([]interface{}, len(columnsSearchable))
+	args := make([]any, len(columnsSearchable))
 	for i := range columnsSearchable {
 		args[i] = searchPattern
 	}

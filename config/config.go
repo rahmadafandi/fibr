@@ -1,5 +1,6 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
+// Package config loads environment variables into typed structs using default and required struct tags.
 package config
 
 import (

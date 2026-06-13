@@ -1,5 +1,6 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
+// Package bootstrap wires a Fiber app — middleware, health, metrics, tracing, OpenAPI docs, i18n, and graceful shutdown — from a single Options struct.
 package bootstrap
 
 import (
@@ -136,7 +137,7 @@ func New(o Options) *App {
 		}
 		handlers := append(append([]fiber.Handler{}, o.Asynqmon.Middleware...),
 			adaptor.HTTPHandler(o.Asynqmon.Handler))
-		args := make([]interface{}, 0, len(handlers)+1)
+		args := make([]any, 0, len(handlers)+1)
 		args = append(args, path)
 		for _, h := range handlers {
 			args = append(args, h)

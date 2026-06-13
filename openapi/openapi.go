@@ -123,7 +123,7 @@ func (s *Spec) queryParams(v any) []Parameter {
 		if f.PkgPath != "" {
 			continue
 		}
-		name, _, skip := jsonName(f)
+		name, skip := jsonName(f)
 		if skip {
 			continue
 		}
