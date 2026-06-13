@@ -94,8 +94,8 @@ For how the packages layer and how `bootstrap` composes them into an app, see
 - [`config`](#config) — Load env vars into typed structs with `default` and `required` tags.
 - [`logger`](#logger) — Structured logger based on zerolog.
 - [`response`](#response) — Standardized JSON response helpers.
-- [`parser`](#parser) — Bun pagination/search query modifiers.
-- [`pagination`](#pagination) — Paginated result envelope with page metadata.
+- [`parser`](#parser) — Bun pagination/search query modifiers, including keyset (cursor) pagination.
+- [`pagination`](#pagination) — Paginated result envelope with page metadata; offset (`NewPagination`) and cursor (`CursorPage`) variants.
 - [`validator`](#validator) — Struct validation with custom rules and JSON field names.
 - [`bind`](#parse--validate-with-bind) — Parse and validate a request body/query/params into `T` in one call; writes `400`/`422` on failure.
 - [`jwt`](#jwt) — JWT generation and validation helpers.
@@ -194,9 +194,31 @@ err = db.NewSelect().Model(&rows).Apply(parser.Paginate(pq, []string{"name"})).S
 count, err := db.NewSelect().Model(&rows).Apply(parser.Count(pq.Search, []string{"name"})).Count(ctx)
 ```
 
+#### Keyset (cursor) pagination
+
+For large tables or infinite scroll, `parser.Keyset` paginates by a cursor instead of an offset — it seeks straight to the cursor position on an index, so it stays O(limit) at any depth and is stable under concurrent inserts (no shifting rows). It supports forward and backward navigation via opaque cursors.
+
+```go
+var kq parser.KeysetQuery // bound from ?limit=20&cursor=...&before=...
+_ = c.QueryParser(&kq)
+
+// The columns must form a unique total ordering; make the last a tiebreaker (the pk).
+cols := []parser.KeysetColumn{{Name: "created_at", Desc: true}, {Name: "id", Desc: true}}
+
+var rows []Article
+err := db.NewSelect().Model(&rows).Apply(parser.Keyset(kq, cols)).Scan(ctx)
+
+page := pagination.NewCursorPage(rows, kq, cols, func(a Article) []any {
+    return []any{a.CreatedAt, a.ID} // values in the same order as cols
+})
+// page.Data, page.NextCursor (""=last), page.PrevCursor (""=first)
+```
+
+Supported cursor value types: integers, strings, bools, and `time.Time` (encoded RFC3339). Keyset trades away total/page counts — keep offset `NewPagination` when you need a count.
+
 ### `pagination`
 
-Builds a paginated result envelope (data plus page metadata) for any element type. Guards against a zero page size and clamps page numbers below 1.
+Builds a paginated result envelope (data plus page metadata) for any element type. Guards against a zero page size and clamps page numbers below 1. For cursor-based paging, see `CursorPage` / `NewCursorPage` (above, under `parser`).
 
 **Usage:**
 
