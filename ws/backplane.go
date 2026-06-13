@@ -20,6 +20,7 @@ type backplane[T any] struct {
 	sub     *redis.Subscription
 	ctx     context.Context
 	cancel  context.CancelFunc
+	err     error // subscribe error, if the backplane failed to start
 }
 
 type envelope[T any] struct {
@@ -39,6 +40,7 @@ func newBackplane[T any](h *Hub[T]) *backplane[T] {
 		return nil
 	})
 	if err != nil {
+		b.err = err
 		logger.Default().Error(err, "ws: backplane subscribe", "channel", b.channel)
 		return b
 	}

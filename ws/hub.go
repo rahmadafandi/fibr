@@ -211,6 +211,16 @@ func (h *Hub[T]) Count() int {
 	return len(h.conns)
 }
 
+// BackplaneErr reports a Redis backplane subscription failure, or nil if the
+// backplane is healthy or not configured. A hub with a failed backplane still
+// delivers to its local connections but does not fan out across replicas.
+func (h *Hub[T]) BackplaneErr() error {
+	if h.bp == nil {
+		return nil
+	}
+	return h.bp.err
+}
+
 // Close stops the backplane (if any) and closes all local connections.
 func (h *Hub[T]) Close() error {
 	if h.bp != nil {
