@@ -9,6 +9,7 @@ Go module (`replace`-d to the parent), so run the commands from this directory.
 | [`go run ./auth`](auth/main.go) | Password hashing + JWT access/refresh issuer (rotate, reuse-detect, logout) | — |
 | [`go run ./mailer`](mailer/main.go) | Render an HTML/text email from templates and send it | — |
 | [`go run ./queue`](queue/main.go) | Enqueue a job and process it with an asynq worker | Redis |
+| [`go run ./api`](api/main.go) | Integration: API-key auth + feature flags + in-memory cache + event bus + audit log together | — |
 
 For the queue example, start Redis first:
 
