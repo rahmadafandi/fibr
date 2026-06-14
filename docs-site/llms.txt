@@ -40,6 +40,7 @@ The library is `github.com/rahmadafandi/fibr` (`go get github.com/rahmadafandi/f
 - [tracing](https://pkg.go.dev/github.com/rahmadafandi/fibr/tracing): OpenTelemetry tracing setup (OTLP/HTTP) + Fiber spans.
 - [jobs](https://pkg.go.dev/github.com/rahmadafandi/fibr/jobs): Redis-backed background jobs (asynq) + asynqmon mount, with a `Scheduler` for cron jobs.
 - [outbox](https://pkg.go.dev/github.com/rahmadafandi/fibr/outbox): transactional outbox — `Enqueue` in the same Bun transaction as your write; a `Relay` publishes pending events at-least-once (`NewRedisPublisher`, optional `lock` coordination).
+- [inbox](https://pkg.go.dev/github.com/rahmadafandi/fibr/inbox): idempotent-consumer dedup — `Once(ctx, db, messageID, fn)` processes each message once under at-least-once delivery (consumer-side complement to `outbox`).
 - [events](https://pkg.go.dev/github.com/rahmadafandi/fibr/events): in-process typed event bus (`Subscribe[T]`/`Publish[T]`), sync by default with an opt-in async mode.
 - [featureflag](https://pkg.go.dev/github.com/rahmadafandi/fibr/featureflag): runtime flags (boolean, percentage rollout, per-user/group) via `Static`/`Rules`/`Redis` providers + a Fiber helper.
 - [audit](https://pkg.go.dev/github.com/rahmadafandi/fibr/audit): structured audit log (actor/action/target) via a pluggable `Sink` (`NewBunSink`/`Migrate`/`List`) + a Fiber `FromRequest` helper.

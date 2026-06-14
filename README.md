@@ -116,6 +116,7 @@ For how the packages layer and how `bootstrap` composes them into an app, see
 - [`lock`](#lock) — Single-instance Redis distributed mutex (`TryAcquire`/`Acquire`/`Do`, owner-only `Release`/`Extend`) for single-execution across replicas.
 - [`outbox`](#outbox) — Transactional outbox: enqueue events in the same DB transaction as your writes; a background relay publishes them at-least-once.
 - [`events`](#events) — In-process typed event bus (`Subscribe[T]`/`Publish[T]`), sync by default with opt-in async.
+- [`inbox`](#inbox) — Idempotent-consumer dedup (`Once`); consumer-side complement to `outbox`.
 - [`featureflag`](#featureflag) — Runtime flags (boolean, percentage rollout, per-user/group) via Static/Rules/Redis providers + Fiber helper.
 - [`audit`](#audit) — Structured audit log (actor/action/target) persisted via Bun, with a Fiber request helper.
 - [`cache`](#cache) — Generic in-memory cache (`Cache[V]`) with TTL, LRU eviction, and singleflight `GetOrLoad`.
@@ -703,6 +704,25 @@ go relay.Run(ctx)
 ```
 
 Consumers subscribe with `redis.Subscribe[OrderCreated](...)` — the relay publishes the stored JSON bytes verbatim, so they decode directly. Published rows are kept (for audit); purge them with `DELETE FROM outbox WHERE published_at < ?` on your own schedule.
+
+### `inbox`
+
+The consumer-side complement to `outbox`: at-least-once delivery means a message can arrive twice, so the consumer must dedup. `Once` records a marker and runs your handler in a single transaction — a duplicate message id skips the handler, and a handler error rolls the marker back so the message is retried later.
+
+```go
+import "github.com/rahmadafandi/fibr/inbox"
+
+_ = inbox.Migrate(ctx, db) // once at startup
+
+// In your message/event handler:
+err := inbox.Once(ctx, db, msg.ID, func(ctx context.Context, tx bun.Tx) error {
+    // Do the work through tx so it commits atomically with the dedup marker.
+    _, err := tx.NewInsert().Model(&order).Exec(ctx)
+    return err
+})
+```
+
+Pair it with `outbox` (producer) for end-to-end exactly-once-effect processing over an at-least-once transport. Old markers can be purged with `DELETE FROM inbox WHERE processed_at < ?`.
 
 ### `events`
 
