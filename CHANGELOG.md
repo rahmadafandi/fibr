@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-06-14
+
 ### Added
 
 - `pagination`: `(*CursorPage[T]).LinkHeader(baseURL)` builds an RFC 5988 `Link` header with `rel="next"`/`rel="prev"` from the page cursors.
