@@ -47,13 +47,20 @@ type HTTP struct {
 	BaseURL string
 	Client  *fasthttp.Client
 
-	mu      sync.RWMutex
-	headers map[string]string
-	timeout time.Duration
-	retries int
-	backoff time.Duration
-	breaker *breaker
-	logger  *logger.Logger
+	mu         sync.RWMutex
+	headers    map[string]string
+	timeout    time.Duration
+	retries    int
+	backoff    time.Duration
+	breaker    *breaker
+	ctxHeaders []ctxHeaderRule
+	logger     *logger.Logger
+}
+
+// ctxHeaderRule derives a request header value from the call's context.
+type ctxHeaderRule struct {
+	name string
+	fn   func(context.Context) string
 }
 
 // Option configures an HTTP client.
@@ -77,6 +84,16 @@ func WithCircuitBreaker(maxFailures int, openTimeout time.Duration) Option {
 
 // WithHeader adds a default header sent with every request.
 func WithHeader(key, value string) Option { return func(h *HTTP) { h.headers[key] = value } }
+
+// WithContextHeader sets a per-request header from the call's context: before
+// each request, extract is called with the context and, when it returns a
+// non-empty string, that value is sent as header. Useful for propagating a
+// request id, trace correlation, or tenant downstream.
+func WithContextHeader(header string, extract func(context.Context) string) Option {
+	return func(h *HTTP) {
+		h.ctxHeaders = append(h.ctxHeaders, ctxHeaderRule{name: header, fn: extract})
+	}
+}
 
 // WithClient replaces the underlying fasthttp client.
 func WithClient(c *fasthttp.Client) Option { return func(h *HTTP) { h.Client = c } }
@@ -233,6 +250,11 @@ func breakerFailure(code int, err error) bool {
 // requestRawAttempts runs the retry/backoff loop for a single logical request.
 func (h *HTTP) requestRawAttempts(ctx context.Context, method, path string, payload []byte, contentType string, out any) (int, error) {
 	headers := h.snapshotHeaders()
+	for _, r := range h.ctxHeaders {
+		if v := r.fn(ctx); v != "" {
+			headers[r.name] = v
+		}
+	}
 	attempts := h.retries + 1
 	if attempts < 1 {
 		attempts = 1
