@@ -100,6 +100,7 @@ For how the packages layer and how `bootstrap` composes them into an app, see
 - [`bind`](#parse--validate-with-bind) — Parse and validate a request body/query/params into `T` in one call; writes `400`/`422` on failure.
 - [`jwt`](#jwt) — JWT generation and validation helpers.
 - [`http`](#http) — Context-aware JSON HTTP client with retry.
+- [`retry`](#retry) — Generic retry with exponential backoff + jitter (`Do`/`DoValue`).
 - [`redis`](#redis) — Redis wrapper with `Remember` cache-aside helper. Includes a `Storage` adapter (`NewStorage`) for Redis-backed rate limiting.
 - [`slug`](#slug) — Unique URL-safe slug generator backed by a Bun database.
 - [`uploader`](#uploader) — Local file uploader with size and MIME limits. Also includes `S3Uploader` for S3-compatible storage (AWS S3, MinIO, R2).
@@ -330,6 +331,25 @@ h.FireAndForget(ctx, fhttp.Post, "/events", eventPayload)
 ```
 
 `WithCircuitBreaker` makes the client fail fast with `http.ErrCircuitOpen` once a dependency has failed (transport error or 5xx) `maxFailures` times in a row, then lets a single probe through after the open timeout. 4xx responses do not trip it.
+
+### `retry`
+
+A small generic retry helper with exponential backoff and optional jitter. Use it for any flaky operation (DB calls, third-party APIs, locks) that isn't already covered by the `http` client's built-in retry.
+
+```go
+import "github.com/rahmadafandi/fibr/retry"
+
+err := retry.Do(ctx, func() error {
+    return publish(ctx, msg)
+}, retry.WithAttempts(5), retry.WithDelay(100*time.Millisecond), retry.WithJitter(0.2))
+
+// With a return value, and only retrying some errors:
+user, err := retry.DoValue(ctx, func() (User, error) {
+    return fetchUser(ctx, id)
+}, retry.WithRetryIf(func(e error) bool { return errors.Is(e, ErrTemporary) }))
+```
+
+Backoff is `delay × multiplier^attempt` (capped by `WithMaxDelay`), jittered by `WithJitter`. The sleep is context-aware, so a cancelled context stops the retries promptly.
 
 ### `redis`
 

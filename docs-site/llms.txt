@@ -24,6 +24,7 @@ The library is `github.com/rahmadafandi/fibr` (`go get github.com/rahmadafandi/f
 - [validator](https://pkg.go.dev/github.com/rahmadafandi/fibr/validator): struct validation with custom rules and JSON field names.
 - [bind](https://pkg.go.dev/github.com/rahmadafandi/fibr/bind): parse and validate a request body/query/params into `T` in one call; writes `400`/`422` on failure.
 - [jwt](https://pkg.go.dev/github.com/rahmadafandi/fibr/jwt): JWT generation and validation helpers.
+- [retry](https://pkg.go.dev/github.com/rahmadafandi/fibr/retry): generic retry with exponential backoff + jitter (`Do`/`DoValue[T]`, `WithAttempts`/`WithDelay`/`WithRetryIf`/...).
 - [http](https://pkg.go.dev/github.com/rahmadafandi/fibr/http): context-aware JSON HTTP client with retry, an optional circuit breaker (`WithCircuitBreaker`), and context header propagation (`WithContextHeader`), plus `PostForm` and `PostMultipart`.
 - [redis](https://pkg.go.dev/github.com/rahmadafandi/fibr/redis): Redis wrapper with `Remember` cache-aside (singleflight-deduped), bulk/atomic ops, a `fiber.Storage` adapter, and `Publish`/`Subscribe[T]` pub/sub.
 - [lock](https://pkg.go.dev/github.com/rahmadafandi/fibr/lock): single-instance Redis distributed mutex (`TryAcquire`/`Acquire`/`Do`, owner-only `Release`/`Extend`) for single-execution across replicas.
