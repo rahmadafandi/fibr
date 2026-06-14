@@ -1,0 +1,60 @@
+# fibr
+
+> A collection of helper packages for the [Fiber](https://gofiber.io/) web framework, plus **fibr** — a generator that scaffolds batteries-included Fiber projects. Targets Go 1.26+, Fiber v2, and Bun ORM (Postgres or SQLite).
+
+The library is `github.com/rahmadafandi/fibr` (`go get github.com/rahmadafandi/fibr`); the generator is `go install github.com/rahmadafandi/fibr/cmd/fibr@latest` (`fibr new <name>`). The public API is stable under SemVer: no breaking changes within v1.x (anything breaking goes to `…/fibr/v2`). Full API reference lives on pkg.go.dev.
+
+## Docs
+
+- [Home / quickstart](https://rahmadafandi.github.io/fibr/): install, quickstart, and overview.
+- [Generator](https://rahmadafandi.github.io/fibr/generator/): `fibr new` flags and the scaffolded project layout.
+- [Packages](https://rahmadafandi.github.io/fibr/packages/): one-line summary of every package with API links.
+- [Changelog](https://rahmadafandi.github.io/fibr/changelog/): release history.
+- [README](https://github.com/rahmadafandi/fibr/blob/master/README.md): detailed per-package usage with code examples.
+- [Architecture](https://github.com/rahmadafandi/fibr/blob/master/ARCHITECTURE.md): how the packages layer and how `bootstrap` composes them.
+- [API reference (pkg.go.dev)](https://pkg.go.dev/github.com/rahmadafandi/fibr): full godoc for all packages.
+
+## Packages
+
+- [config](https://pkg.go.dev/github.com/rahmadafandi/fibr/config): load env vars into typed structs with `default`/`required` tags.
+- [logger](https://pkg.go.dev/github.com/rahmadafandi/fibr/logger): structured logger based on zerolog.
+- [response](https://pkg.go.dev/github.com/rahmadafandi/fibr/response): standardized JSON response helpers.
+- [parser](https://pkg.go.dev/github.com/rahmadafandi/fibr/parser): Bun pagination/search query modifiers, including keyset (cursor) pagination (`Keyset`, `EncodeCursor`/`DecodeCursor`).
+- [pagination](https://pkg.go.dev/github.com/rahmadafandi/fibr/pagination): paginated result envelope — offset (`NewPagination`) and cursor (`CursorPage`/`NewCursorPage`, forward + backward).
+- [validator](https://pkg.go.dev/github.com/rahmadafandi/fibr/validator): struct validation with custom rules and JSON field names.
+- [bind](https://pkg.go.dev/github.com/rahmadafandi/fibr/bind): parse and validate a request body/query/params into `T` in one call; writes `400`/`422` on failure.
+- [jwt](https://pkg.go.dev/github.com/rahmadafandi/fibr/jwt): JWT generation and validation helpers.
+- [http](https://pkg.go.dev/github.com/rahmadafandi/fibr/http): context-aware JSON HTTP client with retry and an optional circuit breaker (`WithCircuitBreaker`), plus `PostForm` and `PostMultipart`.
+- [redis](https://pkg.go.dev/github.com/rahmadafandi/fibr/redis): Redis wrapper with `Remember` cache-aside (singleflight-deduped), bulk/atomic ops, a `fiber.Storage` adapter, and `Publish`/`Subscribe[T]` pub/sub.
+- [lock](https://pkg.go.dev/github.com/rahmadafandi/fibr/lock): single-instance Redis distributed mutex (`TryAcquire`/`Acquire`/`Do`, owner-only `Release`/`Extend`) for single-execution across replicas.
+- [slug](https://pkg.go.dev/github.com/rahmadafandi/fibr/slug): unique URL-safe slug generator backed by a Bun database.
+- [uploader](https://pkg.go.dev/github.com/rahmadafandi/fibr/uploader): local file uploader with size/MIME limits, plus `S3Uploader` for S3-compatible storage (AWS S3, MinIO, R2).
+- [middleware](https://pkg.go.dev/github.com/rahmadafandi/fibr/middleware): recover, request logging, and request-id middleware.
+- [context](https://pkg.go.dev/github.com/rahmadafandi/fibr/context): request context, request-id, and type-safe local accessors.
+- [database](https://pkg.go.dev/github.com/rahmadafandi/fibr/database): Bun connector with Postgres/SQLite dialect auto-detection (plus `WithTracing`).
+- [migrate](https://pkg.go.dev/github.com/rahmadafandi/fibr/migrate): versioned migrations with `bun/migrate` and a ready cobra command.
+- [auth](https://pkg.go.dev/github.com/rahmadafandi/fibr/auth): JWT bearer auth, bcrypt, refresh tokens, scopes, and teams/roles helpers.
+- [health](https://pkg.go.dev/github.com/rahmadafandi/fibr/health): liveness/readiness endpoints, dependency probes (`PingBun`/`PingRedis`/`PingHTTP`/`PingTCP`), and a `ReadinessGate` for drain-on-shutdown.
+- [metrics](https://pkg.go.dev/github.com/rahmadafandi/fibr/metrics): Prometheus request metrics middleware + `/metrics` handler.
+- [tracing](https://pkg.go.dev/github.com/rahmadafandi/fibr/tracing): OpenTelemetry tracing setup (OTLP/HTTP) + Fiber spans.
+- [jobs](https://pkg.go.dev/github.com/rahmadafandi/fibr/jobs): Redis-backed background jobs (asynq) + asynqmon mount, with a `Scheduler` for cron jobs.
+- [outbox](https://pkg.go.dev/github.com/rahmadafandi/fibr/outbox): transactional outbox — `Enqueue` in the same Bun transaction as your write; a `Relay` publishes pending events at-least-once (`NewRedisPublisher`, optional `lock` coordination).
+- [events](https://pkg.go.dev/github.com/rahmadafandi/fibr/events): in-process typed event bus (`Subscribe[T]`/`Publish[T]`), sync by default with an opt-in async mode.
+- [featureflag](https://pkg.go.dev/github.com/rahmadafandi/fibr/featureflag): runtime flags (boolean, percentage rollout, per-user/group) via `Static`/`Rules`/`Redis` providers + a Fiber helper.
+- [audit](https://pkg.go.dev/github.com/rahmadafandi/fibr/audit): structured audit log (actor/action/target) via a pluggable `Sink` (`NewBunSink`/`Migrate`/`List`) + a Fiber `FromRequest` helper.
+- [mailer](https://pkg.go.dev/github.com/rahmadafandi/fibr/mailer): transactional email — pluggable `Sender` (SMTP/log/memory) + template render.
+- [server](https://pkg.go.dev/github.com/rahmadafandi/fibr/server): signal-based graceful shutdown via `RunGraceful`, plus `RunGracefulWithConfig` with pre-shutdown hooks and a drain delay.
+- [apierror](https://pkg.go.dev/github.com/rahmadafandi/fibr/apierror): typed HTTP errors + a Fiber `ErrorHandler` that renders them as the JSON envelope; wired by `bootstrap`.
+- [webhook](https://pkg.go.dev/github.com/rahmadafandi/fibr/webhook): HMAC sign/verify (Stripe-style, replay-protected) + inbound verification middleware.
+- [openapi](https://pkg.go.dev/github.com/rahmadafandi/fibr/openapi): generate an OpenAPI 3.0.3 document from registered routes + reflected request/response structs, served with a Swagger UI.
+- [ws](https://pkg.go.dev/github.com/rahmadafandi/fibr/ws): typed WebSocket `Hub[T]` with rooms and JSON broadcast; optional Redis backplane for multi-replica fanout.
+- [sse](https://pkg.go.dev/github.com/rahmadafandi/fibr/sse): Server-Sent Events — a one-way `text/event-stream` helper with JSON event encoding.
+- [i18n](https://pkg.go.dev/github.com/rahmadafandi/fibr/i18n): dependency-free internationalization — a message `Bundle` + locale-detection middleware and `T`/`N`/`Locale` helpers.
+- [fibrtest](https://pkg.go.dev/github.com/rahmadafandi/fibr/fibrtest): test harness — a fluent HTTP client over `*fiber.App`, response assertions, plus `NewDB` and `Token` helpers.
+- [bootstrap](https://pkg.go.dev/github.com/rahmadafandi/fibr/bootstrap): one-call app wiring — middleware, health, DB, metrics, tracing, security headers, compression, idempotency, OpenAPI docs, graceful shutdown.
+
+## Optional
+
+- [Repository](https://github.com/rahmadafandi/fibr): source, issues, and releases.
+- [CHANGELOG](https://github.com/rahmadafandi/fibr/blob/master/CHANGELOG.md): full version history.
+- [Generator templates](https://github.com/rahmadafandi/fibr/tree/master/cmd/fibr/templates): the layouts `fibr new` scaffolds.
