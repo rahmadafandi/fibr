@@ -119,6 +119,7 @@ For how the packages layer and how `bootstrap` composes them into an app, see
 - [`audit`](#audit) — Structured audit log (actor/action/target) persisted via Bun, with a Fiber request helper.
 - [`cache`](#cache) — Generic in-memory cache (`Cache[V]`) with TTL, LRU eviction, and singleflight `GetOrLoad`.
 - [`ratelimit`](#ratelimit) — Redis token-bucket rate limiter (per-key, cost-aware) + Fiber middleware.
+- [`apikey`](#apikey) — API-key auth (hashed keys, scopes, pluggable store) + Fiber middleware.
 - [`mailer`](#mailer) — Transactional email: pluggable `Sender` (SMTP/log/memory) + template render.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
 - [`apierror`](#typed-errors-with-apierror) — Typed HTTP errors (`BadRequest`, `NotFound`, `Conflict`, ...) with a Fiber `ErrorHandler`; installed automatically by `bootstrap`.
@@ -802,6 +803,31 @@ app.Use(l.Middleware(rule, func(c *fiber.Ctx) string { return c.IP() }))
 ```
 
 A heavier endpoint can charge more: `l.Allow(ctx, key, rule, 5)`. On a Redis error the middleware fails open (allows the request) so the limiter can't take the app down.
+
+### `apikey`
+
+API-key authentication, distinct from the JWT-bearer `auth` package — for service-to-service calls and public APIs. A presented key is hashed (SHA-256) and resolved to an identity + scopes via a pluggable `Store`; raw keys are never stored.
+
+```go
+import "github.com/rahmadafandi/fibr/apikey"
+
+// Issue a key: hand `key` to the client, persist `hash`.
+key, hash, _ := apikey.Generate()
+
+a := apikey.New(apikey.Config{Store: apikey.MapStore(map[string]apikey.Identity{
+    hash: {ID: "service-a", Scopes: []string{"read"}},
+})})
+
+app.Use(a.Middleware())                       // reads X-API-Key → 401 or sets identity
+app.Get("/data", a.RequireScope("read"), handler)
+
+app.Get("/whoami", func(c *fiber.Ctx) error {
+    id, _ := apikey.FromContext(c)
+    return c.JSON(id) // {ID, Scopes, Meta}
+})
+```
+
+`MapStore` covers static config and tests; back it with a DB or Redis by implementing `Store` (`Lookup(ctx, keyHash) (*Identity, error)`). The middleware returns `apierror` values, so with `bootstrap` (or `apierror.Handler`) failures render as the standard JSON envelope.
 
 ### mailer
 

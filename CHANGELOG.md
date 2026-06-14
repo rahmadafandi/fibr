@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `cache` package: a generic in-memory cache `Cache[V]` with TTL, LRU max-size eviction, and singleflight `GetOrLoad`. Complements `redis.Remember` (remote) for hot data without a network round-trip.
 - `ratelimit` package: a Redis-backed token-bucket limiter (per-key buckets, cost-per-request via `Allow`) with a Fiber `Middleware` (429 + `Retry-After` + `X-RateLimit-*` headers).
+- `apikey` package: API-key authentication (distinct from JWT `auth`) — hash a presented key and resolve its identity + scopes via a pluggable `Store` (`MapStore`), with `Generate`/`Hash`, a Fiber `Middleware`, `RequireScope`, and `FromContext`/`HasScope`.
 
 ## [1.2.0] - 2026-06-14
 
