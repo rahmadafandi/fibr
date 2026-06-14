@@ -117,6 +117,7 @@ For how the packages layer and how `bootstrap` composes them into an app, see
 - [`events`](#events) — In-process typed event bus (`Subscribe[T]`/`Publish[T]`), sync by default with opt-in async.
 - [`featureflag`](#featureflag) — Runtime flags (boolean, percentage rollout, per-user/group) via Static/Rules/Redis providers + Fiber helper.
 - [`audit`](#audit) — Structured audit log (actor/action/target) persisted via Bun, with a Fiber request helper.
+- [`cache`](#cache) — Generic in-memory cache (`Cache[V]`) with TTL, LRU eviction, and singleflight `GetOrLoad`.
 - [`mailer`](#mailer) — Transactional email: pluggable `Sender` (SMTP/log/memory) + template render.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
 - [`apierror`](#typed-errors-with-apierror) — Typed HTTP errors (`BadRequest`, `NotFound`, `Conflict`, ...) with a Fiber `ErrorHandler`; installed automatically by `bootstrap`.
@@ -757,6 +758,29 @@ entries, _ := audit.List(ctx, db, audit.Filter{Actor: "u1", Limit: 50})
 ```
 
 `Record` is synchronous; for hot paths route it through `outbox` or a goroutine. Implement `Sink` to send entries elsewhere (e.g. a SIEM) instead of the database.
+
+### `cache`
+
+A generic in-process cache with per-entry TTL, LRU max-size eviction, and singleflight load-through. Use it for hot data (config, feature flags, lookups) where a Redis round-trip per read is overkill; `redis.Remember` remains the choice for a cache shared across instances.
+
+```go
+import "github.com/rahmadafandi/fibr/cache"
+
+c := cache.New[User](
+    cache.WithMaxSize(10_000),
+    cache.WithDefaultTTL(time.Minute),
+    cache.WithJanitor(time.Minute), // optional background sweep; call c.Close() to stop
+)
+
+// Load-through: runs the loader once on a miss even under concurrent callers.
+u, err := c.GetOrLoad(ctx, "user:1", func() (User, error) {
+    return repo.FindUser(ctx, 1)
+})
+
+c.Set("k", v); v, ok := c.Get("k"); c.Delete("k")
+```
+
+`Cache[V]` is type-safe (no `any` casts at call sites). Eviction is count-based LRU; expiry is lazy (checked on `Get`) plus an optional janitor.
 
 ### mailer
 
