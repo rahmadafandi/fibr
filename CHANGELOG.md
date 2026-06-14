@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `retry` package: generic retry with exponential backoff + optional jitter — `Do(ctx, fn, opts...)` and `DoValue[T]`, with `WithAttempts`/`WithDelay`/`WithMaxDelay`/`WithMultiplier`/`WithJitter`/`WithRetryIf`.
 - `inbox` package: idempotent-consumer dedup — `Once(ctx, db, messageID, fn)` records a marker and runs fn in one transaction (duplicate IDs skip fn; a failing fn rolls the marker back). The consumer-side complement to `outbox`.
+- `dbresolver` package: explicit read/write split over Bun — `New(primary, replicas...)` with `Writer()` (primary) and `Reader()` (round-robin replica, primary when none), plus `Ping`/`Close`.
 
 ## [1.4.0] - 2026-06-14
 
