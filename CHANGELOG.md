@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-06-14
+
 ### Added
 
 - `retry` package: generic retry with exponential backoff + optional jitter — `Do(ctx, fn, opts...)` and `DoValue[T]`, with `WithAttempts`/`WithDelay`/`WithMaxDelay`/`WithMultiplier`/`WithJitter`/`WithRetryIf`.
