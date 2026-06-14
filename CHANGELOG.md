@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `pagination`: `(*CursorPage[T]).LinkHeader(baseURL)` builds an RFC 5988 `Link` header with `rel="next"`/`rel="prev"` from the page cursors.
+- `http`: `WithContextHeader(header, extract)` sets a per-request header from the call's context (e.g. propagate a request id or trace correlation downstream).
+
 ## [1.3.0] - 2026-06-14
 
 ### Added
