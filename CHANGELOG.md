@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `cache` package: a generic in-memory cache `Cache[V]` with TTL, LRU max-size eviction, and singleflight `GetOrLoad`. Complements `redis.Remember` (remote) for hot data without a network round-trip.
+- `ratelimit` package: a Redis-backed token-bucket limiter (per-key buckets, cost-per-request via `Allow`) with a Fiber `Middleware` (429 + `Retry-After` + `X-RateLimit-*` headers).
 
 ## [1.2.0] - 2026-06-14
 

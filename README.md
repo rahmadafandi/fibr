@@ -118,6 +118,7 @@ For how the packages layer and how `bootstrap` composes them into an app, see
 - [`featureflag`](#featureflag) — Runtime flags (boolean, percentage rollout, per-user/group) via Static/Rules/Redis providers + Fiber helper.
 - [`audit`](#audit) — Structured audit log (actor/action/target) persisted via Bun, with a Fiber request helper.
 - [`cache`](#cache) — Generic in-memory cache (`Cache[V]`) with TTL, LRU eviction, and singleflight `GetOrLoad`.
+- [`ratelimit`](#ratelimit) — Redis token-bucket rate limiter (per-key, cost-aware) + Fiber middleware.
 - [`mailer`](#mailer) — Transactional email: pluggable `Sender` (SMTP/log/memory) + template render.
 - [`server`](#server) — Signal-based graceful shutdown via `RunGraceful`.
 - [`apierror`](#typed-errors-with-apierror) — Typed HTTP errors (`BadRequest`, `NotFound`, `Conflict`, ...) with a Fiber `ErrorHandler`; installed automatically by `bootstrap`.
@@ -781,6 +782,26 @@ c.Set("k", v); v, ok := c.Get("k"); c.Delete("k")
 ```
 
 `Cache[V]` is type-safe (no `any` casts at call sites). Eviction is count-based LRU; expiry is lazy (checked on `Get`) plus an optional janitor.
+
+### `ratelimit`
+
+A Redis-backed **token-bucket** limiter: each key has a bucket of `Capacity` tokens that refills at `RefillPerSec`, and a request consumes `cost` tokens. Unlike Fiber's window limiter, it supports cost-per-request and arbitrary per-key rules — good for API quotas where some endpoints are "more expensive". The refill is computed atomically in a Lua script, so it's correct across instances.
+
+```go
+import "github.com/rahmadafandi/fibr/ratelimit"
+
+l := ratelimit.New(redisClient)
+rule := ratelimit.Rule{Capacity: 100, RefillPerSec: 10} // burst 100, sustain 10/s
+
+// Direct:
+res, err := l.Allow(ctx, "user:"+uid, rule, 1)
+if !res.Allowed { /* res.RetryAfter, res.Remaining */ }
+
+// Fiber middleware — 429 + Retry-After + X-RateLimit-* on deny:
+app.Use(l.Middleware(rule, func(c *fiber.Ctx) string { return c.IP() }))
+```
+
+A heavier endpoint can charge more: `l.Allow(ctx, key, rule, 5)`. On a Redis error the middleware fails open (allows the request) so the limiter can't take the app down.
 
 ### mailer
 

@@ -43,6 +43,7 @@ The library is `github.com/rahmadafandi/fibr` (`go get github.com/rahmadafandi/f
 - [featureflag](https://pkg.go.dev/github.com/rahmadafandi/fibr/featureflag): runtime flags (boolean, percentage rollout, per-user/group) via `Static`/`Rules`/`Redis` providers + a Fiber helper.
 - [audit](https://pkg.go.dev/github.com/rahmadafandi/fibr/audit): structured audit log (actor/action/target) via a pluggable `Sink` (`NewBunSink`/`Migrate`/`List`) + a Fiber `FromRequest` helper.
 - [cache](https://pkg.go.dev/github.com/rahmadafandi/fibr/cache): generic in-memory cache `Cache[V]` with TTL, LRU max-size eviction, and singleflight `GetOrLoad`; complements `redis.Remember`.
+- [ratelimit](https://pkg.go.dev/github.com/rahmadafandi/fibr/ratelimit): Redis token-bucket rate limiter — per-key buckets, cost-per-request (`Allow`), and a Fiber `Middleware` (429 + `Retry-After` + `X-RateLimit-*`).
 - [mailer](https://pkg.go.dev/github.com/rahmadafandi/fibr/mailer): transactional email — pluggable `Sender` (SMTP/log/memory) + template render.
 - [server](https://pkg.go.dev/github.com/rahmadafandi/fibr/server): signal-based graceful shutdown via `RunGraceful`, plus `RunGracefulWithConfig` with pre-shutdown hooks and a drain delay.
 - [apierror](https://pkg.go.dev/github.com/rahmadafandi/fibr/apierror): typed HTTP errors + a Fiber `ErrorHandler` that renders them as the JSON envelope; wired by `bootstrap`.
