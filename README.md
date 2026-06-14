@@ -107,6 +107,7 @@ For how the packages layer and how `bootstrap` composes them into an app, see
 - [`middleware`](#middleware) — Recover, request logging, and request-id middleware.
 - [`context`](#context) — Request context, request-id, and type-safe local accessors.
 - [`database`](#database) — Bun connector with Postgres/SQLite dialect auto-detection.
+- [`dbresolver`](#dbresolver) — Read/write split over Bun: `Writer()` (primary) and `Reader()` (round-robin replica).
 - [`migrate`](#migrate) — Versioned migrations with `bun/migrate` and a ready cobra command.
 - [`auth`](#auth) — JWT bearer authentication and bcrypt password hashing for Fiber.
 - [`health`](#health) — Liveness (`/livez`) and readiness (`/readyz`) endpoints.
@@ -495,6 +496,28 @@ db, err := database.NewBun("postgres://localhost/app",
     database.WithPingTimeout(3*time.Second),
 )
 ```
+
+### `dbresolver`
+
+An explicit read/write split for read-replica deployments: writes go to the primary, reads are spread round-robin across replicas. Routing is explicit (you choose `Reader()` or `Writer()`) — Bun's query hooks are observational and can't redirect a query's connection, so transparent auto-routing isn't offered.
+
+```go
+import "github.com/rahmadafandi/fibr/dbresolver"
+
+primary, _ := database.NewBun("postgres://primary/app")
+r1, _ := database.NewBun("postgres://replica1/app")
+r2, _ := database.NewBun("postgres://replica2/app")
+
+dbr := dbresolver.New(primary, r1, r2)
+defer dbr.Close()
+
+// Writes + read-after-write:
+_, _ = dbr.Writer().NewInsert().Model(&user).Exec(ctx)
+// Reads (round-robin across replicas):
+err := dbr.Reader().NewSelect().Model(&users).Scan(ctx)
+```
+
+With no replicas, `Reader()` returns the primary, so the same code works in single-DB setups.
 
 ### `migrate`
 

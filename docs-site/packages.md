@@ -31,6 +31,7 @@ package below links to its API docs.
 - [`middleware`](https://pkg.go.dev/github.com/rahmadafandi/fibr/middleware) — recover, request logging, and request-id middleware.
 - [`context`](https://pkg.go.dev/github.com/rahmadafandi/fibr/context) — request context, request-id, and type-safe local accessors.
 - [`database`](https://pkg.go.dev/github.com/rahmadafandi/fibr/database) — Bun connector with Postgres/SQLite dialect auto-detection (plus `WithTracing`).
+- [`dbresolver`](https://pkg.go.dev/github.com/rahmadafandi/fibr/dbresolver) — explicit read/write split over Bun: `New(primary, replicas...)` with `Writer()` (primary) and `Reader()` (round-robin replica, primary when none), plus `Ping`/`Close`.
 - [`migrate`](https://pkg.go.dev/github.com/rahmadafandi/fibr/migrate) — versioned migrations with `bun/migrate` and a ready cobra command.
 - [`auth`](https://pkg.go.dev/github.com/rahmadafandi/fibr/auth) — JWT bearer auth, bcrypt, refresh tokens, scopes, and teams/roles helpers.
 - [`health`](https://pkg.go.dev/github.com/rahmadafandi/fibr/health) — liveness (`/livez`) and readiness (`/readyz`) endpoints, dependency probes (`PingBun`/`PingRedis`/`PingHTTP`/`PingTCP`), and a `ReadinessGate` for drain-on-shutdown.
