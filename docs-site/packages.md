@@ -8,11 +8,11 @@ package below links to its API docs.
 - [`logger`](https://pkg.go.dev/github.com/rahmadafandi/fibr/logger) — structured logger based on zerolog.
 - [`response`](https://pkg.go.dev/github.com/rahmadafandi/fibr/response) — standardized JSON response helpers.
 - [`parser`](https://pkg.go.dev/github.com/rahmadafandi/fibr/parser) — Bun pagination/search query modifiers, including keyset (cursor) pagination (`Keyset`, `EncodeCursor`/`DecodeCursor`).
-- [`pagination`](https://pkg.go.dev/github.com/rahmadafandi/fibr/pagination) — paginated result envelope with page metadata: offset (`NewPagination`) and cursor (`CursorPage`/`NewCursorPage`, forward + backward) variants.
+- [`pagination`](https://pkg.go.dev/github.com/rahmadafandi/fibr/pagination) — paginated result envelope with page metadata: offset (`NewPagination`) and cursor (`CursorPage`/`NewCursorPage`, forward + backward, RFC 5988 `LinkHeader`) variants.
 - [`validator`](https://pkg.go.dev/github.com/rahmadafandi/fibr/validator) — struct validation with custom rules and JSON field names.
 - [`bind`](https://pkg.go.dev/github.com/rahmadafandi/fibr/bind) — parse and validate a request body/query/params into `T` in one call; writes `400`/`422` on failure.
 - [`jwt`](https://pkg.go.dev/github.com/rahmadafandi/fibr/jwt) — JWT generation and validation helpers.
-- [`http`](https://pkg.go.dev/github.com/rahmadafandi/fibr/http) — context-aware JSON HTTP client with retry and an optional circuit breaker (`WithCircuitBreaker`), plus `PostForm` and `PostMultipart` (file upload).
+- [`http`](https://pkg.go.dev/github.com/rahmadafandi/fibr/http) — context-aware JSON HTTP client with retry, an optional circuit breaker (`WithCircuitBreaker`), and context header propagation (`WithContextHeader`), plus `PostForm` and `PostMultipart` (file upload).
 - [`redis`](https://pkg.go.dev/github.com/rahmadafandi/fibr/redis) — Redis wrapper with `Remember` cache-aside (singleflight-deduped against cache stampede) plus `Delete`/`Exists`/`Expire`/`TTL` and bulk/atomic ops (`MSet`/`MGet`/`Incr`/`Decr`/`SetNX`/`GetSet`). Includes a `Storage` adapter (fiber.Storage) for Redis-backed rate limiting, and `Publish`/`Subscribe[T]` pub/sub for cross-instance events.
 
   `redis.NewStorage(client)` adapts a go-redis client to `fiber.Storage` — pass it as `bootstrap.Options.RateLimitStorage` for a rate limiter consistent across instances.

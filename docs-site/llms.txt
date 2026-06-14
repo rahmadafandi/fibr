@@ -20,11 +20,11 @@ The library is `github.com/rahmadafandi/fibr` (`go get github.com/rahmadafandi/f
 - [logger](https://pkg.go.dev/github.com/rahmadafandi/fibr/logger): structured logger based on zerolog.
 - [response](https://pkg.go.dev/github.com/rahmadafandi/fibr/response): standardized JSON response helpers.
 - [parser](https://pkg.go.dev/github.com/rahmadafandi/fibr/parser): Bun pagination/search query modifiers, including keyset (cursor) pagination (`Keyset`, `EncodeCursor`/`DecodeCursor`).
-- [pagination](https://pkg.go.dev/github.com/rahmadafandi/fibr/pagination): paginated result envelope — offset (`NewPagination`) and cursor (`CursorPage`/`NewCursorPage`, forward + backward).
+- [pagination](https://pkg.go.dev/github.com/rahmadafandi/fibr/pagination): paginated result envelope — offset (`NewPagination`) and cursor (`CursorPage`/`NewCursorPage`, forward + backward, RFC 5988 `LinkHeader`).
 - [validator](https://pkg.go.dev/github.com/rahmadafandi/fibr/validator): struct validation with custom rules and JSON field names.
 - [bind](https://pkg.go.dev/github.com/rahmadafandi/fibr/bind): parse and validate a request body/query/params into `T` in one call; writes `400`/`422` on failure.
 - [jwt](https://pkg.go.dev/github.com/rahmadafandi/fibr/jwt): JWT generation and validation helpers.
-- [http](https://pkg.go.dev/github.com/rahmadafandi/fibr/http): context-aware JSON HTTP client with retry and an optional circuit breaker (`WithCircuitBreaker`), plus `PostForm` and `PostMultipart`.
+- [http](https://pkg.go.dev/github.com/rahmadafandi/fibr/http): context-aware JSON HTTP client with retry, an optional circuit breaker (`WithCircuitBreaker`), and context header propagation (`WithContextHeader`), plus `PostForm` and `PostMultipart`.
 - [redis](https://pkg.go.dev/github.com/rahmadafandi/fibr/redis): Redis wrapper with `Remember` cache-aside (singleflight-deduped), bulk/atomic ops, a `fiber.Storage` adapter, and `Publish`/`Subscribe[T]` pub/sub.
 - [lock](https://pkg.go.dev/github.com/rahmadafandi/fibr/lock): single-instance Redis distributed mutex (`TryAcquire`/`Acquire`/`Do`, owner-only `Release`/`Extend`) for single-execution across replicas.
 - [slug](https://pkg.go.dev/github.com/rahmadafandi/fibr/slug): unique URL-safe slug generator backed by a Bun database.
