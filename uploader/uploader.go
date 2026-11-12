@@ -5,6 +5,9 @@
 package uploader
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -18,9 +21,17 @@ type Uploader interface {
 	Upload(file multipart.File, filename string) (string, error)
 }
 
+// ContextUploader is an Uploader whose upload can be cancelled. Both
+// LocalUploader and S3Uploader implement it.
+type ContextUploader interface {
+	Uploader
+	UploadContext(ctx context.Context, file multipart.File, filename string) (string, error)
+}
+
 type config struct {
 	maxSize     int64
 	allowedMime []string
+	uniqueNames bool
 	baseURL     string // S3 only
 	keyPrefix   string // S3 only
 }
@@ -33,6 +44,11 @@ func WithMaxSize(bytes int64) Option { return func(c *config) { c.maxSize = byte
 
 // WithAllowedMime rejects uploads whose detected MIME type is not in the list.
 func WithAllowedMime(mimes []string) Option { return func(c *config) { c.allowedMime = mimes } }
+
+// WithUniqueNames prefixes every stored name with a random token
+// ("<16 hex chars>-<name>"). Without it an upload replaces any existing file or
+// object of the same name, so enable it whenever filenames come from users.
+func WithUniqueNames() Option { return func(c *config) { c.uniqueNames = true } }
 
 // WithBaseURL makes S3Uploader.Upload return baseURL+key instead of just the
 // key. For S3Uploader only; LocalUploader ignores it.
@@ -68,7 +84,7 @@ func mimeAllowed(mt *mimetype.MIME, allowed []string) bool {
 }
 
 // validate sanitizes filename, enforces maxSize and allowedMime, and returns the
-// sanitized base name and the detected MIME type. file is rewound to the start.
+// name to store under (the sanitized base name, prefixed when uniqueNames is set) and the detected MIME type. file is rewound to the start.
 func (c config) validate(file multipart.File, filename string) (string, string, error) {
 	safe, err := sanitizeFilename(filename)
 	if err != nil {
@@ -97,6 +113,14 @@ func (c config) validate(file multipart.File, filename string) (string, string, 
 	mt := mimetype.Detect(head[:n])
 	if len(c.allowedMime) > 0 && !mimeAllowed(mt, c.allowedMime) {
 		return "", "", fmt.Errorf("mime type %s not allowed", mt.String())
+	}
+
+	if c.uniqueNames {
+		b := make([]byte, 8)
+		if _, err := rand.Read(b); err != nil {
+			return "", "", fmt.Errorf("uploader: generate name: %w", err)
+		}
+		safe = hex.EncodeToString(b) + "-" + safe
 	}
 
 	return safe, mt.String(), nil

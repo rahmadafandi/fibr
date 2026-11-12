@@ -37,10 +37,13 @@ func newS3Uploader(client objectPutter, bucket string, opts ...Option) *S3Upload
 
 // Upload validates the file, then puts it at <keyPrefix><sanitized-name> in the
 // bucket. It returns the object key, or <baseURL>+key when WithBaseURL is set.
-//
-// The Uploader interface carries no context, so the put uses
-// context.Background(); a per-call context would require an interface change.
+// An existing object of the same key is replaced unless WithUniqueNames is set.
 func (u *S3Uploader) Upload(file multipart.File, filename string) (string, error) {
+	return u.UploadContext(context.Background(), file, filename)
+}
+
+// UploadContext is Upload with a context bounding the put request.
+func (u *S3Uploader) UploadContext(ctx context.Context, file multipart.File, filename string) (string, error) {
 	safe, mimeType, err := u.cfg.validate(file, filename)
 	if err != nil {
 		return "", err
@@ -55,7 +58,7 @@ func (u *S3Uploader) Upload(file multipart.File, filename string) (string, error
 	}
 
 	key := u.cfg.keyPrefix + safe
-	if _, err := u.client.PutObject(context.Background(), u.bucket, key, file, size, minio.PutObjectOptions{ContentType: mimeType}); err != nil {
+	if _, err := u.client.PutObject(ctx, u.bucket, key, file, size, minio.PutObjectOptions{ContentType: mimeType}); err != nil {
 		return "", fmt.Errorf("uploader: put %s: %w", key, err)
 	}
 

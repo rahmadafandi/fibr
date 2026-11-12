@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"testing"
 
 	"github.com/minio/minio-go/v7"
@@ -77,4 +78,42 @@ func TestS3UploadDisallowedMimeBlocksPut(t *testing.T) {
 
 func TestS3ImplementsUploader(t *testing.T) {
 	var _ Uploader = (*S3Uploader)(nil)
+}
+
+func TestUniqueNamesDoNotCollide(t *testing.T) {
+	dir := t.TempDir()
+	u := NewLocalUploader(dir, WithUniqueNames())
+
+	first, err := u.Upload(newFile([]byte("one")), "avatar.png")
+	require.NoError(t, err)
+	second, err := u.Upload(newFile([]byte("two")), "avatar.png")
+	require.NoError(t, err)
+
+	assert.NotEqual(t, first, second)
+	assert.Regexp(t, `[0-9a-f]{16}-avatar\.png$`, first)
+	got, err := os.ReadFile(first)
+	require.NoError(t, err)
+	assert.Equal(t, "one", string(got), "second upload must not overwrite the first")
+}
+
+func TestS3UniqueNamesKeepPrefix(t *testing.T) {
+	fp := &fakePutter{}
+	u := newS3Uploader(fp, "b", WithKeyPrefix("avatars/"), WithUniqueNames())
+	got, err := u.Upload(newFile([]byte("hello")), "photo.png")
+	require.NoError(t, err)
+	assert.Regexp(t, `^avatars/[0-9a-f]{16}-photo\.png$`, got)
+}
+
+func TestUploadContextCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := NewLocalUploader(t.TempDir()).UploadContext(ctx, newFile([]byte("x")), "a.txt")
+	assert.ErrorIs(t, err, context.Canceled)
+
+	fp := &fakePutter{}
+	var cu ContextUploader = newS3Uploader(fp, "b")
+	_, err = cu.UploadContext(context.Background(), newFile([]byte("x")), "a.txt")
+	require.NoError(t, err)
+	assert.Equal(t, 1, fp.calls)
 }
