@@ -115,3 +115,22 @@ func Handler(c *fiber.Ctx, err error) error {
 		Status:  "error",
 	})
 }
+
+// StatusOf returns the HTTP status Handler would respond with for err: an
+// *Error's Status, a *fiber.Error's Code, 500 for any other error, and 200 for
+// nil. Middleware uses it to learn the final status before Fiber's error
+// handler has run.
+func StatusOf(err error) int {
+	if err == nil {
+		return fiber.StatusOK
+	}
+	var ae *Error
+	if errors.As(err, &ae) {
+		return ae.Status
+	}
+	var fe *fiber.Error
+	if errors.As(err, &fe) {
+		return fe.Code
+	}
+	return fiber.StatusInternalServerError
+}

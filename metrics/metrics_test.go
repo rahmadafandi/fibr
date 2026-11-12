@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/rahmadafandi/fibr/apierror"
 	"github.com/rahmadafandi/fibr/metrics"
 	"github.com/stretchr/testify/require"
 )
@@ -50,4 +51,20 @@ func TestMiddlewareRecordsErrorStatus(t *testing.T) {
 	require.NoError(t, err)
 	body, _ := io.ReadAll(resp.Body)
 	require.Contains(t, string(body), `path="/boom",status="503"`)
+}
+
+func TestMiddlewareRecordsAPIErrorStatus(t *testing.T) {
+	app := fiber.New(fiber.Config{ErrorHandler: apierror.Handler})
+	app.Use(metrics.Middleware())
+	app.Get("/missing", func(c *fiber.Ctx) error { return apierror.NotFound("nope") })
+	app.Get(metrics.MetricsPath, metrics.Handler())
+
+	resp, err := app.Test(httptest.NewRequest("GET", "/missing", nil))
+	require.NoError(t, err)
+	require.Equal(t, 404, resp.StatusCode)
+
+	resp, err = app.Test(httptest.NewRequest("GET", "/metrics", nil))
+	require.NoError(t, err)
+	body, _ := io.ReadAll(resp.Body)
+	require.Contains(t, string(body), `path="/missing",status="404"`)
 }

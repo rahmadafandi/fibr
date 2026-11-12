@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/rahmadafandi/fibr/apierror"
 	"github.com/rahmadafandi/fibr/context"
 	"github.com/rahmadafandi/fibr/logger"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -22,10 +23,17 @@ func RequestLogger(logger *logger.Logger) fiber.Handler {
 
 		stop := time.Now()
 
+		// Fiber's error handler runs after this middleware returns, so for a
+		// returned error the response status is not set yet.
+		status := c.Response().StatusCode()
+		if err != nil {
+			status = apierror.StatusOf(err)
+		}
+
 		fields := []any{
 			"method", c.Method(),
 			"path", c.Path(),
-			"status", c.Response().StatusCode(),
+			"status", status,
 			"latency", stop.Sub(start).String(),
 			"request_id", context.GetRequestID(c),
 		}

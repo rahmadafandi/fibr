@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/rahmadafandi/fibr/apierror"
 	"github.com/rahmadafandi/fibr/logger"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -84,4 +85,16 @@ func TestRequestLoggerNoTraceIDsWithoutSpan(t *testing.T) {
 	_, err := app.Test(httptest.NewRequest("GET", "/", nil))
 	require.NoError(t, err)
 	require.NotContains(t, buf.String(), "trace_id")
+}
+
+func TestRequestLoggerLogsStatusOfReturnedError(t *testing.T) {
+	var buf bytes.Buffer
+	app := fiber.New(fiber.Config{ErrorHandler: apierror.Handler})
+	app.Use(RequestLogger(logger.New(&buf, zerolog.InfoLevel)))
+	app.Get("/x", func(c *fiber.Ctx) error { return apierror.NotFound("nope") })
+
+	resp, err := app.Test(httptest.NewRequest("GET", "/x", nil))
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
+	assert.Contains(t, buf.String(), `"status":404`)
 }
