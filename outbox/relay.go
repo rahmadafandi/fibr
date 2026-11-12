@@ -151,7 +151,9 @@ func (r *Relay) process(ctx context.Context, renew func() error) (int, error) {
 			}
 		}
 		if err := r.pub.Publish(ctx, e.Topic, e.Payload); err != nil {
-			if !r.exhausted(e.ID) {
+			// A cancelled context (shutdown) says nothing about the event, so
+			// it must not count towards WithMaxAttempts.
+			if ctx.Err() != nil || !r.exhausted(e.ID) {
 				return published, fmt.Errorf("outbox: publish event %d: %w", e.ID, err)
 			}
 			if derr := r.deadLetter(ctx, e, err); derr != nil {

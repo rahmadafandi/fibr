@@ -98,3 +98,27 @@ func TestRequestLoggerLogsStatusOfReturnedError(t *testing.T) {
 	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
 	assert.Contains(t, buf.String(), `"status":404`)
 }
+
+func TestContextMiddlewareScopesUserContext(t *testing.T) {
+	type key struct{}
+	app := fiber.New()
+	// Outer middleware: sets a value before, and uses the context after Next.
+	app.Use(func(c *fiber.Ctx) error {
+		c.SetUserContext(context.WithValue(context.Background(), key{}, "outer"))
+		err := c.Next()
+		assert.NoError(t, c.UserContext().Err(), "outer middleware must not see the cancelled request context")
+		return err
+	})
+	app.Use(ContextMiddleware(time.Second))
+	app.Get("/", func(c *fiber.Ctx) error {
+		ctx := c.UserContext()
+		assert.Equal(t, "outer", ctx.Value(key{}), "values from earlier middleware are kept")
+		_, hasDeadline := ctx.Deadline()
+		assert.True(t, hasDeadline)
+		assert.NotEmpty(t, ctx.Value(RequestIDKey))
+		return nil
+	})
+	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+}

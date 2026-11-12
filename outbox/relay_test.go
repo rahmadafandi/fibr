@@ -316,3 +316,30 @@ func (s *syncBuffer) String() string {
 	defer s.mu.Unlock()
 	return s.b.String()
 }
+
+func TestCancelledContextDoesNotCountAsAttempt(t *testing.T) {
+	db, bg := newDB(t)
+	require.NoError(t, outbox.Enqueue(bg, db, "a", nil))
+
+	ctx, cancel := context.WithCancel(bg)
+	pub := funcPublisher(func(string) error {
+		if ctx.Err() == nil {
+			cancel() // first call: the relay is shutting down mid-publish
+			return context.Canceled
+		}
+		return errors.New("publish boom")
+	})
+	relay := outbox.NewRelay(db, pub, outbox.WithMaxAttempts(2),
+		outbox.WithLogger(logger.New(io.Discard, logger.ErrorLevel)))
+
+	_, err := relay.Process(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+
+	// One genuine failure afterwards is attempt 1 of 2, so the event stays.
+	_, err = relay.Process(bg)
+	require.Error(t, err)
+	dead, err := db.NewSelect().Model((*outbox.DeadEvent)(nil)).Count(bg)
+	require.NoError(t, err)
+	assert.Zero(t, dead, "the cancelled publish must not count towards WithMaxAttempts")
+	assert.Len(t, pending(t, db, bg), 1)
+}
