@@ -4,7 +4,6 @@ package outbox
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -33,6 +32,14 @@ type Relay struct {
 	locker  *lock.Locker
 	lockKey string
 	lockTTL time.Duration
+
+	log         *logger.Logger
+	maxAttempts int
+	// Consecutive publish failures of the event at the head of the queue.
+	// ponytail: in-memory, so the count restarts with the process and is per
+	// replica; persist it in the outbox row if exact attempt counts matter.
+	failID    int64
+	failCount int
 }
 
 // RelayOption configures a Relay.
@@ -57,8 +64,26 @@ func WithInterval(d time.Duration) RelayOption {
 	}
 }
 
+// WithMaxAttempts moves an event to the outbox_dead table (see DeadEvent) once
+// its publish has failed n times in a row, so one poison event cannot block the
+// queue forever. The default, 0, retries the head event indefinitely.
+func WithMaxAttempts(n int) RelayOption {
+	return func(r *Relay) { r.maxAttempts = n }
+}
+
+// WithLogger sets the logger Run reports Process errors to. The default is
+// logger.Default().
+func WithLogger(l *logger.Logger) RelayOption {
+	return func(r *Relay) {
+		if l != nil {
+			r.log = l
+		}
+	}
+}
+
 // WithLock makes Process run each batch under a distributed lock, so only one
-// replica relays at a time. key and ttl are passed to lock.Do.
+// replica relays at a time. The lock is held for ttl and renewed before every
+// event, so ttl only needs to exceed the time to publish a single event.
 func WithLock(l *lock.Locker, key string, ttl time.Duration) RelayOption {
 	return func(r *Relay) {
 		r.locker = l
@@ -74,6 +99,7 @@ func NewRelay(db *bun.DB, pub Publisher, opts ...RelayOption) *Relay {
 		pub:       pub,
 		batchSize: defaultBatchSize,
 		interval:  defaultInterval,
+		log:       logger.Default(),
 	}
 	for _, opt := range opts {
 		opt(r)
@@ -84,26 +110,28 @@ func NewRelay(db *bun.DB, pub Publisher, opts ...RelayOption) *Relay {
 // Process publishes one batch of pending events, oldest first, up to the
 // configured batch size. Each event's PublishedAt is set only after its Publish
 // succeeds; a Publish error stops the batch and is returned, leaving the failed
-// event and the rest pending. It returns the number of events published. When a
+// event and the rest pending (unless WithMaxAttempts dead-letters it, in which
+// case the batch continues). It returns the number of events published. When a
 // Locker is configured and another replica holds the lock, Process returns
-// (0, nil).
+// (0, nil). Process must not be called concurrently on the same Relay.
 func (r *Relay) Process(ctx context.Context) (int, error) {
 	if r.locker == nil {
-		return r.process(ctx)
+		return r.process(ctx, nil)
 	}
-	var n int
-	err := r.locker.Do(ctx, r.lockKey, r.lockTTL, func() error {
-		var perr error
-		n, perr = r.process(ctx)
-		return perr
-	})
-	if errors.Is(err, lock.ErrNotAcquired) {
+	lk, ok, err := r.locker.TryAcquire(ctx, r.lockKey, r.lockTTL)
+	if err != nil {
+		return 0, err
+	}
+	if !ok {
 		return 0, nil
 	}
-	return n, err
+	defer func() { _ = lk.Release(context.WithoutCancel(ctx)) }()
+	return r.process(ctx, func() error { return lk.Extend(ctx, r.lockTTL) })
 }
 
-func (r *Relay) process(ctx context.Context) (int, error) {
+// process runs one batch. renew, when non-nil, is called before each event to
+// keep the relay lock alive; its failure means the lock was lost.
+func (r *Relay) process(ctx context.Context, renew func() error) (int, error) {
 	var events []Event
 	if err := r.db.NewSelect().
 		Model(&events).
@@ -117,8 +145,21 @@ func (r *Relay) process(ctx context.Context) (int, error) {
 	published := 0
 	for i := range events {
 		e := &events[i]
+		if renew != nil {
+			if err := renew(); err != nil {
+				return published, fmt.Errorf("outbox: renew relay lock: %w", err)
+			}
+		}
 		if err := r.pub.Publish(ctx, e.Topic, e.Payload); err != nil {
-			return published, fmt.Errorf("outbox: publish event %d: %w", e.ID, err)
+			// A cancelled context (shutdown) says nothing about the event, so
+			// it must not count towards WithMaxAttempts.
+			if ctx.Err() != nil || !r.exhausted(e.ID) {
+				return published, fmt.Errorf("outbox: publish event %d: %w", e.ID, err)
+			}
+			if derr := r.deadLetter(ctx, e, err); derr != nil {
+				return published, derr
+			}
+			continue
 		}
 		now := time.Now()
 		if _, err := r.db.NewUpdate().
@@ -133,11 +174,47 @@ func (r *Relay) process(ctx context.Context) (int, error) {
 	return published, nil
 }
 
+// exhausted records one more failed attempt for event id and reports whether it
+// has now used up WithMaxAttempts.
+func (r *Relay) exhausted(id int64) bool {
+	if r.maxAttempts <= 0 {
+		return false
+	}
+	if r.failID != id {
+		r.failID, r.failCount = id, 0
+	}
+	r.failCount++
+	return r.failCount >= r.maxAttempts
+}
+
+// deadLetter moves e from the outbox to outbox_dead in one transaction.
+func (r *Relay) deadLetter(ctx context.Context, e *Event, cause error) error {
+	err := r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		dead := &DeadEvent{
+			ID:        e.ID,
+			Topic:     e.Topic,
+			Payload:   e.Payload,
+			CreatedAt: e.CreatedAt,
+			FailedAt:  time.Now(),
+			Error:     cause.Error(),
+		}
+		if _, err := tx.NewInsert().Model(dead).Exec(ctx); err != nil {
+			return err
+		}
+		_, err := tx.NewDelete().Model(e).WherePK().Exec(ctx)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("outbox: dead-letter event %d: %w", e.ID, err)
+	}
+	r.log.Error(cause, "outbox: event moved to dead-letter table", "event_id", e.ID, "topic", e.Topic)
+	return nil
+}
+
 // Run calls Process every interval until ctx is cancelled, returning ctx.Err().
 // A Process error is logged and the loop continues, so a transient publish
 // failure does not stop the relay.
 func (r *Relay) Run(ctx context.Context) error {
-	log := logger.Default()
 	ticker := time.NewTicker(r.interval)
 	defer ticker.Stop()
 	for {
@@ -146,7 +223,7 @@ func (r *Relay) Run(ctx context.Context) error {
 			return ctx.Err()
 		case <-ticker.C:
 			if _, err := r.Process(ctx); err != nil {
-				log.Error(err, "outbox: relay process failed")
+				r.log.Error(err, "outbox: relay process failed")
 			}
 		}
 	}

@@ -32,7 +32,7 @@ type KeysetQuery struct {
 
 // Keyset returns a Bun query modifier that applies the keyset seek predicate,
 // ORDER BY, and LIMIT+1 (one extra row, so pagination.NewCursorPage can detect
-// a further page). The cursor is decoded into one value per column; an empty or
+// a further page). The limit is clamped to MaxLimit. The cursor is decoded into one value per column; an empty or
 // malformed cursor yields the first page (no seek predicate). When any column
 // name is not a simple identifier, ordering is skipped (defence-in-depth
 // against injection) and only the limit is applied.
@@ -40,10 +40,7 @@ type KeysetQuery struct {
 // Use it via query.Apply(Keyset(kq, cols)).
 func Keyset(kq KeysetQuery, cols []KeysetColumn) func(*bun.SelectQuery) *bun.SelectQuery {
 	return func(q *bun.SelectQuery) *bun.SelectQuery {
-		limit := kq.Limit
-		if limit <= 0 {
-			limit = defaultKeysetLimit
-		}
+		limit := clampLimit(kq.Limit, defaultKeysetLimit)
 
 		if len(cols) == 0 || !keysetColumnsValid(cols) {
 			return q.Limit(limit + 1)

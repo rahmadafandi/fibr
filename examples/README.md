@@ -11,6 +11,10 @@ Go module (`replace`-d to the parent), so run the commands from this directory.
 | [`go run ./queue`](queue/main.go) | Enqueue a job and process it with an asynq worker | Redis |
 | [`go run ./api`](api/main.go) | Integration: API-key auth + feature flags + in-memory cache + event bus + audit log together | — |
 
+Every example runs without configuration. To override settings, copy
+`.env.example` to `.env` (git-ignored); `config.LoadConfig` reads it from the
+working directory.
+
 For the queue example, start Redis first:
 
 ```bash

@@ -5,10 +5,12 @@ package parser
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 	"github.com/uptrace/bun/driver/sqliteshim"
 )
@@ -99,14 +101,30 @@ func TestPaginateSorting(t *testing.T) {
 	assert.Equal(t, "echo", got[0].Name)
 }
 
-func TestApplySearchBuildsILIKECondition(t *testing.T) {
-	// SQLite has no ILIKE, so we don't execute the search; we verify the
-	// generated SQL contains the ILIKE condition.
+func TestSearchRunsOnSQLiteCaseInsensitively(t *testing.T) {
 	db := newBunDB(t)
-	q := db.NewSelect().Model((*article)(nil)).Apply(Count("foo", []string{"name", "a.id"}))
-	sqlStr := q.String()
-	assert.Contains(t, sqlStr, "ILIKE")
-	assert.Contains(t, sqlStr, "name")
+	var got []article
+	err := db.NewSelect().Model(&got).Apply(Count("ALPH", []string{"name"})).Scan(context.Background())
+	assert.NoError(t, err)
+	assert.Len(t, got, 1)
+}
+
+func TestSearchUsesILIKEOnPostgres(t *testing.T) {
+	db := bun.NewDB(nil, pgdialect.New())
+	sqlStr := db.NewSelect().Model((*article)(nil)).Apply(Count("foo", []string{"name", "a.id"})).String()
+	assert.Contains(t, sqlStr, "name ILIKE '%foo%' OR a.id ILIKE '%foo%'")
+}
+
+func TestLimitClampedToMaxLimit(t *testing.T) {
+	db := newBunDB(t)
+
+	pq := &PaginationQuery{Limit: MaxLimit + 1}
+	q := db.NewSelect().Model((*article)(nil)).Apply(Paginate(pq, nil))
+	assert.Equal(t, MaxLimit, pq.Limit)
+	assert.Contains(t, q.String(), fmt.Sprintf("LIMIT %d", MaxLimit))
+
+	kq := db.NewSelect().Model((*article)(nil)).Apply(Keyset(KeysetQuery{Limit: MaxLimit * 10}, nil))
+	assert.Contains(t, kq.String(), fmt.Sprintf("LIMIT %d", MaxLimit+1))
 }
 
 func TestApplySortingRejectsInjection(t *testing.T) {

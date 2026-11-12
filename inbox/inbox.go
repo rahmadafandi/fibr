@@ -54,3 +54,17 @@ func Once(ctx context.Context, db *bun.DB, messageID string, fn func(ctx context
 		return fn(ctx, tx)
 	})
 }
+
+// Prune deletes markers processed more than olderThan ago and returns how many
+// were removed. Markers are never deleted otherwise; keep them for at least as
+// long as a message can still be redelivered.
+func Prune(ctx context.Context, db bun.IDB, olderThan time.Duration) (int64, error) {
+	res, err := db.NewDelete().
+		Model((*Entry)(nil)).
+		Where("processed_at < ?", time.Now().Add(-olderThan)).
+		Exec(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("inbox: prune: %w", err)
+	}
+	return res.RowsAffected()
+}

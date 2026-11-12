@@ -94,7 +94,8 @@ func (l *Locker) Acquire(ctx context.Context, key string, ttl time.Duration) (*L
 
 // Do acquires key for ttl, runs fn, then releases the lock. It returns
 // ErrNotAcquired without running fn if the lock is held by another owner.
-// Release errors are ignored; the error from fn is returned.
+// The lock is released even when ctx is cancelled while fn runs. Release errors
+// are ignored; the error from fn is returned.
 func (l *Locker) Do(ctx context.Context, key string, ttl time.Duration, fn func() error) error {
 	lk, ok, err := l.TryAcquire(ctx, key, ttl)
 	if err != nil {
@@ -103,6 +104,6 @@ func (l *Locker) Do(ctx context.Context, key string, ttl time.Duration, fn func(
 	if !ok {
 		return ErrNotAcquired
 	}
-	defer func() { _ = lk.Release(ctx) }()
+	defer func() { _ = lk.Release(context.WithoutCancel(ctx)) }()
 	return fn()
 }

@@ -49,11 +49,15 @@ type AsynqmonMount struct {
 
 // Options configures the bootstrapped app. All fields are optional.
 type Options struct {
-	Logger             *logger.Logger
-	RequestTimeout     time.Duration
-	ShutdownTimeout    time.Duration
-	DB                 *bun.DB
-	EnableCORS         bool
+	Logger          *logger.Logger
+	RequestTimeout  time.Duration
+	ShutdownTimeout time.Duration
+	DB              *bun.DB
+	EnableCORS      bool
+	// CORS, if non-nil, enables CORS with this configuration (EnableCORS is
+	// then implied). EnableCORS alone uses Fiber's defaults, which allow every
+	// origin; set CORS to restrict AllowOrigins in production.
+	CORS               *cors.Config
 	RateLimit          int
 	RateLimitStorage   fiber.Storage
 	SecurityHeaders    bool
@@ -97,6 +101,11 @@ func New(o Options) *App {
 	}
 	f := fiber.New(o.FiberConfig)
 	f.Use(middleware.Recover(o.Logger))
+	// Tracing goes before ContextMiddleware so the request context it builds
+	// is a child of the request span.
+	if o.Tracing {
+		f.Use(otelfiber.Middleware())
+	}
 	f.Use(middleware.ContextMiddleware(o.RequestTimeout))
 	if o.I18n != nil {
 		f.Use(i18n.Middleware(o.I18n))
@@ -109,9 +118,6 @@ func New(o Options) *App {
 	}
 	if o.Idempotency {
 		f.Use(idempotency.New(idempotency.Config{Storage: o.IdempotencyStorage}))
-	}
-	if o.Tracing {
-		f.Use(otelfiber.Middleware())
 	}
 	f.Use(middleware.RequestLogger(o.Logger))
 	if o.Metrics {
@@ -145,7 +151,9 @@ func New(o Options) *App {
 		f.Use(args...)
 	}
 
-	if o.EnableCORS {
+	if o.CORS != nil {
+		f.Use(cors.New(*o.CORS))
+	} else if o.EnableCORS {
 		f.Use(cors.New())
 	}
 	if o.RateLimit > 0 {

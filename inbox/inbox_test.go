@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -78,4 +79,25 @@ func TestOnceRollsBackOnError(t *testing.T) {
 func TestMigrateIdempotent(t *testing.T) {
 	db, ctx := newDB(t)
 	require.NoError(t, inbox.Migrate(ctx, db))
+}
+
+func TestPruneDeletesOnlyOldMarkers(t *testing.T) {
+	db, ctx := newDB(t)
+	noop := func(context.Context, bun.Tx) error { return nil }
+	require.NoError(t, inbox.Once(ctx, db, "old", noop))
+	require.NoError(t, inbox.Once(ctx, db, "recent", noop))
+	_, err := db.NewUpdate().Model((*inbox.Entry)(nil)).
+		Set("processed_at = ?", time.Now().Add(-48*time.Hour)).Where("message_id = ?", "old").Exec(ctx)
+	require.NoError(t, err)
+
+	n, err := inbox.Prune(ctx, db, 24*time.Hour)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, n)
+
+	// The pruned id can be processed again; the recent one is still deduped.
+	runs := 0
+	count := func(context.Context, bun.Tx) error { runs++; return nil }
+	require.NoError(t, inbox.Once(ctx, db, "old", count))
+	require.NoError(t, inbox.Once(ctx, db, "recent", count))
+	assert.Equal(t, 1, runs)
 }

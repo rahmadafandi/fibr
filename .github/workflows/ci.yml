@@ -36,12 +36,42 @@ jobs:
           cache: true
       - uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2.15.0
           # The repo was renamed (fiber-helpers -> fibr); a stale analysis cache
           # keyed to the old checkout path made golangci-lint resolve files under
           # the wrong directory and drop //nolint directives. Skip its cache so
           # runs are deterministic.
           skip-cache: true
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: fibr
+          POSTGRES_PASSWORD: fibr
+          POSTGRES_DB: fibr_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U fibr -d fibr_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      FIBR_TEST_POSTGRES_DSN: postgres://fibr:fibr@127.0.0.1:5432/fibr_test?sslmode=disable
+      FIBR_TEST_REDIS_URL: redis://127.0.0.1:6379/1
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: make integration
 
   e2e:
     runs-on: ubuntu-latest

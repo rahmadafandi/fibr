@@ -19,6 +19,16 @@ End-to-end generator tests (slower; they generate and compile apps) are gated:
 RUN_E2E=1 go test ./cmd/fibr/
 ```
 
+Integration tests run against a real Postgres and Redis and are skipped unless
+both are configured. Point them at a disposable database — the tests create and
+drop the `outbox`, `outbox_dead`, `inbox`, and `articles` tables:
+
+```bash
+FIBR_TEST_POSTGRES_DSN='postgres://user:pass@127.0.0.1:5432/fibr_test?sslmode=disable' \
+FIBR_TEST_REDIS_URL='redis://127.0.0.1:6379/1' \
+make integration
+```
+
 ## Before opening a pull request
 
 - `go build ./...`, `go vet ./...`, and `go test ./...` pass.

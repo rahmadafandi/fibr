@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+
+	"github.com/rahmadafandi/fibr/logger"
 )
 
 const keyPrefix = "ratelimit:"
@@ -41,11 +43,29 @@ return {allowed, math.floor(tokens)}`)
 type Limiter struct {
 	client redis.UniversalClient
 	now    func() time.Time
+	log    *logger.Logger
+}
+
+// Option configures a Limiter.
+type Option func(*Limiter)
+
+// WithLogger sets the logger Middleware reports Redis failures to. The default
+// is logger.Default().
+func WithLogger(l *logger.Logger) Option {
+	return func(lim *Limiter) {
+		if l != nil {
+			lim.log = l
+		}
+	}
 }
 
 // New returns a Limiter using the given Redis client.
-func New(client redis.UniversalClient) *Limiter {
-	return &Limiter{client: client, now: time.Now}
+func New(client redis.UniversalClient, opts ...Option) *Limiter {
+	l := &Limiter{client: client, now: time.Now, log: logger.Default()}
+	for _, opt := range opts {
+		opt(l)
+	}
+	return l
 }
 
 // Rule defines a bucket: Capacity tokens, refilled at RefillPerSec tokens/sec.

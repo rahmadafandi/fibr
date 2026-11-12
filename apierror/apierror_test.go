@@ -4,6 +4,7 @@ package apierror_test
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http/httptest"
 	"testing"
@@ -104,4 +105,12 @@ func TestHandlerGenericNoLeak(t *testing.T) {
 	assert.Equal(t, 500, resp.StatusCode)
 	assert.NotContains(t, string(body), "secret internal detail")
 	assert.Contains(t, string(body), `"status":"error"`)
+}
+
+func TestStatusOf(t *testing.T) {
+	assert.Equal(t, fiber.StatusOK, apierror.StatusOf(nil))
+	assert.Equal(t, fiber.StatusNotFound, apierror.StatusOf(apierror.NotFound("x")))
+	assert.Equal(t, fiber.StatusConflict, apierror.StatusOf(fmt.Errorf("wrapped: %w", apierror.Conflict("x"))))
+	assert.Equal(t, fiber.StatusTeapot, apierror.StatusOf(fiber.NewError(fiber.StatusTeapot)))
+	assert.Equal(t, fiber.StatusInternalServerError, apierror.StatusOf(errors.New("boom")))
 }

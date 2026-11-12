@@ -9,7 +9,24 @@ import (
 	"strings"
 
 	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect"
 )
+
+// MaxLimit caps the page size Paginate and Keyset will apply, so a client
+// cannot request an unbounded page. Larger limits are clamped. Set it to 0 to
+// disable the cap.
+var MaxLimit = 1000
+
+// clampLimit applies the default for a non-positive limit and the MaxLimit cap.
+func clampLimit(limit, def int) int {
+	if limit <= 0 {
+		return def
+	}
+	if MaxLimit > 0 && limit > MaxLimit {
+		return MaxLimit
+	}
+	return limit
+}
 
 // PaginationQuery is a struct for holding pagination query parameters.
 type PaginationQuery struct {
@@ -45,7 +62,8 @@ func (p *PaginationQuery) Validate(sortOptions []string) error {
 // page/limit offsets. Use it via query.Apply(Paginate(pq, columns)).
 //
 // pq.Page and pq.Limit are normalised in place to their defaults (1 and 10)
-// when non-positive. Invalid sort/order values are ignored; call
+// when non-positive, and pq.Limit is clamped to MaxLimit. Search is
+// case-insensitive: ILIKE on Postgres, LIKE elsewhere. Invalid sort/order values are ignored; call
 // pq.Validate first to surface them as errors.
 func Paginate(pq *PaginationQuery, columnsSearchable []string) func(*bun.SelectQuery) *bun.SelectQuery {
 	return func(q *bun.SelectQuery) *bun.SelectQuery {
@@ -68,9 +86,7 @@ func applyPaginationDefaults(q *bun.SelectQuery, pq *PaginationQuery) *bun.Selec
 	if pq.Page <= 0 {
 		pq.Page = 1
 	}
-	if pq.Limit <= 0 {
-		pq.Limit = 10
-	}
+	pq.Limit = clampLimit(pq.Limit, 10)
 	offset := (pq.Page - 1) * pq.Limit
 	return q.Offset(offset).Limit(pq.Limit)
 }
@@ -80,7 +96,13 @@ func applySearch(q *bun.SelectQuery, search string, columnsSearchable []string) 
 		return q
 	}
 	searchPattern := "%" + search + "%"
-	condition := strings.Join(columnsSearchable, " ILIKE ? OR ") + " ILIKE ?"
+	// Only Postgres has ILIKE; LIKE is already case-insensitive (for ASCII) on
+	// SQLite and under MySQL's default collations.
+	op := " LIKE ?"
+	if q.Dialect().Name() == dialect.PG {
+		op = " ILIKE ?"
+	}
+	condition := strings.Join(columnsSearchable, op+" OR ") + op
 
 	// Example:
 	// columnsSearchable = []string{"name", "slug"}, search = "test"

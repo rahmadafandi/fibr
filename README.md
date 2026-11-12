@@ -205,6 +205,8 @@ err = db.NewSelect().Model(&rows).Apply(parser.Paginate(pq, []string{"name"})).S
 count, err := db.NewSelect().Model(&rows).Apply(parser.Count(pq.Search, []string{"name"})).Count(ctx)
 ```
 
+Search is case-insensitive on every supported database (`ILIKE` on Postgres, `LIKE` elsewhere). The page size is clamped to `parser.MaxLimit` (default `1000`) so a client cannot request an unbounded page; lower it at startup (`parser.MaxLimit = 100`) or set it to `0` to disable the cap. The same cap applies to `Keyset`.
+
 #### Keyset (cursor) pagination
 
 For large tables or infinite scroll, `parser.Keyset` paginates by a cursor instead of an offset — it seeks straight to the cursor position on an index, so it stays O(limit) at any depth and is stable under concurrent inserts (no shifting rows). It supports forward and backward navigation via opaque cursors.
@@ -296,12 +298,17 @@ A helper package for working with JSON Web Tokens.
 ```go
 import "github.com/rahmadafandi/fibr/jwt"
 
-// Generate a token
-token, err := jwt.GenerateToken(claims, secret)
+// Generate a token that expires (preferred)
+token, err := jwt.GenerateTokenWithExpiry(claims, secret, 15*time.Minute)
+
+// Generate a token without an "exp" claim (valid until the secret changes)
+token, err = jwt.GenerateToken(claims, secret)
 
 // Validate a token
 valid, err := jwt.ValidateToken(token, secret)
 ```
+
+An empty secret is rejected with `jwt.ErrEmptySecret` by all three functions — a missing `JWT_SECRET` fails loudly instead of producing forgeable tokens.
 
 ### `http`
 
@@ -431,6 +438,8 @@ up := uploader.NewLocalUploader("./uploads",
 path, err := up.Upload(file, filename)
 ```
 
+By default an upload **replaces** an existing file of the same name. When filenames come from users, add `uploader.WithUniqueNames()` so each file is stored as `<random>-<name>` and two users uploading `avatar.png` cannot overwrite each other. Both uploaders also implement `uploader.ContextUploader` — `up.UploadContext(ctx, file, filename)` — so an upload can be cancelled or bounded by a deadline.
+
 ### S3-compatible uploads with `uploader.S3Uploader`
 
 ```go
@@ -558,6 +567,10 @@ scopes := auth.Scopes(c)                // normalized []string
 `Optional(secret)` validates a token when present but never rejects. Scopes are a
 `scopes` JWT claim (`[]string`). Tokens are minted with the `jwt` package
 (`jwt.GenerateTokenWithExpiry`).
+
+Pass `auth.WithExpirationRequired()` to `RequireAuth`/`Optional` to reject tokens
+that carry no `exp` claim (they would otherwise never expire). With an empty
+secret every request is rejected.
 
 ### `health`
 
@@ -722,11 +735,20 @@ err := db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
 // In a background worker (run one logical relay; pass a lock.Locker to make it
 // safe to run on every replica — only one relays at a time):
 relay := outbox.NewRelay(db, outbox.NewRedisPublisher(redisClient),
-    outbox.WithLock(lock.New(redisClient), "outbox:relay", 30*time.Second))
+    outbox.WithLock(lock.New(redisClient), "outbox:relay", 30*time.Second),
+    outbox.WithMaxAttempts(5), // dead-letter a poison event instead of blocking the queue
+    outbox.WithLogger(log))
 go relay.Run(ctx)
+
+// On a schedule (e.g. a jobs.Scheduler task): drop events published over a week ago.
+_, _ = outbox.Prune(ctx, db, 7*24*time.Hour)
 ```
 
-Consumers subscribe with `redis.Subscribe[OrderCreated](...)` — the relay publishes the stored JSON bytes verbatim, so they decode directly. Published rows are kept (for audit); purge them with `DELETE FROM outbox WHERE published_at < ?` on your own schedule.
+Consumers subscribe with `redis.Subscribe[OrderCreated](...)` — the relay publishes the stored JSON bytes verbatim, so they decode directly.
+
+- **Ordering and failures.** Events are published oldest first, and a publish error stops the batch so order is preserved — which means one event that can never be published blocks everything behind it. `WithMaxAttempts(n)` moves such an event to the `outbox_dead` table (`outbox.DeadEvent`, with the error) after `n` consecutive failures and carries on. The attempt count is kept in memory, per relay process. `Migrate` creates `outbox_dead`; run it again after upgrading.
+- **Locking.** With `WithLock`, the relay renews the lock before every event, so the TTL only needs to exceed the time to publish one event, not a whole batch.
+- **Retention.** Published rows are kept until you call `outbox.Prune`.
 
 ### `inbox`
 
@@ -745,7 +767,7 @@ err := inbox.Once(ctx, db, msg.ID, func(ctx context.Context, tx bun.Tx) error {
 })
 ```
 
-Pair it with `outbox` (producer) for end-to-end exactly-once-effect processing over an at-least-once transport. Old markers can be purged with `DELETE FROM inbox WHERE processed_at < ?`.
+Pair it with `outbox` (producer) for end-to-end exactly-once-effect processing over an at-least-once transport. Markers are kept until you purge them with `inbox.Prune(ctx, db, olderThan)` — keep them at least as long as a message can still be redelivered.
 
 ### `events`
 
@@ -865,7 +887,7 @@ if !res.Allowed { /* res.RetryAfter, res.Remaining */ }
 app.Use(l.Middleware(rule, func(c *fiber.Ctx) string { return c.IP() }))
 ```
 
-A heavier endpoint can charge more: `l.Allow(ctx, key, rule, 5)`. On a Redis error the middleware fails open (allows the request) so the limiter can't take the app down.
+A heavier endpoint can charge more: `l.Allow(ctx, key, rule, 5)`. On a Redis error the middleware fails open (allows the request) so the limiter can't take the app down; the error is logged to `logger.Default()`, or to your own logger with `ratelimit.New(redisClient, ratelimit.WithLogger(log))`.
 
 ### `apikey`
 
@@ -929,6 +951,8 @@ err := server.RunGraceful(app, ":3000", 10*time.Second, func(ctx context.Context
 })
 ```
 
+A zero (or negative) timeout falls back to 10 seconds.
+
 ### Typed errors with `apierror`
 
 `apierror.NotFound("...")`, `Conflict`, `Unauthorized`, ... return typed `*Error` values. `bootstrap` installs `apierror.Handler` as the default `ErrorHandler`, so returning one from a handler renders a consistent JSON error.
@@ -944,6 +968,8 @@ func getUser(c *fiber.Ctx) error {
 // bootstrap.New installs apierror.Handler, so the return renders as:
 // {"code":404,"message":"user not found","error":"user_not_found","status":"error"}
 ```
+
+`apierror.StatusOf(err)` returns the status `Handler` will respond with. The request logger and the metrics middleware use it, so a returned error is logged and counted under its real status (e.g. `404`) rather than the not-yet-written response code.
 
 ### `bootstrap`
 
@@ -962,6 +988,16 @@ app := bootstrap.New(bootstrap.Options{
 app.Get("/", handler)
 log.Fatal(app.Run(":3000")) // graceful shutdown + db.Close handled
 ```
+
+`EnableCORS: true` uses Fiber's CORS defaults, which allow **every** origin. In production, pass a config instead:
+
+```go
+bootstrap.Options{
+    CORS: &cors.Config{AllowOrigins: "https://app.example.com", AllowCredentials: true},
+}
+```
+
+Inside a handler, `c.UserContext()` and `context.GetContext(c)` return the same request context: bounded by `RequestTimeout`, carrying the request id, and — with `Tracing: true` — the request span, so database calls made with it show up under the request's trace.
 
 ### `fibrtest`
 

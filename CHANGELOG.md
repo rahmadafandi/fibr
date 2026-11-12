@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `apierror`: `StatusOf(err)` returns the HTTP status `Handler` responds with for an error.
+- `uploader`: `WithUniqueNames()` stores each file as `<random>-<name>` so same-named uploads cannot overwrite each other; `UploadContext` on both uploaders and the `ContextUploader` interface make uploads cancellable.
+- `parser`: `MaxLimit` (default `1000`) caps the page size applied by `Paginate` and `Keyset`.
+- `jwt`: `ErrEmptySecret`.
+- `auth`: `WithExpirationRequired()` rejects tokens without an `exp` claim.
+- `outbox`: `WithMaxAttempts(n)` moves an event that keeps failing to the new `outbox_dead` table (`DeadEvent`) instead of blocking the queue; `Prune` deletes old published events; `WithLogger` sets the relay's logger.
+- `inbox`: `Prune` deletes old dedup markers.
+- `ratelimit`: `New` accepts options; `WithLogger` sets the logger used when Redis fails.
+- `bootstrap`: `Options.CORS` (`*cors.Config`) to restrict allowed origins.
+- Integration tests against real Postgres and Redis (`make integration`), run in CI.
+
+### Changed
+
+- `parser`: page sizes above `MaxLimit` are now clamped (previously unbounded). Set `parser.MaxLimit = 0` to restore the old behavior.
+- `jwt`: `GenerateToken`, `GenerateTokenWithExpiry`, and `ValidateToken` return `ErrEmptySecret` for an empty secret. Consequently `auth.RequireAuth("")` rejects every request and an `Issuer` with an empty secret cannot issue tokens.
+- `middleware`: `ContextMiddleware` derives the request context from `c.UserContext()` and also stores it there, so `c.UserContext()` now carries the request timeout and request id. Handlers that pass `c.UserContext()` to slow calls are therefore bounded by the request timeout (`bootstrap.Options.RequestTimeout`, default 10s), as `context.GetContext(c)` callers already were.
+- `bootstrap`: the tracing middleware runs before `ContextMiddleware`, so the request context is a child of the request span.
+- `outbox`: `Migrate` also creates the `outbox_dead` table; with `WithLock`, the relay renews its lock before each event.
+- `examples/.env` is now `examples/.env.example`.
+
+### Security
+
+- Bumped `golang.org/x/net` (v0.60.0), `golang.org/x/text` (v0.42.0), `klauspost/compress` (v1.20.2), `andybalholm/brotli` (v1.2.7), OpenTelemetry (v1.45.0), and `google.golang.org/grpc` (v1.83.1), and the Go toolchain to 1.26.11, to pick up fixes for vulnerabilities reported by `govulncheck`.
+
+### Fixed
+
+- `middleware`: the request logger logged `status: 200` for any error returned by a handler; it now logs the status the client receives.
+- `metrics`: `*apierror.Error` responses (e.g. a 404) were counted as `status="500"`.
+- `server`: a zero `Timeout` made the shutdown context expire immediately, aborting shutdown and cleanup hooks; it now defaults to 10 seconds.
+- `lock`: `Do` did not release the lock when its context was cancelled while `fn` ran, leaving the key held until its TTL.
+- `parser`: search used `ILIKE` on every database and failed on SQLite; it now uses `LIKE` outside Postgres.
+
 ## [1.5.0] - 2026-06-14
 
 ### Added

@@ -21,8 +21,16 @@ type (
 	Token = jwt.Token
 )
 
-// GenerateToken generates a new JWT token.
+// ErrEmptySecret is returned when a token is generated or validated with an
+// empty secret, which would make every token forgeable.
+var ErrEmptySecret = errors.New("jwt: empty secret")
+
+// GenerateToken generates a new JWT token. The token carries no "exp" claim
+// unless claims already has one; prefer GenerateTokenWithExpiry.
 func GenerateToken(claims MapClaims, secret string) (string, error) {
+	if secret == "" {
+		return "", ErrEmptySecret
+	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(secret))
 }
@@ -31,6 +39,9 @@ func GenerateToken(claims MapClaims, secret string) (string, error) {
 // It writes the "exp" claim into the provided claims map, overwriting any
 // existing "exp" value.
 func GenerateTokenWithExpiry(claims MapClaims, secret string, ttl time.Duration) (string, error) {
+	if secret == "" {
+		return "", ErrEmptySecret
+	}
 	if claims == nil {
 		claims = MapClaims{}
 	}
@@ -41,6 +52,9 @@ func GenerateTokenWithExpiry(claims MapClaims, secret string, ttl time.Duration)
 
 // ValidateToken validates a JWT token.
 func ValidateToken(tokenString string, secret string) (*Token, error) {
+	if secret == "" {
+		return nil, ErrEmptySecret
+	}
 	return jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])

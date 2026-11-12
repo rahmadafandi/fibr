@@ -21,7 +21,7 @@ func bearerToken(c *fiber.Ctx) string {
 	return ""
 }
 
-func parse(c *fiber.Ctx, secret string) (jwt.MapClaims, bool) {
+func parse(c *fiber.Ctx, secret string, cfg config) (jwt.MapClaims, bool) {
 	tok := bearerToken(c)
 	if tok == "" {
 		return nil, false
@@ -32,6 +32,9 @@ func parse(c *fiber.Ctx, secret string) (jwt.MapClaims, bool) {
 	}
 	claims, err := jwt.ExtractClaimsFromJwt(parsed)
 	if err != nil {
+		return nil, false
+	}
+	if _, hasExp := claims["exp"]; cfg.requireExp && !hasExp {
 		return nil, false
 	}
 	if t, _ := claims["type"].(string); t == "refresh" {
@@ -57,13 +60,14 @@ func blocklisted(ctx context.Context, store TokenStore, claims jwt.MapClaims) (b
 
 // RequireAuth extracts a bearer token, validates it with secret, stores the
 // claims in the request context, then calls the next handler. A missing or
-// invalid token gets a 401 response. Pass WithBlocklist to also reject revoked
+// invalid token gets a 401 response, as does every request when secret is
+// empty. Pass WithExpirationRequired to reject tokens without an "exp" claim. Pass WithBlocklist to also reject revoked
 // tokens by jti (fail-closed: a store error is treated as unauthorized). Tokens
 // with no jti field (not minted by an Issuer) are not subject to the blocklist.
 func RequireAuth(secret string, opts ...Option) fiber.Handler {
 	cfg := newConfig(opts...)
 	return func(c *fiber.Ctx) error {
-		claims, ok := parse(c, secret)
+		claims, ok := parse(c, secret, cfg)
 		if !ok {
 			return response.SendError(c, nil, "unauthorized", fiber.StatusUnauthorized)
 		}
@@ -81,7 +85,7 @@ func RequireAuth(secret string, opts ...Option) fiber.Handler {
 func Optional(secret string, opts ...Option) fiber.Handler {
 	cfg := newConfig(opts...)
 	return func(c *fiber.Ctx) error {
-		if claims, ok := parse(c, secret); ok {
+		if claims, ok := parse(c, secret, cfg); ok {
 			if blocked, err := blocklisted(c.UserContext(), cfg.store, claims); err == nil && !blocked {
 				fhcontext.SetLocal(c, cfg.contextKey, claims)
 			}

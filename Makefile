@@ -29,6 +29,10 @@ cover: ## Run tests and write a coverage profile.
 e2e: ## Run the fibr end-to-end generator tests.
 	RUN_E2E=1 $(GO) test ./cmd/fibr/
 
+.PHONY: integration
+integration: ## Run tests against real Postgres/Redis (set FIBR_TEST_POSTGRES_DSN, FIBR_TEST_REDIS_URL).
+	$(GO) test -count=1 -run 'Postgres|RealRedis' ./...
+
 .PHONY: lint
 lint: ## Run golangci-lint.
 	golangci-lint run

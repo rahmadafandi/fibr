@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/rahmadafandi/fibr/apierror"
 	"github.com/rahmadafandi/fibr/logger"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -84,4 +85,40 @@ func TestRequestLoggerNoTraceIDsWithoutSpan(t *testing.T) {
 	_, err := app.Test(httptest.NewRequest("GET", "/", nil))
 	require.NoError(t, err)
 	require.NotContains(t, buf.String(), "trace_id")
+}
+
+func TestRequestLoggerLogsStatusOfReturnedError(t *testing.T) {
+	var buf bytes.Buffer
+	app := fiber.New(fiber.Config{ErrorHandler: apierror.Handler})
+	app.Use(RequestLogger(logger.New(&buf, zerolog.InfoLevel)))
+	app.Get("/x", func(c *fiber.Ctx) error { return apierror.NotFound("nope") })
+
+	resp, err := app.Test(httptest.NewRequest("GET", "/x", nil))
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
+	assert.Contains(t, buf.String(), `"status":404`)
+}
+
+func TestContextMiddlewareScopesUserContext(t *testing.T) {
+	type key struct{}
+	app := fiber.New()
+	// Outer middleware: sets a value before, and uses the context after Next.
+	app.Use(func(c *fiber.Ctx) error {
+		c.SetUserContext(context.WithValue(context.Background(), key{}, "outer"))
+		err := c.Next()
+		assert.NoError(t, c.UserContext().Err(), "outer middleware must not see the cancelled request context")
+		return err
+	})
+	app.Use(ContextMiddleware(time.Second))
+	app.Get("/", func(c *fiber.Ctx) error {
+		ctx := c.UserContext()
+		assert.Equal(t, "outer", ctx.Value(key{}), "values from earlier middleware are kept")
+		_, hasDeadline := ctx.Deadline()
+		assert.True(t, hasDeadline)
+		assert.NotEmpty(t, ctx.Value(RequestIDKey))
+		return nil
+	})
+	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 }

@@ -33,6 +33,7 @@ type Option func(*config)
 type config struct {
 	contextKey string
 	store      TokenStore
+	requireExp bool
 }
 
 func newConfig(opts ...Option) config {
@@ -51,6 +52,13 @@ func WithContextKey(key string) Option {
 			c.contextKey = key
 		}
 	}
+}
+
+// WithExpirationRequired makes RequireAuth and Optional reject tokens that
+// carry no "exp" claim, which would otherwise be valid forever. Tokens minted
+// by an Issuer or jwt.GenerateTokenWithExpiry always carry one.
+func WithExpirationRequired() Option {
+	return func(c *config) { c.requireExp = true }
 }
 
 // WithBlocklist makes RequireAuth and Optional reject access tokens whose jti

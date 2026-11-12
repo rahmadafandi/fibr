@@ -27,9 +27,27 @@ type Event struct {
 	PublishedAt *time.Time `bun:"published_at"`
 }
 
-// Migrate creates the outbox table (if it does not exist) and an index on
-// (published_at, id) so pending-event scans stay cheap.
+// DeadEvent is an event the relay gave up on (see WithMaxAttempts). It keeps
+// the original ID, topic, payload, and creation time, plus when and why
+// publishing was abandoned. Re-enqueue it with Enqueue to retry.
+type DeadEvent struct {
+	bun.BaseModel `bun:"table:outbox_dead,alias:od"`
+
+	ID        int64     `bun:"id,pk"`
+	Topic     string    `bun:"topic,notnull"`
+	Payload   []byte    `bun:"payload,notnull"`
+	CreatedAt time.Time `bun:"created_at,notnull"`
+	FailedAt  time.Time `bun:"failed_at,notnull"`
+	Error     string    `bun:"error,notnull"`
+}
+
+// Migrate creates the outbox table (if it does not exist) with an index on
+// (published_at, id) so pending-event scans stay cheap, and the outbox_dead
+// table used by WithMaxAttempts.
 func Migrate(ctx context.Context, db *bun.DB) error {
+	if _, err := db.NewCreateTable().Model((*DeadEvent)(nil)).IfNotExists().Exec(ctx); err != nil {
+		return fmt.Errorf("outbox: create dead-letter table: %w", err)
+	}
 	if _, err := db.NewCreateTable().Model((*Event)(nil)).IfNotExists().Exec(ctx); err != nil {
 		return fmt.Errorf("outbox: create table: %w", err)
 	}
@@ -61,4 +79,19 @@ func Enqueue(ctx context.Context, db bun.IDB, topic string, payload any) error {
 		return fmt.Errorf("outbox: insert event: %w", err)
 	}
 	return nil
+}
+
+// Prune deletes events published more than olderThan ago and returns how many
+// were removed. Published rows are never deleted otherwise, so call it
+// periodically (e.g. from a scheduled job) to keep the table small.
+func Prune(ctx context.Context, db bun.IDB, olderThan time.Duration) (int64, error) {
+	res, err := db.NewDelete().
+		Model((*Event)(nil)).
+		Where("published_at IS NOT NULL").
+		Where("published_at < ?", time.Now().Add(-olderThan)).
+		Exec(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("outbox: prune: %w", err)
+	}
+	return res.RowsAffected()
 }

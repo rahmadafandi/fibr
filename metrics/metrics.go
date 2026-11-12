@@ -8,7 +8,6 @@
 package metrics
 
 import (
-	"errors"
 	"strconv"
 	"sync"
 	"time"
@@ -18,6 +17,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rahmadafandi/fibr/apierror"
 )
 
 // MetricsPath is the conventional scrape path. Middleware skips it so scrapes
@@ -80,17 +80,12 @@ func Middleware(opts ...Option) fiber.Handler {
 		if r := c.Route(); r != nil && r.Path != "" {
 			path = r.Path
 		}
-		// Resolve the status the client will actually receive. When a handler
-		// returns an error, Fiber's error handler sets the response code only
-		// after the middleware chain unwinds, so c.Response().StatusCode() is
-		// still the default here — derive it from the error instead.
+		// When a handler returns an error, Fiber's error handler sets the
+		// response code only after the middleware chain unwinds, so derive the
+		// status from the error instead.
 		code := c.Response().StatusCode()
 		if err != nil {
-			code = fiber.StatusInternalServerError
-			var fe *fiber.Error
-			if errors.As(err, &fe) {
-				code = fe.Code
-			}
+			code = apierror.StatusOf(err)
 		}
 		status := strconv.Itoa(code)
 		method := c.Method()

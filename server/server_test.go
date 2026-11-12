@@ -90,3 +90,35 @@ func TestRunPreShutdownRunsBeforeCleanup(t *testing.T) {
 	}
 	assert.Equal(t, []string{"pre", "cleanup"}, order)
 }
+
+func TestRunZeroTimeoutUsesDefault(t *testing.T) {
+	app := fiber.New()
+	shutdown := make(chan struct{})
+
+	var ctxErr error
+	cleanup := func(ctx context.Context) error { ctxErr = ctx.Err(); return nil }
+
+	done := make(chan error, 1)
+	go func() {
+		done <- run(app, "127.0.0.1:0", shutdown, Config{Cleanup: []func(context.Context) error{cleanup}})
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+	close(shutdown)
+
+	select {
+	case err := <-done:
+		assert.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("run did not return after shutdown")
+	}
+	assert.NoError(t, ctxErr, "cleanup must not receive an already-expired context")
+}
+
+func TestRunGracefulReturnsListenError(t *testing.T) {
+	ran := false
+	err := RunGraceful(fiber.New(), "256.256.256.256:99999", time.Second,
+		func(context.Context) error { ran = true; return nil })
+	assert.Error(t, err)
+	assert.False(t, ran, "cleanup must not run when the server never started")
+}

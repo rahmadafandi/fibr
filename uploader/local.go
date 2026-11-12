@@ -3,6 +3,7 @@
 package uploader
 
 import (
+	"context"
 	"io"
 	"mime/multipart"
 	"os"
@@ -21,7 +22,16 @@ func NewLocalUploader(path string, opts ...Option) *LocalUploader {
 }
 
 // Upload writes file into the uploader's directory and returns the saved path.
+// An existing file of the same name is replaced unless WithUniqueNames is set.
 func (u *LocalUploader) Upload(file multipart.File, filename string) (string, error) {
+	return u.UploadContext(context.Background(), file, filename)
+}
+
+// UploadContext is Upload, abandoned up front if ctx is already done.
+func (u *LocalUploader) UploadContext(ctx context.Context, file multipart.File, filename string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	safe, _, err := u.cfg.validate(file, filename)
 	if err != nil {
 		return "", err
