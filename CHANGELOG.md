@@ -22,13 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Minimum Go version lowered from 1.26 to 1.25; CI tests both.
 - `parser`: page sizes above `MaxLimit` are now clamped (previously unbounded). Set `parser.MaxLimit = 0` to restore the old behavior.
 - `jwt`: `GenerateToken`, `GenerateTokenWithExpiry`, and `ValidateToken` return `ErrEmptySecret` for an empty secret. Consequently `auth.RequireAuth("")` rejects every request and an `Issuer` with an empty secret cannot issue tokens.
 - `middleware`: `ContextMiddleware` derives the request context from `c.UserContext()` and also stores it there, so `c.UserContext()` now carries the request timeout and request id. Handlers that pass `c.UserContext()` to slow calls are therefore bounded by the request timeout (`bootstrap.Options.RequestTimeout`, default 10s), as `context.GetContext(c)` callers already were.
 - `bootstrap`: the tracing middleware runs before `ContextMiddleware`, so the request context is a child of the request span.
 - `outbox`: `Migrate` also creates the `outbox_dead` table; with `WithLock`, the relay renews its lock before each event.
 - `examples/.env` is now `examples/.env.example`.
+
+### Security
+
+- Bumped `golang.org/x/net` (v0.60.0), `golang.org/x/text` (v0.42.0), `klauspost/compress` (v1.20.2), `andybalholm/brotli` (v1.2.7), OpenTelemetry (v1.45.0), and `google.golang.org/grpc` (v1.83.1), and the Go toolchain to 1.26.11, to pick up fixes for vulnerabilities reported by `govulncheck`.
 
 ### Fixed
 

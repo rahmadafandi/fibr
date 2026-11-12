@@ -3,7 +3,7 @@
 > A map of how **fibr** (`github.com/rahmadafandi/fibr`) is put together: the
 > packages, how they layer, and how `bootstrap` composes them into an app.
 > Derived from a dependency-graph analysis of the codebase (30 library packages
-> plus the `fibr` generator, Go 1.25+, Fiber v2).
+> plus the `fibr` generator, Go 1.26, Fiber v2).
 
 ## What fibr is
 

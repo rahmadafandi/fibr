@@ -4,7 +4,7 @@ Thanks for your interest in improving fibr!
 
 ## Development
 
-Requires Go 1.25+.
+Requires Go 1.26+.
 
 ```bash
 git clone https://github.com/rahmadafandi/fibr

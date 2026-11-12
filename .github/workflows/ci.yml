@@ -12,26 +12,16 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # Oldest supported Go (the go directive in go.mod) and the latest.
-        go: ["1.25.x", "stable"]
-    env:
-      # Test with exactly the matrix version instead of auto-switching to the
-      # toolchain named in go.mod.
-      GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
-          go-version: ${{ matrix.go }}
+          go-version-file: go.mod
           cache: true
       - run: go build ./...
       - run: go vet ./...
       - run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
       - uses: codecov/codecov-action@v5
-        if: matrix.go == 'stable'
         with:
           files: ./coverage.txt
           fail_ci_if_error: false
