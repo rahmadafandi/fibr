@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Dependency updates: Fiber v2.52.15, go-redis v9.22.0, fasthttp v1.73.0, minio-go v7.3.0, go-mail v0.8.1, prometheus/client_golang v1.24.1, OpenTelemetry v1.46.0, validator v10.30.4, mimetype v1.4.16, fasthttp/websocket v1.5.12, and (test-only) testify v1.12.1 and miniredis v2.39.0.
+
 ## [1.6.0] - 2026-11-12
 
 ### Added
