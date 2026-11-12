@@ -12,16 +12,20 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/rahmadafandi/fibr/apierror"
+	fibrcontext "github.com/rahmadafandi/fibr/context"
 	"github.com/rahmadafandi/fibr/database"
 	"github.com/rahmadafandi/fibr/health"
 	"github.com/rahmadafandi/fibr/i18n"
+	"github.com/rahmadafandi/fibr/middleware"
 	"github.com/rahmadafandi/fibr/openapi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 func TestNewRoutesWork(t *testing.T) {
@@ -273,4 +277,44 @@ func TestI18nMiddlewareMounted(t *testing.T) {
 	require.NoError(t, err)
 	body, _ := io.ReadAll(resp.Body)
 	require.Equal(t, "Halo", string(body))
+}
+
+func TestTracingSpanReachesRequestContext(t *testing.T) {
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(tracetest.NewSpanRecorder()))
+	otel.SetTracerProvider(tp)
+
+	app := New(Options{Tracing: true})
+	app.Get("/x", func(c *fiber.Ctx) error {
+		// Both accessors must carry the request span, the timeout, and the
+		// request id, so DB calls made with either are traced and bounded.
+		for name, ctx := range map[string]context.Context{
+			"GetContext":  fibrcontext.GetContext(c),
+			"UserContext": c.UserContext(),
+		} {
+			assert.True(t, oteltrace.SpanContextFromContext(ctx).IsValid(), "%s: span", name)
+			_, hasDeadline := ctx.Deadline()
+			assert.True(t, hasDeadline, "%s: deadline", name)
+			assert.NotEmpty(t, ctx.Value(middleware.RequestIDKey), "%s: request id", name)
+		}
+		return c.SendString("ok")
+	})
+
+	resp, err := app.Test(httptest.NewRequest("GET", "/x", nil))
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
+func TestCORSConfigRestrictsOrigin(t *testing.T) {
+	app := New(Options{CORS: &cors.Config{AllowOrigins: "https://app.example.com"}})
+	app.Get("/x", func(c *fiber.Ctx) error { return c.SendString("ok") })
+
+	origin := func(o string) string {
+		req := httptest.NewRequest("GET", "/x", nil)
+		req.Header.Set("Origin", o)
+		resp, err := app.Test(req)
+		require.NoError(t, err)
+		return resp.Header.Get("Access-Control-Allow-Origin")
+	}
+	assert.Equal(t, "https://app.example.com", origin("https://app.example.com"))
+	assert.Empty(t, origin("https://evil.example.com"))
 }

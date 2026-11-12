@@ -18,10 +18,12 @@ const (
 )
 
 // ContextMiddleware attaches a timeout-bounded context and a unique request ID
-// to every incoming Fiber request, storing both via c.Locals.
+// to every incoming Fiber request. The context is derived from c.UserContext()
+// (so it keeps values set by earlier middleware, such as a tracing span) and is
+// available both from context.GetContext and c.UserContext().
 func ContextMiddleware(timeout time.Duration) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		ctx, cancel := context.WithTimeout(c.Context(), timeout)
+		ctx, cancel := context.WithTimeout(c.UserContext(), timeout)
 		defer cancel()
 		requestID, ok := c.Locals("requestid").(string)
 		if !ok || requestID == "" {
@@ -30,6 +32,7 @@ func ContextMiddleware(timeout time.Duration) fiber.Handler {
 		}
 		ctx = context.WithValue(ctx, RequestIDKey, requestID)
 		c.Locals("ctx", ctx)
+		c.SetUserContext(ctx)
 		c.Set("X-Request-ID", requestID)
 		return c.Next()
 	}
