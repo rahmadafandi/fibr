@@ -6,8 +6,6 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-
-	"github.com/rahmadafandi/fibr/logger"
 )
 
 // Middleware limits requests per key under rule (cost 1 each). keyFunc derives
@@ -18,13 +16,12 @@ func (l *Limiter) Middleware(rule Rule, keyFunc func(*fiber.Ctx) string) fiber.H
 	if keyFunc == nil {
 		keyFunc = func(c *fiber.Ctx) string { return c.IP() }
 	}
-	log := logger.Default()
 	limit := strconv.Itoa(rule.Capacity)
 
 	return func(c *fiber.Ctx) error {
 		res, err := l.Allow(c.UserContext(), keyFunc(c), rule, 1)
 		if err != nil {
-			log.Error(err, "ratelimit: allow failed; failing open")
+			l.log.Error(err, "ratelimit: allow failed; failing open")
 			return c.Next()
 		}
 
