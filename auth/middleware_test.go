@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	gojwt "github.com/golang-jwt/jwt/v5"
 	"github.com/rahmadafandi/fibr/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -207,4 +208,34 @@ func TestRequireAuthBlocklistFailsClosed(t *testing.T) {
 	resp, err := app.Test(req)
 	require.NoError(t, err)
 	require.Equal(t, fiber.StatusUnauthorized, resp.StatusCode) // store error -> 401
+}
+
+func TestRequireAuthExpirationRequired(t *testing.T) {
+	noExp, err := jwt.GenerateToken(jwt.MapClaims{"sub": "1"}, middlewareTestSecret)
+	require.NoError(t, err)
+	ok := func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) }
+
+	app := fiber.New()
+	app.Get("/lax", RequireAuth(middlewareTestSecret), ok)
+	app.Get("/strict", RequireAuth(middlewareTestSecret, WithExpirationRequired()), ok)
+
+	assert.Equal(t, fiber.StatusOK, do(t, app, "GET", "/lax", noExp))
+	assert.Equal(t, fiber.StatusUnauthorized, do(t, app, "GET", "/strict", noExp))
+	withExp := mintToken(t, jwt.MapClaims{"sub": "1"}, time.Minute)
+	assert.Equal(t, fiber.StatusOK, do(t, app, "GET", "/strict", withExp))
+}
+
+func TestRequireAuthEmptySecretRejectsEverything(t *testing.T) {
+	app := fiber.New()
+	app.Get("/", RequireAuth(""), func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })
+
+	// A correctly signed HS256 token under an empty key, as an attacker would forge it.
+	forged, err := gojwt.NewWithClaims(gojwt.SigningMethodHS256, gojwt.MapClaims{"sub": "admin"}).SignedString([]byte(""))
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusUnauthorized, do(t, app, "GET", "/", forged))
+}
+
+func TestIssuerEmptySecretFails(t *testing.T) {
+	_, err := NewIssuer("", NewMemoryStore()).Issue(context.Background(), jwt.MapClaims{"sub": "1"})
+	assert.ErrorIs(t, err, jwt.ErrEmptySecret)
 }
