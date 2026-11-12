@@ -14,7 +14,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// Config tunes graceful shutdown. Timeout bounds the whole shutdown sequence.
+const defaultTimeout = 10 * time.Second
+
+// Config tunes graceful shutdown. Timeout bounds the whole shutdown sequence
+// (default 10s when zero or negative).
 // PreShutdown hooks run before the server stops accepting connections (e.g. to
 // flip a readiness gate); DrainDelay then waits so a load balancer can stop
 // routing before in-flight connections are closed; Cleanup hooks run after the
@@ -72,7 +75,11 @@ func run(app *fiber.App, addr string, shutdown <-chan struct{}, cfg Config) erro
 	case <-shutdown:
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
+	timeout := cfg.Timeout
+	if timeout <= 0 {
+		timeout = defaultTimeout
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	var errs []error

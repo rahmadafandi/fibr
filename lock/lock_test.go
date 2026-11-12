@@ -187,3 +187,15 @@ func TestConcurrentSingleWinner(t *testing.T) {
 	wg.Wait()
 	assert.Equal(t, int64(1), wins)
 }
+
+func TestDoReleasesWhenContextCancelledDuringFn(t *testing.T) {
+	mr, c := newTestClient(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	l := New(c)
+
+	require.NoError(t, l.Do(ctx, "job", time.Minute, func() error {
+		cancel()
+		return nil
+	}))
+	assert.False(t, mr.Exists("job"), "lock must be released despite the cancelled context")
+}
