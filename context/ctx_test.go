@@ -3,6 +3,7 @@
 package context
 
 import (
+	"context"
 	"net/http/httptest"
 	"testing"
 
@@ -46,4 +47,23 @@ func TestLocals(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 200, resp.StatusCode)
 	})
+}
+
+func TestGetContextAndRequestID(t *testing.T) {
+	type key struct{}
+	app := fiber.New()
+	app.Get("/", func(c *fiber.Ctx) error {
+		// Nothing stored yet: safe fallbacks.
+		assert.Equal(t, context.Background(), GetContext(c))
+		assert.Equal(t, "", GetRequestID(c))
+
+		c.Locals("ctx", context.WithValue(context.Background(), key{}, "v"))
+		c.Locals("requestid", "req-1")
+		assert.Equal(t, "v", GetContext(c).Value(key{}))
+		assert.Equal(t, "req-1", GetRequestID(c))
+		return nil
+	})
+	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	assert.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
 }

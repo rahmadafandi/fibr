@@ -114,3 +114,11 @@ func TestRunZeroTimeoutUsesDefault(t *testing.T) {
 	}
 	assert.NoError(t, ctxErr, "cleanup must not receive an already-expired context")
 }
+
+func TestRunGracefulReturnsListenError(t *testing.T) {
+	ran := false
+	err := RunGraceful(fiber.New(), "256.256.256.256:99999", time.Second,
+		func(context.Context) error { ran = true; return nil })
+	assert.Error(t, err)
+	assert.False(t, ran, "cleanup must not run when the server never started")
+}
