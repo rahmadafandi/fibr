@@ -3,8 +3,10 @@
 package outbox_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"sync"
 	"testing"
 	"time"
@@ -15,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rahmadafandi/fibr/lock"
+	"github.com/rahmadafandi/fibr/logger"
 	"github.com/rahmadafandi/fibr/outbox"
 )
 
@@ -172,4 +175,144 @@ func TestRedisPublisherSendsRawBytes(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for published message")
 	}
+}
+
+// funcPublisher adapts a function to outbox.Publisher.
+type funcPublisher func(topic string) error
+
+func (f funcPublisher) Publish(_ context.Context, topic string, _ []byte) error { return f(topic) }
+
+func TestMaxAttemptsDeadLettersPoisonEvent(t *testing.T) {
+	db, ctx := newDB(t)
+	for _, topic := range []string{"poison", "ok"} {
+		require.NoError(t, outbox.Enqueue(ctx, db, topic, map[string]string{"t": topic}))
+	}
+
+	var delivered []string
+	pub := funcPublisher(func(topic string) error {
+		if topic == "poison" {
+			return errors.New("publish boom")
+		}
+		delivered = append(delivered, topic)
+		return nil
+	})
+	relay := outbox.NewRelay(db, pub, outbox.WithMaxAttempts(3),
+		outbox.WithLogger(logger.New(io.Discard, logger.ErrorLevel)))
+
+	// The first two failures keep the event at the head and block the queue.
+	for range 2 {
+		n, err := relay.Process(ctx)
+		require.Error(t, err)
+		assert.Equal(t, 0, n)
+	}
+	assert.Empty(t, delivered)
+
+	// The third failure dead-letters it and the batch carries on.
+	n, err := relay.Process(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, n)
+	assert.Equal(t, []string{"ok"}, delivered)
+
+	var dead []outbox.DeadEvent
+	require.NoError(t, db.NewSelect().Model(&dead).Scan(ctx))
+	require.Len(t, dead, 1)
+	assert.Equal(t, "poison", dead[0].Topic)
+	assert.JSONEq(t, `{"t":"poison"}`, string(dead[0].Payload))
+	assert.Contains(t, dead[0].Error, "publish boom")
+
+	rows := pending(t, db, ctx)
+	require.Len(t, rows, 1, "the poison event must be gone from the outbox")
+	assert.Equal(t, "ok", rows[0].Topic)
+}
+
+func TestPruneDeletesOnlyOldPublished(t *testing.T) {
+	db, ctx := newDB(t)
+	for _, topic := range []string{"old", "recent", "pending"} {
+		require.NoError(t, outbox.Enqueue(ctx, db, topic, nil))
+	}
+	mark := func(topic string, at time.Time) {
+		_, err := db.NewUpdate().Model((*outbox.Event)(nil)).
+			Set("published_at = ?", at).Where("topic = ?", topic).Exec(ctx)
+		require.NoError(t, err)
+	}
+	mark("old", time.Now().Add(-48*time.Hour))
+	mark("recent", time.Now().Add(-time.Minute))
+
+	n, err := outbox.Prune(ctx, db, 24*time.Hour)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, n)
+
+	var topics []string
+	for _, e := range pending(t, db, ctx) {
+		topics = append(topics, e.Topic)
+	}
+	assert.Equal(t, []string{"recent", "pending"}, topics)
+}
+
+func TestProcessWithLockReleasesAndStopsWhenLockLost(t *testing.T) {
+	db, ctx := newDB(t)
+	for _, topic := range []string{"a", "b"} {
+		require.NoError(t, outbox.Enqueue(ctx, db, topic, nil))
+	}
+
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+	t.Cleanup(mr.Close)
+	client := goredis.NewClient(&goredis.Options{Addr: mr.Addr()})
+	t.Cleanup(func() { _ = client.Close() })
+	const key = "outbox:relay"
+
+	// Losing the lock mid-batch (here: another owner takes it during the first
+	// publish) must stop the batch before the next event.
+	var delivered []string
+	steal := funcPublisher(func(topic string) error {
+		delivered = append(delivered, topic)
+		mr.Set(key, "other-owner")
+		return nil
+	})
+	relay := outbox.NewRelay(db, steal, outbox.WithLock(lock.New(client), key, 30*time.Second))
+	n, err := relay.Process(ctx)
+	require.ErrorIs(t, err, lock.ErrNotHeld)
+	assert.Equal(t, 1, n)
+	assert.Equal(t, []string{"a"}, delivered)
+
+	// With the lock free again, the rest is published and the lock released.
+	mr.Del(key)
+	relay = outbox.NewRelay(db, funcPublisher(func(string) error { return nil }),
+		outbox.WithLock(lock.New(client), key, 30*time.Second))
+	n, err = relay.Process(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, n)
+	assert.False(t, mr.Exists(key), "relay lock must be released after the batch")
+}
+
+func TestRunLogsProcessErrorsAndStopsOnCancel(t *testing.T) {
+	db, _ := newDB(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	require.NoError(t, outbox.Enqueue(ctx, db, "a", nil))
+
+	var buf syncBuffer
+	pub := funcPublisher(func(string) error { cancel(); return errors.New("publish boom") })
+	relay := outbox.NewRelay(db, pub, outbox.WithInterval(time.Millisecond),
+		outbox.WithLogger(logger.New(&buf, logger.ErrorLevel)))
+
+	assert.ErrorIs(t, relay.Run(ctx), context.Canceled)
+	assert.Contains(t, buf.String(), "publish boom")
+}
+
+type syncBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (s *syncBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
 }
