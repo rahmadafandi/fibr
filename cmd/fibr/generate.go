@@ -3,8 +3,6 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"go/format"
 	"io"
@@ -14,6 +12,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/rahmadafandi/fibr/v2/internal/randhex"
 )
 
 // now is the clock used for migration version stamps; overridable in tests.
@@ -52,15 +52,6 @@ type Data struct {
 	JWTSecret      string
 	HelpersVersion string
 	LocalReplace   string
-}
-
-// randHex returns a hex string of n random bytes.
-func randHex(n int) (string, error) {
-	b := make([]byte, n)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
 }
 
 type fileSpec struct {
@@ -117,7 +108,7 @@ func Generate(o Options, out io.Writer) error {
 	}
 
 	if o.Auth {
-		secret, err := randHex(32)
+		secret, err := randhex.String(32)
 		if err != nil {
 			return err
 		}

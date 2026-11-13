@@ -6,14 +6,14 @@ package uploader
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"path/filepath"
 
 	"github.com/gabriel-vasile/mimetype"
+
+	"github.com/rahmadafandi/fibr/v2/internal/randhex"
 )
 
 // Uploader stores an uploaded file and returns where it was stored. ctx bounds
@@ -111,11 +111,11 @@ func (c config) validate(file multipart.File, filename string) (string, string, 
 	}
 
 	if !c.originalNames {
-		b := make([]byte, 8)
-		if _, err := rand.Read(b); err != nil {
+		prefix, err := randhex.String(8)
+		if err != nil {
 			return "", "", fmt.Errorf("uploader: generate name: %w", err)
 		}
-		safe = hex.EncodeToString(b) + "-" + safe
+		safe = prefix + "-" + safe
 	}
 
 	return safe, mt.String(), nil

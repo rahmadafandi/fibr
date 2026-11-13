@@ -4,12 +4,12 @@ package lock
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
+
+	"github.com/rahmadafandi/fibr/v2/internal/randhex"
 )
 
 const defaultRetryDelay = 50 * time.Millisecond
@@ -40,11 +40,11 @@ func New(client redis.UniversalClient, opts ...Option) *Locker {
 
 // newToken returns a random hex owner token.
 func newToken() (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
+	token, err := randhex.String(16)
+	if err != nil {
 		return "", fmt.Errorf("lock: generate token: %w", err)
 	}
-	return hex.EncodeToString(b), nil
+	return token, nil
 }
 
 // TryAcquire makes one attempt to acquire key for ttl. It returns ok=false

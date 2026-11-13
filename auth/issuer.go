@@ -4,13 +4,13 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"time"
 
 	"github.com/rahmadafandi/fibr/v2/jwt"
+
+	"github.com/rahmadafandi/fibr/v2/internal/randhex"
 )
 
 // Errors returned by the Issuer. Callers should map both to HTTP 401;
@@ -193,13 +193,7 @@ func (i *Issuer) parseValid(token string) (jwt.MapClaims, error) {
 }
 
 // newID returns a random 16-byte hex identifier.
-func newID() (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
-}
+func newID() (string, error) { return randhex.String(16) }
 
 // Logout revokes a session. It blocks the access token's jti until its
 // expiry and revokes the refresh token's family. Either argument may be empty;
