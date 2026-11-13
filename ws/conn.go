@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/gofiber/contrib/v3/websocket"
-	"github.com/rahmadafandi/fibr/v2/logger"
 )
 
 // Conn is one client connection carrying messages of type T.
@@ -136,7 +135,7 @@ func (c *Conn[T]) readPump(cfg Handler[T], ping time.Duration) {
 		}
 		var msg T
 		if err := json.Unmarshal(data, &msg); err != nil {
-			logger.Default().Error(err, "ws: decode message")
+			c.hub.cfg.log.Error(err, "ws: decode message")
 			continue
 		}
 		if cfg.OnMessage != nil {

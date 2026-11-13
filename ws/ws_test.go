@@ -3,6 +3,7 @@
 package ws_test
 
 import (
+	"bytes"
 	"net"
 	"net/http/httptest"
 	"testing"
@@ -15,6 +16,9 @@ import (
 	"github.com/rahmadafandi/fibr/v2/ws"
 	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rahmadafandi/fibr/v2/logger"
+	"github.com/stretchr/testify/assert"
 )
 
 type chatMsg struct {
@@ -156,4 +160,15 @@ func TestBackplaneErrSurfaced(t *testing.T) {
 func TestBackplaneErrNilWhenHealthy(t *testing.T) {
 	hub := ws.NewHub[chatMsg]() // no backplane configured
 	require.NoError(t, hub.BackplaneErr())
+}
+
+func TestBackplaneErrorGoesToConfiguredLogger(t *testing.T) {
+	var buf bytes.Buffer
+	r := rediskit.New(goredis.NewClient(&goredis.Options{Addr: "127.0.0.1:1"}))
+	// NewHub subscribes synchronously, so the failure is logged before it returns.
+	hub := ws.NewHub[chatMsg](ws.WithPingInterval(0), ws.WithRedis(r, "rt"),
+		ws.WithLogger(logger.New(&buf, logger.ErrorLevel)))
+	defer hub.Close()
+	require.Error(t, hub.BackplaneErr())
+	assert.Contains(t, buf.String(), "ws: backplane subscribe")
 }

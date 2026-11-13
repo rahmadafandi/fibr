@@ -12,6 +12,7 @@ import (
 
 	"github.com/gofiber/contrib/v3/websocket"
 	"github.com/gofiber/fiber/v3"
+	"github.com/rahmadafandi/fibr/v2/logger"
 	"github.com/rahmadafandi/fibr/v2/rediskit"
 )
 
@@ -29,6 +30,7 @@ type hubConfig struct {
 	channel string
 	ping    time.Duration
 	sendBuf int
+	log     *logger.Logger
 }
 
 // Option configures a Hub.
@@ -52,9 +54,19 @@ func WithSendBuffer(n int) Option {
 	}
 }
 
+// WithLogger sets the logger for message-decode and backplane errors. The
+// default is logger.Default().
+func WithLogger(l *logger.Logger) Option {
+	return func(c *hubConfig) {
+		if l != nil {
+			c.log = l
+		}
+	}
+}
+
 // NewHub creates a hub. With WithRedis it starts a backplane subscription.
 func NewHub[T any](opts ...Option) *Hub[T] {
-	cfg := hubConfig{ping: 30 * time.Second, sendBuf: 16}
+	cfg := hubConfig{ping: 30 * time.Second, sendBuf: 16, log: logger.Default()}
 	for _, o := range opts {
 		o(&cfg)
 	}
