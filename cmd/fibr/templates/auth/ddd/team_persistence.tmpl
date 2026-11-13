@@ -168,8 +168,9 @@ func (r *TeamRepository) UpdateMembershipRole(ctx context.Context, accountID, te
 
 // CountMembersWithRole counts memberships in a team holding the named role.
 func (r *TeamRepository) CountMembersWithRole(ctx context.Context, teamID int64, name string) (int, error) {
-	return r.db.NewSelect().Model((*membershipModel)(nil)).
+	n, err := r.db.NewSelect().Model((*membershipModel)(nil)).
 		Where("team_id = ?", teamID).Where("role = ?", name).Count(ctx)
+	return int(n), err
 }
 
 func (r *TeamRepository) permsForRoleID(ctx context.Context, roleID int64) ([]string, error) {

@@ -11,7 +11,7 @@ A collection of helper packages for the [Fiber](https://gofiber.io/) web
 framework, plus **fibr** — a generator that scaffolds
 batteries-included Fiber projects.
 
-Requires Go 1.26+. Targets Fiber v3 and Bun ORM (Postgres or SQLite).
+Requires Go 1.26.10+. Targets Fiber v3 and Bun ORM v1.3+ (Postgres or SQLite).
 
 ## Install
 
