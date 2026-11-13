@@ -3,6 +3,7 @@
 package bootstrap
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 	"github.com/rahmadafandi/fibr/v2/database"
 	"github.com/rahmadafandi/fibr/v2/health"
 	"github.com/rahmadafandi/fibr/v2/i18n"
+	"github.com/rahmadafandi/fibr/v2/logger"
 	"github.com/rahmadafandi/fibr/v2/middleware"
 	"github.com/rahmadafandi/fibr/v2/openapi"
 	"github.com/rahmadafandi/fibr/v2/reqctx"
@@ -334,4 +336,29 @@ func TestCORSOffByDefaultAndOriginsOptIn(t *testing.T) {
 	origins := Options{CORSOrigins: []string{"https://app.example.com"}}
 	assert.Equal(t, "https://app.example.com", allowOrigin(New(origins), "https://app.example.com"))
 	assert.Empty(t, allowOrigin(New(origins), "https://evil.example.com"))
+}
+
+func TestPanicIsLoggedAndCountedAs500(t *testing.T) {
+	var buf bytes.Buffer
+	app := New(Options{Logger: logger.New(&buf, logger.InfoLevel), Metrics: true})
+	app.Get("/panics", func(fiber.Ctx) error { panic("handler boom") })
+
+	resp, err := app.Test(httptest.NewRequest("GET", "/panics", nil))
+	require.NoError(t, err)
+	assert.Equal(t, 500, resp.StatusCode)
+
+	// The request line must exist for a panicking request, with the real status.
+	var requestLine string
+	for _, line := range strings.Split(buf.String(), "\n") {
+		if strings.Contains(line, `"message":"request"`) && strings.Contains(line, `"/panics"`) {
+			requestLine = line
+		}
+	}
+	require.NotEmpty(t, requestLine, "a panicking request must still be logged")
+	assert.Contains(t, requestLine, `"status":500`)
+
+	resp, err = app.Test(httptest.NewRequest("GET", "/metrics", nil))
+	require.NoError(t, err)
+	body, _ := io.ReadAll(resp.Body)
+	assert.Contains(t, string(body), `path="/panics",status="500"`)
 }

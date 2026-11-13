@@ -132,6 +132,7 @@ flat `Options` struct into a wired `*fiber.App`. Order matters:
 7. `idempotency` *(if `Idempotency`)* — backed by `IdempotencyStorage`
 8. `middleware.RequestLogger`
 9. `metrics.Middleware` *(if `Metrics`)*
+   - then a second `middleware.Recover`, so a handler panic becomes a 500 that the logger and metrics above still record
 10. `cors` *(if `CORSOrigins` or `CORS` is set)*
 11. `limiter` *(if `RateLimit > 0`)* — backed by `RateLimitStorage`
 
