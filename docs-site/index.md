@@ -3,7 +3,7 @@
 [![Release](https://img.shields.io/github/v/release/rahmadafandi/fibr)](https://github.com/rahmadafandi/fibr/releases/latest)
 [![ci](https://github.com/rahmadafandi/fibr/actions/workflows/ci.yml/badge.svg)](https://github.com/rahmadafandi/fibr/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/rahmadafandi/fibr/branch/master/graph/badge.svg)](https://codecov.io/gh/rahmadafandi/fibr)
-[![Go Reference](https://pkg.go.dev/badge/github.com/rahmadafandi/fibr.svg)](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2)
+[![Go Reference](https://pkg.go.dev/badge/github.com/rahmadafandi/fibr/v2.svg)](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rahmadafandi/fibr/v2)](https://goreportcard.com/report/github.com/rahmadafandi/fibr/v2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/rahmadafandi/fibr/blob/master/LICENSE)
 
@@ -11,7 +11,7 @@ A collection of helper packages for the [Fiber](https://gofiber.io/) web
 framework, plus **fibr** — a generator that scaffolds
 batteries-included Fiber projects.
 
-Requires Go 1.26+. Targets Fiber v2 and Bun ORM (Postgres or SQLite).
+Requires Go 1.26+. Targets Fiber v3 and Bun ORM (Postgres or SQLite).
 
 ## Install
 

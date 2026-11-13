@@ -33,4 +33,5 @@ nav:
   - Home: index.md
   - Generator: generator.md
   - Packages: packages.md
+  - Migrating to v2: migrating.md
   - Changelog: changelog.md
