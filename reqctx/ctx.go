@@ -11,6 +11,9 @@ import (
 
 // GetContext retrieves the context stored by ContextMiddleware from the Fiber
 // request locals. It falls back to context.Background if no context was set.
+//
+// Deprecated: use c.Context(), which returns the same context under
+// ContextMiddleware.
 func GetContext(c fiber.Ctx) context.Context {
 	if ctx, ok := c.Locals("ctx").(context.Context); ok {
 		return ctx
@@ -28,12 +31,16 @@ func GetRequestID(c fiber.Ctx) string {
 }
 
 // SetLocal stores a value in the fiber context under key.
+//
+// Deprecated: use fiber.Locals(c, key, value).
 func SetLocal(c fiber.Ctx, key string, value any) {
 	c.Locals(key, value)
 }
 
 // GetLocal retrieves a value of type T from the fiber context.
 // It returns the zero value of T if the key is absent or the type does not match.
+//
+// Deprecated: use fiber.Locals[T](c, key).
 func GetLocal[T any](c fiber.Ctx, key string) T {
 	if v, ok := c.Locals(key).(T); ok {
 		return v
