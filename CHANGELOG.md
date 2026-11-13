@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Deprecated
+
+- `sse`: use Fiber's own `github.com/gofiber/fiber/v3/middleware/sse`, which adds heartbeats, `Last-Event-ID`, and disconnect detection. The package keeps working and will be removed in fibr v3.
+
+### Changed
+
+- Generator: the realtime sample (`fibr new --realtime`) now uses Fiber's SSE middleware, and ends its stream when the server starts shutting down so an open stream does not hold up a graceful shutdown.
+
 ## [2.0.1] - 2026-11-13
 
 ### Fixed
