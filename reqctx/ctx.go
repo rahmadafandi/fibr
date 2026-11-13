@@ -1,7 +1,7 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
-// Package context provides request-scoped helpers: context access, request IDs, and type-safe locals.
-package context
+// Package reqctx provides request-scoped helpers: context access, request IDs, and type-safe locals.
+package reqctx
 
 import (
 	"context"

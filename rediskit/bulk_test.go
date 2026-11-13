@@ -1,6 +1,6 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
-package redis_test
+package rediskit_test
 
 import (
 	"context"
@@ -8,17 +8,17 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	fhredis "github.com/rahmadafandi/fibr/v2/redis"
+	"github.com/rahmadafandi/fibr/v2/rediskit"
 	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 
-func newR(t *testing.T) *fhredis.Redis {
+func newR(t *testing.T) *rediskit.Redis {
 	t.Helper()
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
 	t.Cleanup(mr.Close)
-	return fhredis.New(goredis.NewClient(&goredis.Options{Addr: mr.Addr()}))
+	return rediskit.New(goredis.NewClient(&goredis.Options{Addr: mr.Addr()}))
 }
 
 func TestMSetMGet(t *testing.T) {

@@ -14,12 +14,12 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/rahmadafandi/fibr/v2/apierror"
-	fibrcontext "github.com/rahmadafandi/fibr/v2/context"
 	"github.com/rahmadafandi/fibr/v2/database"
 	"github.com/rahmadafandi/fibr/v2/health"
 	"github.com/rahmadafandi/fibr/v2/i18n"
 	"github.com/rahmadafandi/fibr/v2/middleware"
 	"github.com/rahmadafandi/fibr/v2/openapi"
+	"github.com/rahmadafandi/fibr/v2/reqctx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
@@ -288,7 +288,7 @@ func TestTracingSpanReachesRequestContext(t *testing.T) {
 		// Both accessors must carry the request span, the timeout, and the
 		// request id, so DB calls made with either are traced and bounded.
 		for name, ctx := range map[string]context.Context{
-			"GetContext": fibrcontext.GetContext(c),
+			"GetContext": reqctx.GetContext(c),
 			"Context":    c.Context(),
 		} {
 			assert.True(t, oteltrace.SpanContextFromContext(ctx).IsValid(), "%s: span", name)

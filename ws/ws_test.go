@@ -11,7 +11,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	gws "github.com/fasthttp/websocket"
 	"github.com/gofiber/fiber/v3"
-	fhredis "github.com/rahmadafandi/fibr/v2/redis"
+	"github.com/rahmadafandi/fibr/v2/rediskit"
 	"github.com/rahmadafandi/fibr/v2/ws"
 	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
@@ -123,8 +123,8 @@ func TestRedisBackplane(t *testing.T) {
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
 	defer mr.Close()
-	newR := func() *fhredis.Redis {
-		return fhredis.New(goredis.NewClient(&goredis.Options{Addr: mr.Addr()}))
+	newR := func() *rediskit.Redis {
+		return rediskit.New(goredis.NewClient(&goredis.Options{Addr: mr.Addr()}))
 	}
 
 	hubA := ws.NewHub[chatMsg](ws.WithPingInterval(0), ws.WithRedis(newR(), "rt"))
@@ -147,7 +147,7 @@ func TestRedisBackplane(t *testing.T) {
 
 func TestBackplaneErrSurfaced(t *testing.T) {
 	// Point at a dead address so Subscribe's initial Receive fails fast.
-	r := fhredis.New(goredis.NewClient(&goredis.Options{Addr: "127.0.0.1:1"}))
+	r := rediskit.New(goredis.NewClient(&goredis.Options{Addr: "127.0.0.1:1"}))
 	hub := ws.NewHub[chatMsg](ws.WithPingInterval(0), ws.WithRedis(r, "rt"))
 	defer hub.Close()
 	require.Eventually(t, func() bool { return hub.BackplaneErr() != nil }, 3*time.Second, 20*time.Millisecond)

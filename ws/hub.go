@@ -12,7 +12,7 @@ import (
 
 	"github.com/gofiber/contrib/v3/websocket"
 	"github.com/gofiber/fiber/v3"
-	"github.com/rahmadafandi/fibr/v2/redis"
+	"github.com/rahmadafandi/fibr/v2/rediskit"
 )
 
 // Hub tracks connections and rooms for messages of type T.
@@ -25,7 +25,7 @@ type Hub[T any] struct {
 }
 
 type hubConfig struct {
-	rds     *redis.Redis
+	rds     *rediskit.Redis
 	channel string
 	ping    time.Duration
 	sendBuf int
@@ -36,7 +36,7 @@ type Option func(*hubConfig)
 
 // WithRedis enables a Redis backplane so Broadcast/ToRoom reach clients on all
 // replicas. channel is the pub/sub channel shared by every instance.
-func WithRedis(r *redis.Redis, channel string) Option {
+func WithRedis(r *rediskit.Redis, channel string) Option {
 	return func(c *hubConfig) { c.rds = r; c.channel = channel }
 }
 
