@@ -69,7 +69,7 @@ func mustClaims(t *testing.T, token string) jwt.MapClaims {
 	parsed, err := jwt.ValidateToken(token, testSecret)
 	require.NoError(t, err)
 	require.True(t, parsed.Valid)
-	claims, err := jwt.ExtractClaimsFromJwt(parsed)
+	claims, err := jwt.ExtractClaimsFromJWT(parsed)
 	require.NoError(t, err)
 	return claims
 }

@@ -45,7 +45,7 @@ func TestMiddleware(t *testing.T) {
 
 func TestContextMiddlewareSetsRequestIDHeader(t *testing.T) {
 	app := fiber.New()
-	app.Use(ContextMiddleware(time.Second))
+	app.Use(RequestContext(time.Second))
 	app.Get("/", func(c fiber.Ctx) error { return c.SendString("ok") })
 
 	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
@@ -109,7 +109,7 @@ func TestContextMiddlewareScopesRequestContext(t *testing.T) {
 		assert.NoError(t, c.Context().Err(), "outer middleware must not see the cancelled request context")
 		return err
 	})
-	app.Use(ContextMiddleware(time.Second))
+	app.Use(RequestContext(time.Second))
 	app.Get("/", func(c fiber.Ctx) error {
 		ctx := c.Context()
 		assert.Equal(t, "outer", ctx.Value(key{}), "values from earlier middleware are kept")
@@ -121,4 +121,14 @@ func TestContextMiddlewareScopesRequestContext(t *testing.T) {
 	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
 	require.NoError(t, err)
 	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+}
+
+func TestDeprecatedContextMiddlewareStillWorks(t *testing.T) {
+	app := fiber.New()
+	app.Use(ContextMiddleware(time.Second)) //nolint:staticcheck // the deprecated name must keep working
+	app.Get("/", func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })
+
+	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.Header.Get("X-Request-ID"))
 }

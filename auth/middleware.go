@@ -29,7 +29,7 @@ func parse(c fiber.Ctx, secret string, cfg config) (jwt.MapClaims, bool) {
 	if err != nil || parsed == nil || !parsed.Valid {
 		return nil, false
 	}
-	claims, err := jwt.ExtractClaimsFromJwt(parsed)
+	claims, err := jwt.ExtractClaimsFromJWT(parsed)
 	if err != nil {
 		return nil, false
 	}

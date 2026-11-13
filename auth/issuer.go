@@ -185,7 +185,7 @@ func (i *Issuer) parseValid(token string) (jwt.MapClaims, error) {
 	if err != nil || parsed == nil || !parsed.Valid {
 		return nil, ErrInvalidToken
 	}
-	claims, err := jwt.ExtractClaimsFromJwt(parsed)
+	claims, err := jwt.ExtractClaimsFromJWT(parsed)
 	if err != nil {
 		return nil, ErrInvalidToken
 	}

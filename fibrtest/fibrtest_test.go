@@ -137,7 +137,7 @@ func TestToken(t *testing.T) {
 
 	parsed, err := jwt.ValidateToken(tok, secret)
 	require.NoError(t, err)
-	claims, err := jwt.ExtractClaimsFromJwt(parsed)
+	claims, err := jwt.ExtractClaimsFromJWT(parsed)
 	require.NoError(t, err)
 	assert.Equal(t, "u1", claims["sub"])
 }

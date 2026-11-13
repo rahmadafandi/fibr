@@ -87,7 +87,7 @@ func TestValidateTokenRejectsTamperedAndExpired(t *testing.T) {
 }
 
 func TestExtractClaimsAndLocals(t *testing.T) {
-	_, err := ExtractClaimsFromJwt(&Token{Claims: jwt.RegisteredClaims{}})
+	_, err := ExtractClaimsFromJWT(&Token{Claims: jwt.RegisteredClaims{}})
 	assert.Error(t, err)
 
 	app := fiber.New()
@@ -103,4 +103,15 @@ func TestExtractClaimsAndLocals(t *testing.T) {
 	})
 	_, err = app.Test(httptest.NewRequest("GET", "/", nil))
 	require.NoError(t, err)
+}
+
+func TestDeprecatedExtractClaimsFromJwtStillWorks(t *testing.T) {
+	tok, err := GenerateTokenWithExpiry(MapClaims{"sub": "7"}, "secret", time.Minute)
+	require.NoError(t, err)
+	parsed, err := ValidateToken(tok, "secret")
+	require.NoError(t, err)
+
+	claims, err := ExtractClaimsFromJwt(parsed) //nolint:staticcheck // the deprecated name must keep working
+	require.NoError(t, err)
+	assert.Equal(t, "7", claims["sub"])
 }
