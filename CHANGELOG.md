@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Error messages from `config`, `jwt`, `slug`, and `bootstrap` now start with the package name (for example `slug: check uniqueness: …`), like the rest of the library. Code that matches these errors by text needs updating; `errors.Is` / `errors.As` are unaffected.
 - Generator: generated apps import fibr packages under `fibr*` aliases (`fibrmailer`, `fibrjobs`, …) instead of the legacy `fh*` prefix.
+- `outbox`: the relay marks a whole batch as published with one `UPDATE` instead of one per event, and renews its lock by elapsed time (a third of the TTL) instead of before every event. A batch of 100 is about 5x faster, and about 19x faster with a lock. Progress is still recorded when the context is cancelled mid-batch. If the process dies mid-batch, the events already published in that batch are sent again (previously at most one); delivery was and remains at-least-once.
 
 ## [2.2.0] - 2026-11-13
 

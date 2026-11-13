@@ -207,7 +207,7 @@ err = db.NewSelect().Model(&rows).Apply(parser.Paginate(pq, []string{"name"})).S
 count, err := db.NewSelect().Model(&rows).Apply(parser.Count(pq.Search, []string{"name"})).Count(ctx)
 ```
 
-Search is case-insensitive on every supported database (`ILIKE` on Postgres, `LIKE` elsewhere). The page size is clamped to `parser.MaxLimit` (default `1000`) so a client cannot request an unbounded page; lower it at startup (`parser.MaxLimit = 100`) or set it to `0` to disable the cap. The same cap applies to `Keyset`.
+Search is case-insensitive on every supported database (`ILIKE` on Postgres, `LIKE` elsewhere). It matches anywhere in the column (`%term%`), which an ordinary B-tree index cannot serve, so the cost grows with the table. On Postgres, add a trigram index to the searched columns once tables get large: `CREATE EXTENSION IF NOT EXISTS pg_trgm; CREATE INDEX ON articles USING gin (name gin_trgm_ops);`. The page size is clamped to `parser.MaxLimit` (default `1000`) so a client cannot request an unbounded page; lower it at startup (`parser.MaxLimit = 100`) or set it to `0` to disable the cap. The same cap applies to `Keyset`.
 
 #### Keyset (cursor) pagination
 
@@ -749,7 +749,8 @@ _, _ = outbox.Prune(ctx, db, 7*24*time.Hour)
 Consumers subscribe with `rediskit.Subscribe[OrderCreated](...)` — the relay publishes the stored JSON bytes verbatim, so they decode directly.
 
 - **Ordering and failures.** Events are published oldest first, and a publish error stops the batch so order is preserved — which means one event that can never be published blocks everything behind it. `WithMaxAttempts(n)` moves such an event to the `outbox_dead` table (`outbox.DeadEvent`, with the error) after `n` consecutive failures and carries on. The attempt count is stored in the `outbox_attempts` table, so it survives restarts and is shared by every replica. `Migrate` creates `outbox_dead` and `outbox_attempts`; run it again after upgrading.
-- **Locking.** With `WithLock`, the relay renews the lock before every event, so the TTL only needs to exceed the time to publish one event, not a whole batch.
+- **Locking.** With `WithLock`, the relay renews the lock during a batch whenever a third of the TTL has passed, so the TTL needs to exceed roughly three times the time to publish one event, not a whole batch.
+- **Batching.** The events published in a batch are marked with one `UPDATE` when the batch ends (also on shutdown). If the process dies mid-batch, the events it had already published are sent again on the next run; that is the at-least-once guarantee, so make consumers idempotent (see `inbox`).
 - **Retention.** Published rows are kept until you call `outbox.Prune`, which also clears attempt counters of events that are no longer pending.
 
 ### `inbox`
