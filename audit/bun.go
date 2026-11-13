@@ -70,7 +70,7 @@ func List(ctx context.Context, db *bun.DB, f Filter) ([]Entry, error) {
 	if f.Target != "" {
 		q = q.Where("target = ?", f.Target)
 	}
-	if err := q.OrderExpr("id DESC").Limit(limit).Scan(ctx); err != nil {
+	if err := q.OrderExpr("id DESC").Limit(int64(limit)).Scan(ctx); err != nil {
 		return nil, fmt.Errorf("audit: list entries: %w", err)
 	}
 	return entries, nil
