@@ -41,10 +41,23 @@ type DeadEvent struct {
 	Error     string    `bun:"error,notnull"`
 }
 
+// Attempt counts the failed publishes of one pending event. The relay keeps it
+// in the database (see WithMaxAttempts), so the count survives restarts and is
+// shared by every replica.
+type Attempt struct {
+	bun.BaseModel `bun:"table:outbox_attempts,alias:oa"`
+
+	EventID  int64 `bun:"event_id,pk"`
+	Attempts int   `bun:"attempts,notnull"`
+}
+
 // Migrate creates the outbox table (if it does not exist) with an index on
 // (published_at, id) so pending-event scans stay cheap, and the outbox_dead
-// table used by WithMaxAttempts.
+// and outbox_attempts tables used by WithMaxAttempts.
 func Migrate(ctx context.Context, db *bun.DB) error {
+	if _, err := db.NewCreateTable().Model((*Attempt)(nil)).IfNotExists().Exec(ctx); err != nil {
+		return fmt.Errorf("outbox: create attempts table: %w", err)
+	}
 	if _, err := db.NewCreateTable().Model((*DeadEvent)(nil)).IfNotExists().Exec(ctx); err != nil {
 		return fmt.Errorf("outbox: create dead-letter table: %w", err)
 	}
@@ -83,8 +96,15 @@ func Enqueue(ctx context.Context, db bun.IDB, topic string, payload any) error {
 
 // Prune deletes events published more than olderThan ago and returns how many
 // were removed. Published rows are never deleted otherwise, so call it
-// periodically (e.g. from a scheduled job) to keep the table small.
+// periodically (e.g. from a scheduled job) to keep the table small. It also
+// drops attempt counters left behind by events that are no longer pending.
 func Prune(ctx context.Context, db bun.IDB, olderThan time.Duration) (int64, error) {
+	if _, err := db.NewDelete().
+		Model((*Attempt)(nil)).
+		Where("event_id NOT IN (?)", db.NewSelect().Model((*Event)(nil)).Column("id").Where("published_at IS NULL")).
+		Exec(ctx); err != nil {
+		return 0, fmt.Errorf("outbox: prune attempts: %w", err)
+	}
 	res, err := db.NewDelete().
 		Model((*Event)(nil)).
 		Where("published_at IS NOT NULL").

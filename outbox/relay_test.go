@@ -343,3 +343,62 @@ func TestCancelledContextDoesNotCountAsAttempt(t *testing.T) {
 	assert.Zero(t, dead, "the cancelled publish must not count towards WithMaxAttempts")
 	assert.Len(t, pending(t, db, bg), 1)
 }
+
+func TestAttemptsSurviveARelayRestart(t *testing.T) {
+	db, ctx := newDB(t)
+	require.NoError(t, outbox.Enqueue(ctx, db, "poison", nil))
+	fail := funcPublisher(func(string) error { return errors.New("publish boom") })
+	newRelay := func() *outbox.Relay {
+		return outbox.NewRelay(db, fail, outbox.WithMaxAttempts(3),
+			outbox.WithLogger(logger.New(io.Discard, logger.ErrorLevel)))
+	}
+
+	// Two failures on one relay instance...
+	first := newRelay()
+	for range 2 {
+		_, err := first.Process(ctx)
+		require.Error(t, err)
+	}
+	var attempts []outbox.Attempt
+	require.NoError(t, db.NewSelect().Model(&attempts).Scan(ctx))
+	require.Len(t, attempts, 1)
+	assert.Equal(t, 2, attempts[0].Attempts)
+
+	// ...and the third on a fresh one (a restart, or another replica) is enough.
+	_, err := newRelay().Process(ctx)
+	require.NoError(t, err)
+
+	dead, err := db.NewSelect().Model((*outbox.DeadEvent)(nil)).Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, dead)
+	left, err := db.NewSelect().Model((*outbox.Attempt)(nil)).Count(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, left, "the counter is dropped with the dead-lettered event")
+}
+
+func TestPruneDropsOrphanAttempts(t *testing.T) {
+	db, ctx := newDB(t)
+	require.NoError(t, outbox.Enqueue(ctx, db, "flaky", nil))
+
+	calls := 0
+	pub := funcPublisher(func(string) error {
+		calls++
+		if calls == 1 {
+			return errors.New("transient")
+		}
+		return nil
+	})
+	relay := outbox.NewRelay(db, pub, outbox.WithMaxAttempts(5))
+	_, err := relay.Process(ctx)
+	require.Error(t, err)
+	n, err := relay.Process(ctx) // succeeds; its counter is now an orphan
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+
+	_, err = outbox.Prune(ctx, db, time.Hour) // too recent to delete the event itself
+	require.NoError(t, err)
+	left, err := db.NewSelect().Model((*outbox.Attempt)(nil)).Count(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, left)
+	assert.Len(t, pending(t, db, ctx), 1)
+}

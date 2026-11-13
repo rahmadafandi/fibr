@@ -35,11 +35,6 @@ type Relay struct {
 
 	log         *logger.Logger
 	maxAttempts int
-	// Consecutive publish failures of the event at the head of the queue.
-	// ponytail: in-memory, so the count restarts with the process and is per
-	// replica; persist it in the outbox row if exact attempt counts matter.
-	failID    int64
-	failCount int
 }
 
 // RelayOption configures a Relay.
@@ -65,8 +60,10 @@ func WithInterval(d time.Duration) RelayOption {
 }
 
 // WithMaxAttempts moves an event to the outbox_dead table (see DeadEvent) once
-// its publish has failed n times in a row, so one poison event cannot block the
-// queue forever. The default, 0, retries the head event indefinitely.
+// its publish has failed n times, so one poison event cannot block the queue
+// forever. The count is stored in the outbox_attempts table, so it survives
+// restarts and is shared by every replica; run Migrate to create that table.
+// The default, 0, retries the head event indefinitely.
 func WithMaxAttempts(n int) RelayOption {
 	return func(r *Relay) { r.maxAttempts = n }
 }
@@ -153,7 +150,14 @@ func (r *Relay) process(ctx context.Context, renew func() error) (int, error) {
 		if err := r.pub.Publish(ctx, e.Topic, e.Payload); err != nil {
 			// A cancelled context (shutdown) says nothing about the event, so
 			// it must not count towards WithMaxAttempts.
-			if ctx.Err() != nil || !r.exhausted(e.ID) {
+			if ctx.Err() != nil {
+				return published, fmt.Errorf("outbox: publish event %d: %w", e.ID, err)
+			}
+			exhausted, aerr := r.exhausted(ctx, e.ID)
+			if aerr != nil {
+				return published, aerr
+			}
+			if !exhausted {
 				return published, fmt.Errorf("outbox: publish event %d: %w", e.ID, err)
 			}
 			if derr := r.deadLetter(ctx, e, err); derr != nil {
@@ -176,18 +180,28 @@ func (r *Relay) process(ctx context.Context, renew func() error) (int, error) {
 
 // exhausted records one more failed attempt for event id and reports whether it
 // has now used up WithMaxAttempts.
-func (r *Relay) exhausted(id int64) bool {
+func (r *Relay) exhausted(ctx context.Context, id int64) (bool, error) {
 	if r.maxAttempts <= 0 {
-		return false
+		return false, nil
 	}
-	if r.failID != id {
-		r.failID, r.failCount = id, 0
+	a := &Attempt{EventID: id, Attempts: 1}
+	err := r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		if _, err := tx.NewInsert().Model(a).
+			On("CONFLICT (event_id) DO UPDATE").
+			Set("attempts = oa.attempts + 1").
+			Exec(ctx); err != nil {
+			return err
+		}
+		return tx.NewSelect().Model(a).WherePK().Scan(ctx)
+	})
+	if err != nil {
+		return false, fmt.Errorf("outbox: record attempt for event %d (has Migrate run?): %w", id, err)
 	}
-	r.failCount++
-	return r.failCount >= r.maxAttempts
+	return a.Attempts >= r.maxAttempts, nil
 }
 
-// deadLetter moves e from the outbox to outbox_dead in one transaction.
+// deadLetter moves e from the outbox to outbox_dead, and drops its attempt
+// counter, in one transaction.
 func (r *Relay) deadLetter(ctx context.Context, e *Event, cause error) error {
 	err := r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
 		dead := &DeadEvent{
@@ -201,7 +215,10 @@ func (r *Relay) deadLetter(ctx context.Context, e *Event, cause error) error {
 		if _, err := tx.NewInsert().Model(dead).Exec(ctx); err != nil {
 			return err
 		}
-		_, err := tx.NewDelete().Model(e).WherePK().Exec(ctx)
+		if _, err := tx.NewDelete().Model(e).WherePK().Exec(ctx); err != nil {
+			return err
+		}
+		_, err := tx.NewDelete().Model((*Attempt)(nil)).Where("event_id = ?", e.ID).Exec(ctx)
 		return err
 	})
 	if err != nil {

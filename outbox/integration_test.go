@@ -32,6 +32,7 @@ func TestPostgresRelayLifecycle(t *testing.T) {
 	drop := func() {
 		_, _ = db.NewDropTable().Model((*outbox.Event)(nil)).IfExists().Exec(ctx)
 		_, _ = db.NewDropTable().Model((*outbox.DeadEvent)(nil)).IfExists().Exec(ctx)
+		_, _ = db.NewDropTable().Model((*outbox.Attempt)(nil)).IfExists().Exec(ctx)
 	}
 	drop()
 	t.Cleanup(drop)
@@ -47,9 +48,20 @@ func TestPostgresRelayLifecycle(t *testing.T) {
 		}
 		return nil
 	})
-	relay := outbox.NewRelay(db, pub, outbox.WithMaxAttempts(1),
+	relay := outbox.NewRelay(db, pub, outbox.WithMaxAttempts(3),
 		outbox.WithLogger(logger.New(io.Discard, logger.ErrorLevel)))
 
+	// Two failures are counted in the database (insert, then upsert)...
+	for range 2 {
+		_, err := relay.Process(ctx)
+		require.Error(t, err)
+	}
+	var attempts []outbox.Attempt
+	require.NoError(t, db.NewSelect().Model(&attempts).Scan(ctx))
+	require.Len(t, attempts, 1)
+	assert.Equal(t, 2, attempts[0].Attempts)
+
+	// ...and the third dead-letters the event and lets the queue move on.
 	n, err := relay.Process(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 1, n)
