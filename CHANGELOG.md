@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-11-13
+
 ### Fixed
 
 - `sse`: an SSE stream could crash the whole process. `Handler` runs the stream function after the route handler has returned, when Fiber v3 has already recycled the `fiber.Ctx`; using `c` there (for example `c.RequestCtx().Done()`, as the generated realtime sample does) dereferenced a nil pointer on a goroutine no recover middleware covers. `Handler` now keeps the context alive for the duration of the stream, and recovers and logs a panic in the stream function instead of letting it kill the server.
