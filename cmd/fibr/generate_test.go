@@ -672,10 +672,10 @@ func TestDBTracingWiring(t *testing.T) {
 	for _, layout := range []string{"ddd", "layered"} {
 		t.Run(layout, func(t *testing.T) {
 			dir := generateInto(t, Options{Name: "app", Module: "example.com/app", DB: "sqlite", Layout: layout})
-			assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "fhdatabase.WithTracing()")
+			assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "fibrdatabase.WithTracing()")
 			assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "dbOpts")
 			if layout == "ddd" {
-				assertFileContains(t, filepath.Join(dir, "internal/infrastructure/database/database.go"), "func New(dsn string, opts ...fhdatabase.Option)")
+				assertFileContains(t, filepath.Join(dir, "internal/infrastructure/database/database.go"), "func New(dsn string, opts ...fibrdatabase.Option)")
 			}
 		})
 	}
@@ -685,7 +685,7 @@ func TestMailerScaffoldWiring(t *testing.T) {
 	t.Run("mailer-only-ddd", func(t *testing.T) {
 		dir := generateInto(t, Options{Name: "app", Module: "example.com/app", DB: "sqlite", Layout: "ddd", Mailer: true})
 		assertFileContains(t, filepath.Join(dir, "internal/infrastructure/config/config.go"), "SMTP_FROM")
-		assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "fhmailer.New")
+		assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "fibrmailer.New")
 		assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), `app.Post("/email/test"`)
 		assertFileContains(t, filepath.Join(dir, ".env.example"), "SMTP_PORT=587")
 	})
@@ -702,7 +702,7 @@ func TestMailerScaffoldWiring(t *testing.T) {
 
 	t.Run("mailer-team-ddd", func(t *testing.T) {
 		dir := generateInto(t, Options{Name: "app", Module: "example.com/app", DB: "sqlite", Layout: "ddd", Team: true, Auth: true, Mailer: true})
-		assertFileContains(t, filepath.Join(dir, "internal/application/team/service.go"), "sender   fhmailer.Sender")
+		assertFileContains(t, filepath.Join(dir, "internal/application/team/service.go"), "sender   fibrmailer.Sender")
 		assertFileContains(t, filepath.Join(dir, "internal/application/team/service.go"), "You're invited")
 		assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "NewAuthModule(db, cfg.JWTSecret, authStore, mailSender)")
 	})
@@ -720,13 +720,13 @@ func TestQueueScaffoldWiring(t *testing.T) {
 				cfgPath = filepath.Join(dir, "internal/infrastructure/config/config.go")
 			}
 
-			assertFileContains(t, jobsPath, "func Register(srv *fhjobs.Server)")
+			assertFileContains(t, jobsPath, "func Register(srv *fibrjobs.Server)")
 			assertFileContains(t, jobsPath, "WelcomeType")
 
 			main := filepath.Join(dir, "cmd/api/main.go")
 			assertFileContains(t, main, "func workerCmd()")
 			assertFileContains(t, main, "Asynqmon:")
-			assertFileContains(t, main, "fhjobs.NewClient")
+			assertFileContains(t, main, "fibrjobs.NewClient")
 			assertFileContains(t, main, `app.Post("/jobs/welcome"`)
 
 			assertFileContains(t, cfgPath, "QUEUE_CONCURRENCY")

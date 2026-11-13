@@ -4,8 +4,8 @@ import (
 	"context"
 	"log"
 
-	fhjobs "github.com/rahmadafandi/fibr/v2/jobs"
-{{if .Mailer}}	fhmailer "github.com/rahmadafandi/fibr/v2/mailer"
+	fibrjobs "github.com/rahmadafandi/fibr/v2/jobs"
+{{if .Mailer}}	fibrmailer "github.com/rahmadafandi/fibr/v2/mailer"
 {{end}})
 
 // WelcomeType is the task type for the welcome-email job.
@@ -21,40 +21,40 @@ const welcomeText = "Welcome, {{"{{"}}.Email{{"}}"}}!"
 
 // Register wires this app's job handlers onto the worker server, sending mail
 // through sender.
-func Register(srv *fhjobs.Server, sender fhmailer.Sender) {
-	fhjobs.Handle[WelcomePayload](srv, WelcomeType, func(ctx context.Context, p WelcomePayload) error {
-		html, text, err := fhmailer.Render(welcomeHTML, welcomeText, p)
+func Register(srv *fibrjobs.Server, sender fibrmailer.Sender) {
+	fibrjobs.Handle[WelcomePayload](srv, WelcomeType, func(ctx context.Context, p WelcomePayload) error {
+		html, text, err := fibrmailer.Render(welcomeHTML, welcomeText, p)
 		if err != nil {
 			return err
 		}
-		return sender.Send(ctx, fhmailer.Message{To: []string{p.Email}, Subject: "Welcome", HTML: html, Text: text})
+		return sender.Send(ctx, fibrmailer.Message{To: []string{p.Email}, Subject: "Welcome", HTML: html, Text: text})
 	})
-	fhjobs.Handle[CleanupPayload](srv, CleanupType, HandleCleanup)
+	fibrjobs.Handle[CleanupPayload](srv, CleanupType, HandleCleanup)
 }
 
 // EmailType is the generic email-send job type.
 const EmailType = "email:send"
 
 // QueueSender enqueues messages as email:send jobs instead of sending inline.
-// It satisfies fhmailer.Sender, so request-path consumers can send asynchronously.
+// It satisfies fibrmailer.Sender, so request-path consumers can send asynchronously.
 type QueueSender struct {
-	client *fhjobs.Client
+	client *fibrjobs.Client
 }
 
 // NewQueueSender returns a QueueSender backed by client.
-func NewQueueSender(client *fhjobs.Client) *QueueSender {
+func NewQueueSender(client *fibrjobs.Client) *QueueSender {
 	return &QueueSender{client: client}
 }
 
 // Send enqueues msg as an email:send job.
-func (q *QueueSender) Send(ctx context.Context, msg fhmailer.Message) error {
+func (q *QueueSender) Send(ctx context.Context, msg fibrmailer.Message) error {
 	_, err := q.client.Enqueue(ctx, EmailType, msg)
 	return err
 }
 
 // RegisterEmail registers the email:send handler, delivering via base.
-func RegisterEmail(srv *fhjobs.Server, base fhmailer.Sender) {
-	fhjobs.Handle[fhmailer.Message](srv, EmailType, base.Send)
+func RegisterEmail(srv *fibrjobs.Server, base fibrmailer.Sender) {
+	fibrjobs.Handle[fibrmailer.Message](srv, EmailType, base.Send)
 }
 {{else}}
 // HandleWelcome processes a welcome job. Wire a mailer (generate with --mailer)
@@ -65,9 +65,9 @@ func HandleWelcome(ctx context.Context, p WelcomePayload) error {
 }
 
 // Register wires this app's job handlers onto the worker server.
-func Register(srv *fhjobs.Server) {
-	fhjobs.Handle[WelcomePayload](srv, WelcomeType, HandleWelcome)
-	fhjobs.Handle[CleanupPayload](srv, CleanupType, HandleCleanup)
+func Register(srv *fibrjobs.Server) {
+	fibrjobs.Handle[WelcomePayload](srv, WelcomeType, HandleWelcome)
+	fibrjobs.Handle[CleanupPayload](srv, CleanupType, HandleCleanup)
 }
 {{end}}
 
@@ -87,7 +87,7 @@ func HandleCleanup(ctx context.Context, p CleanupPayload) error {
 }
 
 // RegisterSchedule registers this app's periodic (cron) jobs on the scheduler.
-func RegisterSchedule(sched *fhjobs.Scheduler) error {
+func RegisterSchedule(sched *fibrjobs.Scheduler) error {
 	// Daily at 02:00 (scheduler time zone; UTC by default).
 	_, err := sched.Register("0 2 * * *", CleanupType, CleanupPayload{OlderThanDays: 30})
 	return err

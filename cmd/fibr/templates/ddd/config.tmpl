@@ -1,6 +1,6 @@
 package config
 
-import fhconfig "github.com/rahmadafandi/fibr/v2/config"
+import fibrconfig "github.com/rahmadafandi/fibr/v2/config"
 
 // Config holds all environment-driven configuration for {{.Name}}.
 type Config struct {
@@ -25,7 +25,7 @@ type Config struct {
 // Load reads configuration from environment variables and defaults.
 func Load() (*Config, error) {
 	var c Config
-	if err := fhconfig.LoadConfig(&c); err != nil {
+	if err := fibrconfig.LoadConfig(&c); err != nil {
 		return nil, err
 	}
 	return &c, nil

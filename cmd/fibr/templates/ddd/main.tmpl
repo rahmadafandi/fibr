@@ -6,24 +6,24 @@ import (
 	"log"
 
 	"github.com/rahmadafandi/fibr/v2/bootstrap"
-	fhdatabase "github.com/rahmadafandi/fibr/v2/database"
+	fibrdatabase "github.com/rahmadafandi/fibr/v2/database"
 	"github.com/rahmadafandi/fibr/v2/health"
-	fhmigrate "github.com/rahmadafandi/fibr/v2/migrate"
-	fhopenapi "github.com/rahmadafandi/fibr/v2/openapi"
+	fibrmigrate "github.com/rahmadafandi/fibr/v2/migrate"
+	fibropenapi "github.com/rahmadafandi/fibr/v2/openapi"
 	"github.com/rahmadafandi/fibr/v2/rediskit"
-{{if .I18n}}	fhi18n "github.com/rahmadafandi/fibr/v2/i18n"
+{{if .I18n}}	fibri18n "github.com/rahmadafandi/fibr/v2/i18n"
 	"{{.Module}}/internal/locales"
 {{end}}
 	"github.com/rahmadafandi/fibr/v2/tracing"
 	"github.com/spf13/cobra"
 	"github.com/uptrace/bun"
 	redislib "github.com/redis/go-redis/v9"
-{{if .Auth}}	fhauth "github.com/rahmadafandi/fibr/v2/auth"
+{{if .Auth}}	fibrauth "github.com/rahmadafandi/fibr/v2/auth"
 	zlog "github.com/rs/zerolog/log"
 {{end}}{{if or .Queue .Mailer}}	"github.com/gofiber/fiber/v3"
-{{end}}{{if .Queue}}	fhjobs "github.com/rahmadafandi/fibr/v2/jobs"
+{{end}}{{if .Queue}}	fibrjobs "github.com/rahmadafandi/fibr/v2/jobs"
 	appjobs "{{.Module}}/internal/application/jobs"
-{{end}}{{if .Mailer}}	fhmailer "github.com/rahmadafandi/fibr/v2/mailer"
+{{end}}{{if .Mailer}}	fibrmailer "github.com/rahmadafandi/fibr/v2/mailer"
 {{end}}
 	"{{.Module}}/internal/infrastructure/config"
 	"{{.Module}}/internal/infrastructure/database"
@@ -40,7 +40,7 @@ func main() {
 	}
 	root.RunE = func(cmd *cobra.Command, args []string) error { return runServe(false) }
 	root.AddCommand(serveCmd())
-	root.AddCommand(fhmigrate.NewCommand(openDB, migrations.Migrations))
+	root.AddCommand(fibrmigrate.NewCommand(openDB, migrations.Migrations))
 {{if .Queue}}	root.AddCommand(workerCmd())
 	root.AddCommand(schedulerCmd())
 {{end}}	if err := root.Execute(); err != nil {
@@ -75,12 +75,12 @@ func runWorker() error {
 	if cfg.RedisURL == "" {
 		return fmt.Errorf("worker requires REDIS_URL")
 	}
-	opt, err := fhjobs.RedisConnOpt(cfg.RedisURL)
+	opt, err := fibrjobs.RedisConnOpt(cfg.RedisURL)
 	if err != nil {
 		return err
 	}
-	srv := fhjobs.NewServer(opt, fhjobs.ServerConfig{Concurrency: cfg.QueueConcurrency})
-{{if .Mailer}}	base, _ := fhmailer.New(fhmailer.SMTPConfig{
+	srv := fibrjobs.NewServer(opt, fibrjobs.ServerConfig{Concurrency: cfg.QueueConcurrency})
+{{if .Mailer}}	base, _ := fibrmailer.New(fibrmailer.SMTPConfig{
 		Host:     cfg.SMTPHost,
 		Port:     cfg.SMTPPort,
 		Username: cfg.SMTPUsername,
@@ -110,11 +110,11 @@ func runScheduler() error {
 	if cfg.RedisURL == "" {
 		return fmt.Errorf("scheduler requires REDIS_URL")
 	}
-	opt, err := fhjobs.RedisConnOpt(cfg.RedisURL)
+	opt, err := fibrjobs.RedisConnOpt(cfg.RedisURL)
 	if err != nil {
 		return err
 	}
-	sched := fhjobs.NewScheduler(opt)
+	sched := fibrjobs.NewScheduler(opt)
 	if err := appjobs.RegisterSchedule(sched); err != nil {
 		return err
 	}
@@ -127,9 +127,9 @@ func runScheduler() error {
 	if err != nil {
 		return err
 	}
-	var dbOpts []fhdatabase.Option
+	var dbOpts []fibrdatabase.Option
 	if cfg.TracingEnabled {
-		dbOpts = append(dbOpts, fhdatabase.WithTracing())
+		dbOpts = append(dbOpts, fibrdatabase.WithTracing())
 	}
 	db, err := database.New(cfg.DatabaseURL, dbOpts...)
 	if err != nil {
@@ -146,26 +146,26 @@ func runScheduler() error {
 		}
 	}
 
-{{if .Queue}}	var queueClient *fhjobs.Client
+{{if .Queue}}	var queueClient *fibrjobs.Client
 	var asynqmonMount *bootstrap.AsynqmonMount
 	if cfg.RedisURL != "" {
-		opt, qerr := fhjobs.RedisConnOpt(cfg.RedisURL)
+		opt, qerr := fibrjobs.RedisConnOpt(cfg.RedisURL)
 		if qerr != nil {
 			return qerr
 		}
-		queueClient = fhjobs.NewClient(opt)
+		queueClient = fibrjobs.NewClient(opt)
 		cleanups = append(cleanups, func(ctx context.Context) error { return queueClient.Close() })
 		asynqmonMount = &bootstrap.AsynqmonMount{
 {{if not .Auth}}			// NOTE: the monitoring UI is unauthenticated. Add a Middleware guard (or regenerate with --auth) before exposing it publicly.
-{{end}}			Handler: fhjobs.MonitoringHandler(opt, cfg.AsynqmonPath),
+{{end}}			Handler: fibrjobs.MonitoringHandler(opt, cfg.AsynqmonPath),
 			Path:    cfg.AsynqmonPath,
-{{if .Auth}}			Middleware: []fiber.Handler{fhauth.RequireAuth(cfg.JWTSecret)},
+{{if .Auth}}			Middleware: []fiber.Handler{fibrauth.RequireAuth(cfg.JWTSecret)},
 {{end}}		}
 	} else {
 		log.Println("queue disabled — set REDIS_URL to enable background jobs")
 	}
 
-{{end}}{{if .Mailer}}	mailSender, _ := fhmailer.New(fhmailer.SMTPConfig{
+{{end}}{{if .Mailer}}	mailSender, _ := fibrmailer.New(fibrmailer.SMTPConfig{
 		Host:     cfg.SMTPHost,
 		Port:     cfg.SMTPPort,
 		Username: cfg.SMTPUsername,
@@ -201,12 +201,12 @@ func runScheduler() error {
 		opts.RateLimitStorage = rediskit.NewStorage(redisClient)
 		opts.IdempotencyStorage = rediskit.NewStorage(redisClient, rediskit.WithPrefix("idempotency:"))
 	}
-	oapi := fhopenapi.New(fhopenapi.Info{Title: "{{.Name}}", Version: "0.1.0"})
+	oapi := fibropenapi.New(fibropenapi.Info{Title: "{{.Name}}", Version: "0.1.0"})
 	httpiface.RegisterDocs(oapi)
 {{if .Auth}}	oapi.WithBearerAuth()
 	httpiface.RegisterAuthDocs(oapi)
 {{end}}	opts.OpenAPI = oapi
-{{if .I18n}}	i18nBundle := fhi18n.New(fhi18n.WithFallback("en"))
+{{if .I18n}}	i18nBundle := fibri18n.New(fibri18n.WithFallback("en"))
 	if err := i18nBundle.LoadFS(locales.FS, "."); err != nil {
 		return err
 	}
@@ -233,7 +233,7 @@ func runScheduler() error {
 	}
 {{end}}{{if .Mailer}}	// demo smoke-test route; unauthenticated — remove or guard before exposing publicly.
 	app.Post("/email/test", func(c fiber.Ctx) error {
-		if err := mailSender.Send(c.Context(), fhmailer.Message{To: []string{"someone@example.com"}, Subject: "Test email", Text: "It works.", HTML: "<p>It works.</p>"}); err != nil {
+		if err := mailSender.Send(c.Context(), fibrmailer.Message{To: []string{"someone@example.com"}, Subject: "Test email", Text: "It works.", HTML: "<p>It works.</p>"}); err != nil {
 			return err
 		}
 		return c.JSON(fiber.Map{"sent": true})
@@ -241,12 +241,12 @@ func runScheduler() error {
 {{end}}{{if .Sample}}	if err := app.Mount(httpiface.NewUserModule(db)); err != nil {
 		return err
 	}
-{{end}}{{if .Auth}}	var authStore fhauth.TokenStore
+{{end}}{{if .Auth}}	var authStore fibrauth.TokenStore
 	if redisClient != nil {
-		authStore = fhauth.NewRedisStore(rediskit.New(redisClient))
+		authStore = fibrauth.NewRedisStore(rediskit.New(redisClient))
 	} else {
 		zlog.Warn().Msg("auth revocation using in-memory store — set REDIS_URL for production")
-		authStore = fhauth.NewMemoryStore()
+		authStore = fibrauth.NewMemoryStore()
 	}
 	if err := app.Mount(httpiface.NewAuthModule(db, cfg.JWTSecret, authStore{{if and .Team .Mailer}}, mailSender{{end}})); err != nil {
 		return err

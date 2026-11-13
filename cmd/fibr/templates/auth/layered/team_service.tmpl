@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/rahmadafandi/fibr/v2/jwt"
-{{if .Mailer}}	fhmailer "github.com/rahmadafandi/fibr/v2/mailer"
+{{if .Mailer}}	fibrmailer "github.com/rahmadafandi/fibr/v2/mailer"
 {{end}}	"{{.Module}}/internal/model"
 	"{{.Module}}/internal/repository"
 )
@@ -87,12 +87,12 @@ type TeamService struct {
 	repo     *repository.TeamRepository
 	accounts *repository.AccountRepository
 	secret   string
-{{if .Mailer}}	sender   fhmailer.Sender
+{{if .Mailer}}	sender   fibrmailer.Sender
 {{end}}}
 
 // NewTeamService creates a TeamService. secret is the JWT signing key used to
 // mint and validate invitation tokens.
-func NewTeamService(repo *repository.TeamRepository, accounts *repository.AccountRepository, secret string{{if .Mailer}}, sender fhmailer.Sender{{end}}) *TeamService {
+func NewTeamService(repo *repository.TeamRepository, accounts *repository.AccountRepository, secret string{{if .Mailer}}, sender fibrmailer.Sender{{end}}) *TeamService {
 	return &TeamService{repo: repo, accounts: accounts, secret: secret{{if .Mailer}}, sender: sender{{end}}}
 }
 
@@ -302,13 +302,13 @@ func (s *TeamService) Invite(ctx context.Context, teamID int64, email, role stri
 	if err := s.repo.CreateInvitation(ctx, inv); err != nil {
 		return "", nil, err
 	}
-{{if .Mailer}}	if html, text, rerr := fhmailer.Render(inviteHTML, inviteText, struct {
+{{if .Mailer}}	if html, text, rerr := fibrmailer.Render(inviteHTML, inviteText, struct {
 		TeamID string
 		Token  string
 	}{TeamID: strconv.FormatInt(teamID, 10), Token: token}); rerr == nil {
 		// best-effort: the invitation row + token are already persisted, so a
 		// delivery failure must not fail the request.
-		_ = s.sender.Send(ctx, fhmailer.Message{To: []string{email}, Subject: "You're invited", HTML: html, Text: text})
+		_ = s.sender.Send(ctx, fibrmailer.Message{To: []string{email}, Subject: "You're invited", HTML: html, Text: text})
 	}
 {{end}}	return token, inv, nil
 }

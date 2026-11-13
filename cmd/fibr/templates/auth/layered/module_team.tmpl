@@ -6,7 +6,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/auth"
 	"github.com/rahmadafandi/fibr/v2/bootstrap"
-{{if .Mailer}}	fhmailer "github.com/rahmadafandi/fibr/v2/mailer"
+{{if .Mailer}}	fibrmailer "github.com/rahmadafandi/fibr/v2/mailer"
 {{end}}	"github.com/uptrace/bun"
 
 	"{{.Module}}/internal/repository"
@@ -20,7 +20,7 @@ type AuthModule struct {
 }
 
 // NewAuthModule builds the auth module. Pass the result to app.Mount.
-func NewAuthModule(db *bun.DB, secret string, store auth.TokenStore{{if .Mailer}}, sender fhmailer.Sender{{end}}) bootstrap.Module {
+func NewAuthModule(db *bun.DB, secret string, store auth.TokenStore{{if .Mailer}}, sender fibrmailer.Sender{{end}}) bootstrap.Module {
 	accountRepo := repository.NewAccountRepository(db)
 	teamRepo := repository.NewTeamRepository(db)
 	accountSvc := service.NewAuthService(accountRepo)
