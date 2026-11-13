@@ -63,7 +63,11 @@ func (p *PaginationQuery) Validate(sortOptions []string) error {
 //
 // pq.Page and pq.Limit are normalised in place to their defaults (1 and 10)
 // when non-positive, and pq.Limit is clamped to MaxLimit. Search is
-// case-insensitive: ILIKE on Postgres, LIKE elsewhere. Invalid sort/order values are ignored; call
+// case-insensitive: ILIKE on Postgres, LIKE elsewhere.
+//
+// Search matches anywhere in the column ("%term%"), which an ordinary index
+// cannot serve, so its cost grows with the table. On Postgres, a pg_trgm GIN
+// index on the searchable columns keeps it fast. Invalid sort/order values are ignored; call
 // pq.Validate first to surface them as errors.
 func Paginate(pq *PaginationQuery, columnsSearchable []string) func(*bun.SelectQuery) *bun.SelectQuery {
 	return func(q *bun.SelectQuery) *bun.SelectQuery {
