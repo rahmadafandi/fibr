@@ -290,7 +290,7 @@ func TestTracingSpanReachesRequestContext(t *testing.T) {
 		// Both accessors must carry the request span, the timeout, and the
 		// request id, so DB calls made with either are traced and bounded.
 		for name, ctx := range map[string]context.Context{
-			"GetContext": reqctx.GetContext(c),
+			"GetContext": reqctx.GetContext(c), //nolint:staticcheck // the deprecated accessor must keep working
 			"Context":    c.Context(),
 		} {
 			assert.True(t, oteltrace.SpanContextFromContext(ctx).IsValid(), "%s: span", name)

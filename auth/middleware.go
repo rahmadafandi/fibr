@@ -8,7 +8,6 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/jwt"
-	"github.com/rahmadafandi/fibr/v2/reqctx"
 	"github.com/rahmadafandi/fibr/v2/response"
 )
 
@@ -74,7 +73,7 @@ func RequireAuth(secret string, opts ...Option) fiber.Handler {
 		if blocked, err := blocklisted(c.Context(), cfg.store, claims); err != nil || blocked {
 			return response.SendError(c, nil, "unauthorized", fiber.StatusUnauthorized)
 		}
-		reqctx.SetLocal(c, cfg.contextKey, claims)
+		fiber.Locals(c, cfg.contextKey, claims)
 		return c.Next()
 	}
 }
@@ -87,7 +86,7 @@ func Optional(secret string, opts ...Option) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		if claims, ok := parse(c, secret, cfg); ok {
 			if blocked, err := blocklisted(c.Context(), cfg.store, claims); err == nil && !blocked {
-				reqctx.SetLocal(c, cfg.contextKey, claims)
+				fiber.Locals(c, cfg.contextKey, claims)
 			}
 		}
 		return c.Next()
@@ -97,7 +96,7 @@ func Optional(secret string, opts ...Option) fiber.Handler {
 // Claims returns the claims stored by the auth middleware.
 func Claims(c fiber.Ctx, opts ...Option) (jwt.MapClaims, bool) {
 	cfg := newConfig(opts...)
-	claims := reqctx.GetLocal[jwt.MapClaims](c, cfg.contextKey)
+	claims := fiber.Locals[jwt.MapClaims](c, cfg.contextKey)
 	if claims == nil {
 		return nil, false
 	}
