@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `fibrtest`: `NewRedis(t)` starts an in-memory Redis (miniredis) and returns it with a connected go-redis client, both closed at test end.
+- `ws`: `WithLogger` sets the logger for decode and backplane errors.
+- `rediskit`: `Redis.Logger` sets the logger for `Subscribe` background errors.
+- `mailer`: `NewLogSenderWithLogger`.
+
+### Changed
+
+- Error messages from `config`, `jwt`, `slug`, and `bootstrap` now start with the package name (for example `slug: check uniqueness: …`), like the rest of the library. Code that matches these errors by text needs updating; `errors.Is` / `errors.As` are unaffected.
+- Generator: generated apps import fibr packages under `fibr*` aliases (`fibrmailer`, `fibrjobs`, …) instead of the legacy `fh*` prefix.
 
 ## [2.2.0] - 2026-11-13
 
