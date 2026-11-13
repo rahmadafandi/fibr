@@ -9,9 +9,10 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/gofiber/fiber/v3"
-	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rahmadafandi/fibr/v2/fibrtest"
 )
 
 // Storage must satisfy the fiber.Storage interface.
@@ -19,10 +20,7 @@ var _ fiber.Storage = (*Storage)(nil)
 
 func newTestStorage(t *testing.T) (*Storage, *miniredis.Miniredis, *Client) {
 	t.Helper()
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	t.Cleanup(mr.Close)
-	client := goredis.NewClient(&goredis.Options{Addr: mr.Addr()})
+	mr, client := fibrtest.NewRedis(t)
 	return NewStorage(client), mr, client
 }
 
@@ -77,10 +75,7 @@ func TestStorageSetExpiry(t *testing.T) {
 }
 
 func TestStorageWithPrefix(t *testing.T) {
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	t.Cleanup(mr.Close)
-	client := goredis.NewClient(&goredis.Options{Addr: mr.Addr()})
+	mr, client := fibrtest.NewRedis(t)
 	s := NewStorage(client, WithPrefix("rl:"))
 	require.NoError(t, s.Set("k", []byte("v"), 0))
 	assert.True(t, mr.Exists("rl:k"))

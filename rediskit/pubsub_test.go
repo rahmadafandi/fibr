@@ -7,16 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
-	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rahmadafandi/fibr/v2/fibrtest"
 )
 
 func TestPublishSubscribe(t *testing.T) {
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	t.Cleanup(mr.Close)
-	r := New(goredis.NewClient(&goredis.Options{Addr: mr.Addr()}))
+	_, client := fibrtest.NewRedis(t)
+	r := New(client)
 
 	type event struct {
 		Key string `json:"key"`
@@ -41,10 +39,8 @@ func TestPublishSubscribe(t *testing.T) {
 }
 
 func TestSubscribeClose(t *testing.T) {
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	t.Cleanup(mr.Close)
-	r := New(goredis.NewClient(&goredis.Options{Addr: mr.Addr()}))
+	_, client := fibrtest.NewRedis(t)
+	r := New(client)
 
 	sub, err := Subscribe[string](context.Background(), r, "ch", func(context.Context, string) error { return nil })
 	require.NoError(t, err)

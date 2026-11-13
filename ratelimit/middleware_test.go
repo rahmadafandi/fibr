@@ -14,14 +14,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rahmadafandi/fibr/v2/logger"
+
+	"github.com/rahmadafandi/fibr/v2/fibrtest"
 )
 
 func TestMiddlewareLimitsAndHeaders(t *testing.T) {
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	t.Cleanup(mr.Close)
-	client := goredis.NewClient(&goredis.Options{Addr: mr.Addr()})
-	t.Cleanup(func() { _ = client.Close() })
+	_, client := fibrtest.NewRedis(t)
 	l := New(client)
 
 	app := fiber.New()
