@@ -1,6 +1,6 @@
 # fibr
 
-> A collection of helper packages for the [Fiber](https://gofiber.io/) web framework, plus **fibr** — a generator that scaffolds batteries-included Fiber projects. Targets Go 1.26+, Fiber v2, and Bun ORM (Postgres or SQLite).
+> A collection of helper packages for the [Fiber](https://gofiber.io/) web framework, plus **fibr** — a generator that scaffolds batteries-included Fiber projects. Targets Go 1.26+, Fiber v3, and Bun ORM (Postgres or SQLite).
 
 The library is `github.com/rahmadafandi/fibr/v2` (`go get github.com/rahmadafandi/fibr/v2`); the generator is `go install github.com/rahmadafandi/fibr/v2/cmd/fibr@latest` (`fibr new <name>`). The public API is stable under SemVer: no breaking changes within v1.x (anything breaking goes to `…/fibr/v2`). Full API reference lives on pkg.go.dev.
 
@@ -45,7 +45,7 @@ The library is `github.com/rahmadafandi/fibr/v2` (`go get github.com/rahmadafand
 - [events](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/events): in-process typed event bus (`Subscribe[T]`/`Publish[T]`), sync by default with an opt-in async mode.
 - [featureflag](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/featureflag): runtime flags (boolean, percentage rollout, per-user/group) via `Static`/`Rules`/`Redis` providers + a Fiber helper.
 - [audit](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/audit): structured audit log (actor/action/target) via a pluggable `Sink` (`NewBunSink`/`Migrate`/`List`) + a Fiber `FromRequest` helper.
-- [cache](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/cache): generic in-memory cache `Cache[V]` with TTL, LRU max-size eviction, and singleflight `GetOrLoad`; complements `redis.Remember`.
+- [cache](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/cache): generic in-memory cache `Cache[V]` with TTL, LRU max-size eviction, and singleflight `GetOrLoad`; complements `rediskit.Remember`.
 - [ratelimit](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/ratelimit): Redis token-bucket rate limiter — per-key buckets, cost-per-request (`Allow`), and a Fiber `Middleware` (429 + `Retry-After` + `X-RateLimit-*`).
 - [apikey](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/apikey): API-key auth (distinct from JWT) — hash + resolve identity/scopes via a pluggable `Store` (`MapStore`), `Generate`/`Hash`, Fiber `Middleware` + `RequireScope` + `FromContext`/`HasScope`.
 - [mailer](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/mailer): transactional email — pluggable `Sender` (SMTP/log/memory) + template render.

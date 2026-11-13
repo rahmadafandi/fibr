@@ -17,18 +17,18 @@ A collection of helper packages for the [Fiber](https://gofiber.io/) web framewo
 go get github.com/rahmadafandi/fibr/v2
 ```
 
-Requires Go 1.26+. Targets Fiber v2 and Bun ORM (Postgres or SQLite).
+Requires Go 1.26+. Targets Fiber v3 and Bun ORM (Postgres or SQLite).
 
 ## Stability
 
-fibr follows [Semantic Versioning](https://semver.org/). As of **v1.0.0** the
-public API is stable:
+fibr follows [Semantic Versioning](https://semver.org/). This is the **v2**
+line (module path `github.com/rahmadafandi/fibr/v2`), which targets Fiber v3:
 
-- **No breaking changes within v1.x.** Exported identifiers will not be removed
-  or changed incompatibly until a v2 major release.
+- **No breaking changes within v2.x.** Exported identifiers will not be removed
+  or changed incompatibly until a v3 major release.
 - New functionality arrives in backward-compatible **minor** releases; fixes in
   **patch** releases.
-- Anything breaking is deferred to v2 (a new module path, `…/fibr/v2`).
+- Coming from v1 (Fiber v2)? See [MIGRATING.md](MIGRATING.md).
 - The generated-app scaffolding (`fibr new`) follows the same library version but
   generated code is a starting point you own — regenerating is never required.
 
@@ -43,7 +43,7 @@ package main
 import (
     "fmt"
 
-    "github.com/gofiber/fiber/v2"
+    "github.com/gofiber/fiber/v3"
     "github.com/rahmadafandi/fibr/v2/bootstrap"
     "github.com/rahmadafandi/fibr/v2/config"
     "github.com/rahmadafandi/fibr/v2/database"
@@ -68,12 +68,12 @@ func main() {
 
     app := bootstrap.New(bootstrap.Options{
         DB:           db,
-        EnableCORS:   true,
+        CORSOrigins:  []string{"https://app.example.com"},
         RateLimit:    100,
         HealthChecks: []health.NamedCheck{health.PingBun(db)},
     })
 
-    app.Get("/", func(c *fiber.Ctx) error {
+    app.Get("/", func(c fiber.Ctx) error {
         return response.SendSuccess(c, "Hello, World!", "Welcome")
     })
 
@@ -99,13 +99,13 @@ For how the packages layer and how `bootstrap` composes them into an app, see
 - [`validator`](#validator) — Struct validation with custom rules and JSON field names.
 - [`bind`](#parse--validate-with-bind) — Parse and validate a request body/query/params into `T` in one call; writes `400`/`422` on failure.
 - [`jwt`](#jwt) — JWT generation and validation helpers.
-- [`http`](#http) — Context-aware JSON HTTP client with retry.
+- [`httpclient`](#httpclient) — Context-aware JSON HTTP client with retry.
 - [`retry`](#retry) — Generic retry with exponential backoff + jitter (`Do`/`DoValue`).
-- [`redis`](#redis) — Redis wrapper with `Remember` cache-aside helper. Includes a `Storage` adapter (`NewStorage`) for Redis-backed rate limiting.
+- [`rediskit`](#rediskit) — Redis wrapper with `Remember` cache-aside helper. Includes a `Storage` adapter (`NewStorage`) for Redis-backed rate limiting.
 - [`slug`](#slug) — Unique URL-safe slug generator backed by a Bun database.
 - [`uploader`](#uploader) — Local file uploader with size and MIME limits. Also includes `S3Uploader` for S3-compatible storage (AWS S3, MinIO, R2).
 - [`middleware`](#middleware) — Recover, request logging, and request-id middleware.
-- [`context`](#context) — Request context, request-id, and type-safe local accessors.
+- [`reqctx`](#reqctx) — Request context, request-id, and type-safe local accessors.
 - [`database`](#database) — Bun connector with Postgres/SQLite dialect auto-detection.
 - [`dbresolver`](#dbresolver) — Read/write split over Bun: `Writer()` (primary) and `Reader()` (round-robin replica).
 - [`migrate`](#migrate) — Versioned migrations with `bun/migrate` and a ready cobra command.
@@ -181,8 +181,8 @@ response.SendError(c, nil, "Error", 400)
 
 Helper functions for pagination with Bun. The `Paginate` helper returns a Bun query modifier for use with `query.Apply`.
 
-Request body/query/params parsing uses Fiber's built-in `c.BodyParser(&out)`,
-`c.QueryParser(&out)`, and `c.ParamsParser(&out)` directly.
+Request body/query/params parsing uses Fiber's built-in `c.Bind().Body(&out)`,
+`c.Bind().Query(&out)`, and `c.Bind().URI(&out)` directly.
 
 **Usage:**
 
@@ -195,7 +195,7 @@ type MyStruct struct {
 
 // Pagination with Bun
 pq := &parser.PaginationQuery{}
-if err := c.QueryParser(pq); err != nil { ... }
+if err := c.Bind().Query(pq); err != nil { ... }
 if err := pq.Validate([]string{"name", "created_at"}); err != nil { ... }
 
 var rows []MyModel
@@ -213,7 +213,7 @@ For large tables or infinite scroll, `parser.Keyset` paginates by a cursor inste
 
 ```go
 var kq parser.KeysetQuery // bound from ?limit=20&cursor=...&before=...
-_ = c.QueryParser(&kq)
+_ = c.Bind().Query(&kq)
 
 // The columns must form a unique total ordering; make the last a tiebreaker (the pk).
 cols := []parser.KeysetColumn{{Name: "created_at", Desc: true}, {Name: "id", Desc: true}}
@@ -280,7 +280,7 @@ type CreateInput struct {
     Email string `json:"email" validate:"required,email"`
 }
 
-func create(c *fiber.Ctx) error {
+func create(c fiber.Ctx) error {
     in, ok := bind.Body[CreateInput](c)
     if !ok {
         return nil // bind wrote a 400 (malformed) or 422 (validation) response
@@ -310,7 +310,7 @@ valid, err := jwt.ValidateToken(token, secret)
 
 An empty secret is rejected with `jwt.ErrEmptySecret` by all three functions — a missing `JWT_SECRET` fails loudly instead of producing forgeable tokens.
 
-### `http`
+### `httpclient`
 
 A small JSON HTTP client built on [fasthttp](https://github.com/valyala/fasthttp). All request methods accept a `context.Context` and return `(statusCode int, err error)`.
 
@@ -320,14 +320,14 @@ A small JSON HTTP client built on [fasthttp](https://github.com/valyala/fasthttp
 import (
     "context"
     "time"
-    fhttp "github.com/rahmadafandi/fibr/v2/httpclient"
+    "github.com/rahmadafandi/fibr/v2/httpclient"
 )
 
-h := fhttp.New("https://api.example.com",
-    fhttp.WithTimeout(10*time.Second),
-    fhttp.WithRetry(3, 500*time.Millisecond),
-    fhttp.WithCircuitBreaker(5, 30*time.Second), // open after 5 consecutive failures
-    fhttp.WithHeader("Authorization", "Bearer "+token),
+h := httpclient.New("https://api.example.com",
+    httpclient.WithTimeout(10*time.Second),
+    httpclient.WithRetry(3, 500*time.Millisecond),
+    httpclient.WithCircuitBreaker(5, 30*time.Second), // open after 5 consecutive failures
+    httpclient.WithHeader("Authorization", "Bearer "+token),
 )
 
 var result MyResponse
@@ -336,7 +336,7 @@ code, err := h.Get(ctx, "/resource/1", &result)
 code, err = h.Post(ctx, "/resource", requestBody, &result)
 
 // Fire and forget (background, non-blocking)
-h.FireAndForget(ctx, fhttp.Post, "/events", eventPayload)
+h.FireAndForget(ctx, httpclient.Post, "/events", eventPayload)
 ```
 
 `WithCircuitBreaker` makes the client fail fast with `http.ErrCircuitOpen` once a dependency has failed (transport error or 5xx) `maxFailures` times in a row, then lets a single probe through after the open timeout. 4xx responses do not trip it.
@@ -360,7 +360,7 @@ user, err := retry.DoValue(ctx, func() (User, error) {
 
 Backoff is `delay × multiplier^attempt` (capped by `WithMaxDelay`), jittered by `WithJitter`. The sleep is context-aware, so a cancelled context stops the retries promptly.
 
-### `redis`
+### `rediskit`
 
 A Redis wrapper with JSON serialization helpers and a generic `Remember` cache-aside function. `Remember` deduplicates concurrent misses for the same key within the process (singleflight), so a hot-key expiry triggers one loader call rather than a stampede.
 
@@ -371,21 +371,21 @@ import (
     "context"
     "time"
     "github.com/redis/go-redis/v9"
-    firedis "github.com/rahmadafandi/fibr/v2/rediskit"
+    "github.com/rahmadafandi/fibr/v2/rediskit"
 )
 
-opt, err := firedis.ParseRedisOptions("redis://localhost:6379/0")
+opt, err := rediskit.ParseRedisOptions("redis://localhost:6379/0")
 if err != nil {
     // handle invalid URL
 }
-rds := firedis.New(redis.NewClient(opt))
+rds := rediskit.New(redis.NewClient(opt))
 
 // Set / Get
 _ = rds.Set(ctx, "key", myValue, time.Minute)
 _ = rds.Get(ctx, "key", &myValue)
 
 // Cache-aside: returns cached value or calls loader on miss
-result, err := firedis.Remember(ctx, rds, "key", time.Minute, func() (MyType, error) {
+result, err := rediskit.Remember(ctx, rds, "key", time.Minute, func() (MyType, error) {
     return expensiveLoad()
 })
 ```
@@ -399,7 +399,7 @@ Invalidate and inspect entries with `Delete(ctx, keys...)`, `Exists(ctx, key)`,
 client := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
 app := bootstrap.New(bootstrap.Options{
     RateLimit:        100,
-    RateLimitStorage: fibrredis.NewStorage(client), // shared across instances
+    RateLimitStorage: rediskit.NewStorage(client), // shared across instances
 })
 ```
 
@@ -435,10 +435,10 @@ up := uploader.NewLocalUploader("./uploads",
 )
 
 // Upload a file (filename is sanitized before saving)
-path, err := up.Upload(file, filename)
+path, err := up.Upload(ctx, file, filename) // e.g. ./uploads/3f9c2a1b7d4e6f80-photo.png
 ```
 
-By default an upload **replaces** an existing file of the same name. When filenames come from users, add `uploader.WithUniqueNames()` so each file is stored as `<random>-<name>` and two users uploading `avatar.png` cannot overwrite each other. Both uploaders also implement `uploader.ContextUploader` — `up.UploadContext(ctx, file, filename)` — so an upload can be cancelled or bounded by a deadline.
+Each file is stored under a unique name, `<random>-<name>`, so two users uploading `avatar.png` never overwrite each other. Pass `uploader.WithOriginalNames()` to keep the original name instead; an upload then **replaces** an existing file of that name, so use it only for names you control. `ctx` bounds the upload, so it can be cancelled or given a deadline.
 
 ### S3-compatible uploads with `uploader.S3Uploader`
 
@@ -448,7 +448,7 @@ up := uploader.NewS3Uploader(client, "my-bucket",
     uploader.WithKeyPrefix("avatars/"),
     uploader.WithBaseURL("https://cdn.example.com/"),
 )
-url, err := up.Upload(file, "photo.png") // -> https://cdn.example.com/avatars/photo.png
+url, err := up.Upload(ctx, file, "photo.png") // -> https://cdn.example.com/avatars/<random>-photo.png
 ```
 
 ### `middleware`
@@ -475,7 +475,7 @@ app.Use(auth.RequireAuth(secret))
 app.Use(middleware.ContextMiddleware(10 * time.Second))
 ```
 
-### `context`
+### `reqctx`
 
 Accessors for values stored on the Fiber context: the request-scoped
 `context.Context`, the request ID, and type-safe locals.
@@ -483,13 +483,13 @@ Accessors for values stored on the Fiber context: the request-scoped
 **Usage:**
 
 ```go
-import fhctx "github.com/rahmadafandi/fibr/v2/reqctx"
+import "github.com/rahmadafandi/fibr/v2/reqctx"
 
-ctx := fhctx.GetContext(c)        // request-scoped context.Context
-id := fhctx.GetRequestID(c)       // request id (set by ContextMiddleware)
+ctx := reqctx.GetContext(c)        // request-scoped context.Context
+id := reqctx.GetRequestID(c)       // request id (set by ContextMiddleware)
 
-fhctx.SetLocal(c, "user", user)   // store a typed value
-u := fhctx.GetLocal[User](c, "user") // retrieve it (zero value if absent)
+reqctx.SetLocal(c, "user", user)   // store a typed value
+u := reqctx.GetLocal[User](c, "user") // retrieve it (zero value if absent)
 ```
 
 ### `database`
@@ -568,9 +568,9 @@ scopes := auth.Scopes(c)                // normalized []string
 `scopes` JWT claim (`[]string`). Tokens are minted with the `jwt` package
 (`jwt.GenerateTokenWithExpiry`).
 
-Pass `auth.WithExpirationRequired()` to `RequireAuth`/`Optional` to reject tokens
-that carry no `exp` claim (they would otherwise never expire). With an empty
-secret every request is rejected.
+Tokens without an `exp` claim are rejected, since they would never expire; pass
+`auth.WithExpirationOptional()` to `RequireAuth`/`Optional` to accept them. With
+an empty secret every request is rejected.
 
 ### `health`
 
@@ -638,7 +638,7 @@ defer shutdown(context.Background())
 `Setup` builds an OTLP/HTTP exporter (configured by the standard `OTEL_` env vars
 like `OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_SERVICE_NAME`) and installs the global
 tracer provider + W3C propagator. Via `bootstrap`, enable with
-`Options{Tracing: true}` (installs the `otelfiber` server-span middleware) and
+`Options{Tracing: true}` (installs Fiber's OpenTelemetry server-span middleware) and
 pass `shutdown` through `Options{Cleanup: []func(context.Context) error{shutdown}}`
 for graceful shutdown. When tracing is active, `RequestLogger` adds `trace_id` /
 `span_id` to request logs. In a generated app, set `TRACING_ENABLED=true`.
@@ -744,7 +744,7 @@ go relay.Run(ctx)
 _, _ = outbox.Prune(ctx, db, 7*24*time.Hour)
 ```
 
-Consumers subscribe with `redis.Subscribe[OrderCreated](...)` — the relay publishes the stored JSON bytes verbatim, so they decode directly.
+Consumers subscribe with `rediskit.Subscribe[OrderCreated](...)` — the relay publishes the stored JSON bytes verbatim, so they decode directly.
 
 - **Ordering and failures.** Events are published oldest first, and a publish error stops the batch so order is preserved — which means one event that can never be published blocks everything behind it. `WithMaxAttempts(n)` moves such an event to the `outbox_dead` table (`outbox.DeadEvent`, with the error) after `n` consecutive failures and carries on. The attempt count is kept in memory, per relay process. `Migrate` creates `outbox_dead`; run it again after upgrading.
 - **Locking.** With `WithLock`, the relay renews the lock before every event, so the TTL only needs to exceed the time to publish one event, not a whole batch.
@@ -804,10 +804,10 @@ flags := featureflag.New(featureflag.Rules(map[string]featureflag.Rule{
 if flags.Enabled(ctx, "new_checkout", featureflag.Eval{UserID: uid}) { ... }
 
 // Or via Fiber: derive the eval context from the request, then check per-handler.
-app.Use(flags.Middleware(func(c *fiber.Ctx) featureflag.Eval {
+app.Use(flags.Middleware(func(c fiber.Ctx) featureflag.Eval {
     return featureflag.Eval{UserID: auth.UserID(c)}
 }))
-app.Get("/checkout", func(c *fiber.Ctx) error {
+app.Get("/checkout", func(c fiber.Ctx) error {
     if featureflag.Enabled(c, "new_checkout") {
         return newCheckout(c)
     }
@@ -826,17 +826,17 @@ import "github.com/rahmadafandi/fibr/v2/audit"
 
 _ = audit.Migrate(ctx, db) // once at startup
 
-rec := audit.New(audit.NewBunSink(db), audit.WithActor(func(c *fiber.Ctx) string {
+rec := audit.New(audit.NewBunSink(db), audit.WithActor(func(c fiber.Ctx) string {
     return auth.Subject(c) // who is acting
 }))
 
-app.Delete("/orders/:id", func(c *fiber.Ctx) error {
-    if err := orders.Delete(c.UserContext(), c.Params("id")); err != nil {
+app.Delete("/orders/:id", func(c fiber.Ctx) error {
+    if err := orders.Delete(c.Context(), c.Params("id")); err != nil {
         return err
     }
     e := rec.FromRequest(c) // prefills actor, IP, request id
     e.Action, e.Target, e.TargetID = "order.delete", "order", c.Params("id")
-    _ = rec.Record(c.UserContext(), e)
+    _ = rec.Record(c.Context(), e)
     return c.SendStatus(fiber.StatusNoContent)
 })
 
@@ -848,7 +848,7 @@ entries, _ := audit.List(ctx, db, audit.Filter{Actor: "u1", Limit: 50})
 
 ### `cache`
 
-A generic in-process cache with per-entry TTL, LRU max-size eviction, and singleflight load-through. Use it for hot data (config, feature flags, lookups) where a Redis round-trip per read is overkill; `redis.Remember` remains the choice for a cache shared across instances.
+A generic in-process cache with per-entry TTL, LRU max-size eviction, and singleflight load-through. Use it for hot data (config, feature flags, lookups) where a Redis round-trip per read is overkill; `rediskit.Remember` remains the choice for a cache shared across instances.
 
 ```go
 import "github.com/rahmadafandi/fibr/v2/cache"
@@ -884,7 +884,7 @@ res, err := l.Allow(ctx, "user:"+uid, rule, 1)
 if !res.Allowed { /* res.RetryAfter, res.Remaining */ }
 
 // Fiber middleware — 429 + Retry-After + X-RateLimit-* on deny:
-app.Use(l.Middleware(rule, func(c *fiber.Ctx) string { return c.IP() }))
+app.Use(l.Middleware(rule, func(c fiber.Ctx) string { return c.IP() }))
 ```
 
 A heavier endpoint can charge more: `l.Allow(ctx, key, rule, 5)`. On a Redis error the middleware fails open (allows the request) so the limiter can't take the app down; the error is logged to `logger.Default()`, or to your own logger with `ratelimit.New(redisClient, ratelimit.WithLogger(log))`.
@@ -906,7 +906,7 @@ a := apikey.New(apikey.Config{Store: apikey.MapStore(map[string]apikey.Identity{
 app.Use(a.Middleware())                       // reads X-API-Key → 401 or sets identity
 app.Get("/data", a.RequireScope("read"), handler)
 
-app.Get("/whoami", func(c *fiber.Ctx) error {
+app.Get("/whoami", func(c fiber.Ctx) error {
     id, _ := apikey.FromContext(c)
     return c.JSON(id) // {ID, Scopes, Meta}
 })
@@ -958,8 +958,8 @@ A zero (or negative) timeout falls back to 10 seconds.
 `apierror.NotFound("...")`, `Conflict`, `Unauthorized`, ... return typed `*Error` values. `bootstrap` installs `apierror.Handler` as the default `ErrorHandler`, so returning one from a handler renders a consistent JSON error.
 
 ```go
-func getUser(c *fiber.Ctx) error {
-    u, err := svc.Find(c.UserContext(), id)
+func getUser(c fiber.Ctx) error {
+    u, err := svc.Find(c.Context(), id)
     if err != nil {
         return apierror.NotFound("user not found").WithCode("user_not_found")
     }
@@ -981,7 +981,7 @@ import "github.com/rahmadafandi/fibr/v2/bootstrap"
 
 app := bootstrap.New(bootstrap.Options{
     DB:           db,
-    EnableCORS:   true,
+    CORSOrigins:  []string{"https://app.example.com"},
     RateLimit:    100,
     HealthChecks: []health.NamedCheck{health.PingBun(db)},
 })
@@ -989,15 +989,15 @@ app.Get("/", handler)
 log.Fatal(app.Run(":3000")) // graceful shutdown + db.Close handled
 ```
 
-`EnableCORS: true` uses Fiber's CORS defaults, which allow **every** origin. In production, pass a config instead:
+CORS is **off** unless you ask for it. `CORSOrigins` enables it for exactly the listed origins; for anything beyond that (credentials, headers, methods), pass a full config:
 
 ```go
 bootstrap.Options{
-    CORS: &cors.Config{AllowOrigins: "https://app.example.com", AllowCredentials: true},
+    CORS: &cors.Config{AllowOrigins: []string{"https://app.example.com"}, AllowCredentials: true},
 }
 ```
 
-Inside a handler, `c.UserContext()` and `context.GetContext(c)` return the same request context: bounded by `RequestTimeout`, carrying the request id, and — with `Tracing: true` — the request span, so database calls made with it show up under the request's trace.
+Inside a handler, `c.Context()` and `reqctx.GetContext(c)` return the same request context: bounded by `RequestTimeout`, carrying the request id, and — with `Tracing: true` — the request span, so database calls made with it show up under the request's trace.
 
 ### `fibrtest`
 

@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Work in progress towards **v2.0.0** (branch `v2`).
+Work in progress towards **v2.0.0** (branch `v2`). See [MIGRATING.md](MIGRATING.md) for upgrade steps.
 
 ### Changed
 

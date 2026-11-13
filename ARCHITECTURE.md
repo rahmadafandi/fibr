@@ -3,7 +3,7 @@
 > A map of how **fibr** (`github.com/rahmadafandi/fibr/v2`) is put together: the
 > packages, how they layer, and how `bootstrap` composes them into an app.
 > Derived from a dependency-graph analysis of the codebase (30 library packages
-> plus the `fibr` generator, Go 1.26, Fiber v2).
+> plus the `fibr` generator, Go 1.26+, Fiber v3).
 
 ## What fibr is
 
@@ -11,7 +11,7 @@ fibr is a toolkit for building [Fiber](https://github.com/gofiber/fiber) HTTP
 services, plus a code generator (`fibr new`) that scaffolds a runnable app from
 those packages. Two usage modes:
 
-1. **Library** — import any package on its own (`config`, `auth`, `redis`, `ws`, …).
+1. **Library** — import any package on its own (`config`, `auth`, `rediskit`, `ws`, …).
    Each stands alone with a small, explicit API.
 2. **One-call wiring** — `bootstrap.New(Options{...})` composes the packages into
    a configured `*fiber.App` (middleware, health, metrics, tracing, docs, …),
@@ -24,7 +24,7 @@ those packages. Two usage modes:
   wires them together — nothing depends on `bootstrap` except the generated app.
 - **Opt-in everything.** Features are off unless an `Options` field turns them on.
   No hidden global state.
-- **Generics for type-safety.** `bind.Body[T]`, `jobs.Handle[T]`, `redis.Subscribe[T]`,
+- **Generics for type-safety.** `bind.Body[T]`, `jobs.Handle[T]`, `rediskit.Subscribe[T]`,
   `ws.Hub[T]` carry the payload type instead of `interface{}`.
 - **Structural interfaces over imports.** Adapters satisfy `fiber.Storage` and
   similar interfaces by shape, so leaf packages avoid importing heavy deps.
@@ -51,7 +51,7 @@ Key one-way edges (verified in the graph):
   token blocklist); `jwt` is the crypto primitive (sign/verify/claims). `jwt` has
   zero dependencies on `auth`.
 - `database`, `parser`, `slug`, `migrate` → **Bun ORM** — the data layer.
-- `ws`, `auth`, rate-limit storage, idempotency storage → `redis` — shared infra
+- `ws`, `auth`, rate-limit storage, idempotency storage → `rediskit` — shared infra
   (pub/sub backplane, token blocklist, `fiber.Storage` adapters).
 - every request handler → `apierror` — typed errors funnel through one
   `ErrorHandler` so responses are uniform.
@@ -63,7 +63,7 @@ Key one-way edges (verified in the graph):
 |---|---|
 | `bootstrap` | One-call app wiring; composes everything below (see *Composition*). |
 | `middleware` | Recover, request logging, request-id/context, auth guard. |
-| `context` | Request context, request-id, type-safe locals (`GetLocal[T]`). |
+| `reqctx` | Request context, request-id, type-safe locals (`GetLocal[T]`). |
 | `response` | Standardized JSON success/error envelope. |
 | `apierror` | Typed HTTP errors (`NotFound`, `Conflict`, …) + a Fiber `ErrorHandler`. |
 | `health` | Liveness (`/livez`) + readiness (`/readyz`) endpoints. |
@@ -98,11 +98,11 @@ Key one-way edges (verified in the graph):
 ### Integrations
 | Package | Responsibility |
 |---|---|
-| `redis` | go-redis wrapper: `Remember` cache-aside, `Storage` (fiber.Storage) adapter, `Publish`/`Subscribe[T]`. |
+| `rediskit` | go-redis wrapper: `Remember` cache-aside, `Storage` (fiber.Storage) adapter, `Publish`/`Subscribe[T]`. |
 | `jobs` | Redis-backed background jobs (asynq) + `Scheduler` (cron) + asynqmon mount. |
 | `mailer` | Transactional email: pluggable `Sender` (SMTP/log/memory) + templates. |
 | `uploader` | Local + S3-compatible (`S3Uploader`) file upload with size/MIME limits. |
-| `http` | Context-aware JSON HTTP client with retry. |
+| `httpclient` | Context-aware JSON HTTP client with retry. |
 
 ### Realtime, docs, i18n
 | Package | Responsibility |
@@ -124,12 +124,12 @@ flat `Options` struct into a wired `*fiber.App`. Order matters:
 
 **Request pipeline** (`f.Use`, in order):
 1. `middleware.Recover` — panic guard
-2. `middleware.ContextMiddleware` — request-id, context, timeout
-3. `i18n.Middleware` *(if `Options.I18n`)*
-4. `helmet` *(if `SecurityHeaders`)*
-5. `compress` *(if `Compression`)*
-6. `idempotency` *(if `Idempotency`)* — backed by `IdempotencyStorage`
-7. `otelfiber` *(if `Tracing`)*
+2. tracing (`contrib/v3/otel`) *(if `Tracing`)* — first, so the request context is a child of the request span
+3. `middleware.ContextMiddleware` — request-id, context, timeout
+4. `i18n.Middleware` *(if `Options.I18n`)*
+5. `helmet` *(if `SecurityHeaders`)*
+6. `compress` *(if `Compression`)*
+7. `idempotency` *(if `Idempotency`)* — backed by `IdempotencyStorage`
 8. `middleware.RequestLogger`
 9. `metrics.Middleware` *(if `Metrics`)*
 10. `cors` *(if `CORSOrigins` or `CORS` is set)*
