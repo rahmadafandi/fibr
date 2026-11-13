@@ -190,7 +190,7 @@ func runScheduler() error {
 		Tracing:      cfg.TracingEnabled,
 		Cleanup:      cleanups,
 {{if .Queue}}		Asynqmon:     asynqmonMount,
-{{end}}		EnableCORS:      true,
+{{end}}		CORSOrigins:     cfg.CORSOrigins,
 		RateLimit:       100,
 		SecurityHeaders: true,
 		Compression:     true,
