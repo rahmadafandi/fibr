@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rahmadafandi/fibr/lock"
-	"github.com/rahmadafandi/fibr/logger"
+	"github.com/rahmadafandi/fibr/v2/lock"
+	"github.com/rahmadafandi/fibr/v2/logger"
 	"github.com/uptrace/bun"
 )
 

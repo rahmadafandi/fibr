@@ -5,8 +5,8 @@ package pagination_test
 import (
 	"fmt"
 
-	"github.com/rahmadafandi/fibr/pagination"
-	"github.com/rahmadafandi/fibr/parser"
+	"github.com/rahmadafandi/fibr/v2/pagination"
+	"github.com/rahmadafandi/fibr/v2/parser"
 )
 
 // Build a page envelope from a slice of items plus the paging parameters. The

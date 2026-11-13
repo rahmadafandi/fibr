@@ -2,19 +2,19 @@
 
 [![ci](https://github.com/rahmadafandi/fibr/actions/workflows/ci.yml/badge.svg)](https://github.com/rahmadafandi/fibr/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/rahmadafandi/fibr/branch/master/graph/badge.svg)](https://codecov.io/gh/rahmadafandi/fibr)
-[![Go Reference](https://pkg.go.dev/badge/github.com/rahmadafandi/fibr.svg)](https://pkg.go.dev/github.com/rahmadafandi/fibr)
-[![Go Report Card](https://goreportcard.com/badge/github.com/rahmadafandi/fibr)](https://goreportcard.com/report/github.com/rahmadafandi/fibr)
+[![Go Reference](https://pkg.go.dev/badge/github.com/rahmadafandi/fibr.svg)](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rahmadafandi/fibr/v2)](https://goreportcard.com/report/github.com/rahmadafandi/fibr/v2)
 [![Release](https://img.shields.io/github/v/release/rahmadafandi/fibr)](https://github.com/rahmadafandi/fibr/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A collection of helper packages for the [Fiber](https://gofiber.io/) web framework.
 
-📖 **[Documentation](https://rahmadafandi.github.io/fibr/)** · [API reference (pkg.go.dev)](https://pkg.go.dev/github.com/rahmadafandi/fibr)
+📖 **[Documentation](https://rahmadafandi.github.io/fibr/)** · [API reference (pkg.go.dev)](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2)
 
 ## Install
 
 ```bash
-go get github.com/rahmadafandi/fibr
+go get github.com/rahmadafandi/fibr/v2
 ```
 
 Requires Go 1.26+. Targets Fiber v2 and Bun ORM (Postgres or SQLite).
@@ -44,11 +44,11 @@ import (
     "fmt"
 
     "github.com/gofiber/fiber/v2"
-    "github.com/rahmadafandi/fibr/bootstrap"
-    "github.com/rahmadafandi/fibr/config"
-    "github.com/rahmadafandi/fibr/database"
-    "github.com/rahmadafandi/fibr/health"
-    "github.com/rahmadafandi/fibr/response"
+    "github.com/rahmadafandi/fibr/v2/bootstrap"
+    "github.com/rahmadafandi/fibr/v2/config"
+    "github.com/rahmadafandi/fibr/v2/database"
+    "github.com/rahmadafandi/fibr/v2/health"
+    "github.com/rahmadafandi/fibr/v2/response"
 )
 
 func main() {
@@ -138,7 +138,7 @@ Loads configuration from environment variables (and a `.env` file if present) in
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fibr/config"
+import "github.com/rahmadafandi/fibr/v2/config"
 
 type AppConfig struct {
     Port    int           `mapstructure:"port"     default:"8080"`
@@ -158,7 +158,7 @@ A structured logger based on [zerolog](https://github.com/rs/zerolog).
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fibr/logger"
+import "github.com/rahmadafandi/fibr/v2/logger"
 
 log := logger.Default()
 log.Info("Hello, world!")
@@ -171,7 +171,7 @@ Helper functions for sending standardized JSON responses.
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fibr/response"
+import "github.com/rahmadafandi/fibr/v2/response"
 
 response.SendSuccess(c, data, "Success")
 response.SendError(c, nil, "Error", 400)
@@ -187,7 +187,7 @@ Request body/query/params parsing uses Fiber's built-in `c.BodyParser(&out)`,
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fibr/parser"
+import "github.com/rahmadafandi/fibr/v2/parser"
 
 type MyStruct struct {
     Name string `json:"name"`
@@ -236,7 +236,7 @@ Builds a paginated result envelope (data plus page metadata) for any element typ
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fibr/pagination"
+import "github.com/rahmadafandi/fibr/v2/pagination"
 
 p := pagination.NewPagination(rows, pq.Limit, pq.Page, totalCount)
 // p.Data, p.PageSize, p.Count, p.TotalCount, p.PageCount, p.PageNumber, p.StartNumber
@@ -250,7 +250,7 @@ A helper package for validating structs using [go-playground/validator](https://
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fibr/validator"
+import "github.com/rahmadafandi/fibr/v2/validator"
 
 type MyStruct struct {
     Name string `json:"name" validate:"required"`
@@ -296,7 +296,7 @@ A helper package for working with JSON Web Tokens.
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fibr/jwt"
+import "github.com/rahmadafandi/fibr/v2/jwt"
 
 // Generate a token that expires (preferred)
 token, err := jwt.GenerateTokenWithExpiry(claims, secret, 15*time.Minute)
@@ -320,7 +320,7 @@ A small JSON HTTP client built on [fasthttp](https://github.com/valyala/fasthttp
 import (
     "context"
     "time"
-    fhttp "github.com/rahmadafandi/fibr/http"
+    fhttp "github.com/rahmadafandi/fibr/v2/http"
 )
 
 h := fhttp.New("https://api.example.com",
@@ -346,7 +346,7 @@ h.FireAndForget(ctx, fhttp.Post, "/events", eventPayload)
 A small generic retry helper with exponential backoff and optional jitter. Use it for any flaky operation (DB calls, third-party APIs, locks) that isn't already covered by the `http` client's built-in retry.
 
 ```go
-import "github.com/rahmadafandi/fibr/retry"
+import "github.com/rahmadafandi/fibr/v2/retry"
 
 err := retry.Do(ctx, func() error {
     return publish(ctx, msg)
@@ -371,7 +371,7 @@ import (
     "context"
     "time"
     "github.com/redis/go-redis/v9"
-    firedis "github.com/rahmadafandi/fibr/redis"
+    firedis "github.com/rahmadafandi/fibr/v2/redis"
 )
 
 opt, err := firedis.ParseRedisOptions("redis://localhost:6379/0")
@@ -412,7 +412,7 @@ Generates a unique, URL-safe slug for a given table using a [Bun](https://bun.up
 ```go
 import (
     "context"
-    "github.com/rahmadafandi/fibr/slug"
+    "github.com/rahmadafandi/fibr/v2/slug"
 )
 
 // Returns e.g. "my-first-post-abc123defgh456"
@@ -426,7 +426,7 @@ A helper package for uploading files to local storage. `NewLocalUploader` accept
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fibr/uploader"
+import "github.com/rahmadafandi/fibr/v2/uploader"
 
 // Create a local uploader (max 5 MB, images only)
 up := uploader.NewLocalUploader("./uploads",
@@ -458,7 +458,7 @@ A collection of useful middleware.
 **Usage:**
 
 ```go
-import "github.com/rahmadafandi/fibr/middleware"
+import "github.com/rahmadafandi/fibr/v2/middleware"
 
 app := fiber.New()
 
@@ -483,7 +483,7 @@ Accessors for values stored on the Fiber context: the request-scoped
 **Usage:**
 
 ```go
-import fhctx "github.com/rahmadafandi/fibr/context"
+import fhctx "github.com/rahmadafandi/fibr/v2/context"
 
 ctx := fhctx.GetContext(c)        // request-scoped context.Context
 id := fhctx.GetRequestID(c)       // request id (set by ContextMiddleware)
@@ -498,7 +498,7 @@ Opens a [Bun](https://bun.uptrace.dev/) database, picking the dialect from the D
 (`postgres://` → Postgres, `file:`/`:memory:`/path → SQLite).
 
 ```go
-import "github.com/rahmadafandi/fibr/database"
+import "github.com/rahmadafandi/fibr/v2/database"
 
 db, err := database.NewBun("postgres://localhost/app",
     database.WithMaxOpenConns(20),
@@ -511,7 +511,7 @@ db, err := database.NewBun("postgres://localhost/app",
 An explicit read/write split for read-replica deployments: writes go to the primary, reads are spread round-robin across replicas. Routing is explicit (you choose `Reader()` or `Writer()`) — Bun's query hooks are observational and can't redirect a query's connection, so transparent auto-routing isn't offered.
 
 ```go
-import "github.com/rahmadafandi/fibr/dbresolver"
+import "github.com/rahmadafandi/fibr/v2/dbresolver"
 
 primary, _ := database.NewBun("postgres://primary/app")
 r1, _ := database.NewBun("postgres://replica1/app")
@@ -577,7 +577,7 @@ secret every request is rejected.
 Liveness (`/livez`) and readiness (`/readyz`) endpoints with concurrent checks.
 
 ```go
-import "github.com/rahmadafandi/fibr/health"
+import "github.com/rahmadafandi/fibr/v2/health"
 
 gate := health.NewReadinessGate() // fails /readyz once closed (during drain)
 health.Register(app,
@@ -606,7 +606,7 @@ server.RunGracefulWithConfig(app, ":3000", server.Config{
 Prometheus request metrics. Standalone:
 
 ```go
-import "github.com/rahmadafandi/fibr/metrics"
+import "github.com/rahmadafandi/fibr/v2/metrics"
 
 app.Use(metrics.Middleware())
 app.Get("/metrics", metrics.Handler())
@@ -628,7 +628,7 @@ OpenTelemetry distributed tracing. Set up the provider once at startup and defer
 its shutdown:
 
 ```go
-import "github.com/rahmadafandi/fibr/tracing"
+import "github.com/rahmadafandi/fibr/v2/tracing"
 
 shutdown, err := tracing.Setup(ctx, tracing.WithServiceName("my-svc"))
 if err != nil { /* handle */ }
@@ -652,7 +652,7 @@ request span.
 Redis-backed background jobs built on [asynq](https://github.com/hibiken/asynq).
 
 ```go
-import "github.com/rahmadafandi/fibr/jobs"
+import "github.com/rahmadafandi/fibr/v2/jobs"
 
 opt, _ := jobs.RedisConnOpt(os.Getenv("REDIS_URL"))
 
@@ -755,7 +755,7 @@ Consumers subscribe with `redis.Subscribe[OrderCreated](...)` — the relay publ
 The consumer-side complement to `outbox`: at-least-once delivery means a message can arrive twice, so the consumer must dedup. `Once` records a marker and runs your handler in a single transaction — a duplicate message id skips the handler, and a handler error rolls the marker back so the message is retried later.
 
 ```go
-import "github.com/rahmadafandi/fibr/inbox"
+import "github.com/rahmadafandi/fibr/v2/inbox"
 
 _ = inbox.Migrate(ctx, db) // once at startup
 
@@ -774,7 +774,7 @@ Pair it with `outbox` (producer) for end-to-end exactly-once-effect processing o
 An in-process typed event bus for decoupling domain-event producers from handlers. Handlers are keyed by event type; `Publish` is synchronous by default (handlers run inline, errors joined) with an opt-in async mode. For durable, cross-process delivery use `outbox` instead.
 
 ```go
-import "github.com/rahmadafandi/fibr/events"
+import "github.com/rahmadafandi/fibr/v2/events"
 
 type OrderCreated struct{ ID int }
 
@@ -794,7 +794,7 @@ if err := events.Publish(ctx, bus, OrderCreated{ID: order.ID}); err != nil {
 Runtime feature flags with pluggable providers: `Static` (on/off map), `Rules` (boolean + percentage rollout + per-user/group allowlists), and `Redis` (toggle live without a redeploy). Percentage rollout buckets users by a stable hash, so a user's membership doesn't flicker between checks.
 
 ```go
-import "github.com/rahmadafandi/fibr/featureflag"
+import "github.com/rahmadafandi/fibr/v2/featureflag"
 
 flags := featureflag.New(featureflag.Rules(map[string]featureflag.Rule{
     "new_checkout": {Percentage: 25, Users: []string{"vip"}},
@@ -822,7 +822,7 @@ With the `Redis` provider, each flag is a key (`prefix+flag`) holding `"true"`/`
 An append-only audit trail of who did what. A `Recorder` writes `Entry` records (actor, action, target, metadata, IP, request id) through a pluggable `Sink`; the built-in Bun sink persists them and `List` reads them back.
 
 ```go
-import "github.com/rahmadafandi/fibr/audit"
+import "github.com/rahmadafandi/fibr/v2/audit"
 
 _ = audit.Migrate(ctx, db) // once at startup
 
@@ -851,7 +851,7 @@ entries, _ := audit.List(ctx, db, audit.Filter{Actor: "u1", Limit: 50})
 A generic in-process cache with per-entry TTL, LRU max-size eviction, and singleflight load-through. Use it for hot data (config, feature flags, lookups) where a Redis round-trip per read is overkill; `redis.Remember` remains the choice for a cache shared across instances.
 
 ```go
-import "github.com/rahmadafandi/fibr/cache"
+import "github.com/rahmadafandi/fibr/v2/cache"
 
 c := cache.New[User](
     cache.WithMaxSize(10_000),
@@ -874,7 +874,7 @@ c.Set("k", v); v, ok := c.Get("k"); c.Delete("k")
 A Redis-backed **token-bucket** limiter: each key has a bucket of `Capacity` tokens that refills at `RefillPerSec`, and a request consumes `cost` tokens. Unlike Fiber's window limiter, it supports cost-per-request and arbitrary per-key rules — good for API quotas where some endpoints are "more expensive". The refill is computed atomically in a Lua script, so it's correct across instances.
 
 ```go
-import "github.com/rahmadafandi/fibr/ratelimit"
+import "github.com/rahmadafandi/fibr/v2/ratelimit"
 
 l := ratelimit.New(redisClient)
 rule := ratelimit.Rule{Capacity: 100, RefillPerSec: 10} // burst 100, sustain 10/s
@@ -894,7 +894,7 @@ A heavier endpoint can charge more: `l.Allow(ctx, key, rule, 5)`. On a Redis err
 API-key authentication, distinct from the JWT-bearer `auth` package — for service-to-service calls and public APIs. A presented key is hashed (SHA-256) and resolved to an identity + scopes via a pluggable `Store`; raw keys are never stored.
 
 ```go
-import "github.com/rahmadafandi/fibr/apikey"
+import "github.com/rahmadafandi/fibr/v2/apikey"
 
 // Issue a key: hand `key` to the client, persist `hash`.
 key, hash, _ := apikey.Generate()
@@ -919,7 +919,7 @@ app.Get("/whoami", func(c *fiber.Ctx) error {
 Transactional email through a pluggable `Sender`.
 
 ```go
-import "github.com/rahmadafandi/fibr/mailer"
+import "github.com/rahmadafandi/fibr/v2/mailer"
 
 sender, _ := mailer.New(mailer.SMTPConfig{
     Host: os.Getenv("SMTP_HOST"), Port: 587,
@@ -944,7 +944,7 @@ inline. `fibr new --mailer` also sends the team invitation email (with
 Signal-based graceful shutdown.
 
 ```go
-import "github.com/rahmadafandi/fibr/server"
+import "github.com/rahmadafandi/fibr/v2/server"
 
 err := server.RunGraceful(app, ":3000", 10*time.Second, func(ctx context.Context) error {
     return db.Close()
@@ -977,7 +977,7 @@ Optional one-call wiring of recover, request id, logging, optional CORS / rate
 limit / health, and graceful shutdown.
 
 ```go
-import "github.com/rahmadafandi/fibr/bootstrap"
+import "github.com/rahmadafandi/fibr/v2/bootstrap"
 
 app := bootstrap.New(bootstrap.Options{
     DB:           db,
@@ -1004,7 +1004,7 @@ Inside a handler, `c.UserContext()` and `context.GetContext(c)` return the same 
 A test harness that removes the `httptest` / `app.Test` / decode / assert boilerplate from handler tests. A fluent client drives the app; responses assert their own status and decode JSON.
 
 ```go
-import "github.com/rahmadafandi/fibr/fibrtest"
+import "github.com/rahmadafandi/fibr/v2/fibrtest"
 
 func TestCreateThing(t *testing.T) {
     app := bootstrap.New(bootstrap.Options{DB: fibrtest.NewDB(t)})

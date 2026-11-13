@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rahmadafandi/fibr/database"
+	"github.com/rahmadafandi/fibr/v2/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uptrace/bun"

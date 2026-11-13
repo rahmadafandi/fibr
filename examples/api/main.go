@@ -16,16 +16,16 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/rahmadafandi/fibr/apierror"
-	"github.com/rahmadafandi/fibr/apikey"
-	"github.com/rahmadafandi/fibr/audit"
-	"github.com/rahmadafandi/fibr/bootstrap"
-	"github.com/rahmadafandi/fibr/cache"
-	"github.com/rahmadafandi/fibr/database"
-	"github.com/rahmadafandi/fibr/events"
-	"github.com/rahmadafandi/fibr/featureflag"
-	"github.com/rahmadafandi/fibr/health"
-	"github.com/rahmadafandi/fibr/response"
+	"github.com/rahmadafandi/fibr/v2/apierror"
+	"github.com/rahmadafandi/fibr/v2/apikey"
+	"github.com/rahmadafandi/fibr/v2/audit"
+	"github.com/rahmadafandi/fibr/v2/bootstrap"
+	"github.com/rahmadafandi/fibr/v2/cache"
+	"github.com/rahmadafandi/fibr/v2/database"
+	"github.com/rahmadafandi/fibr/v2/events"
+	"github.com/rahmadafandi/fibr/v2/featureflag"
+	"github.com/rahmadafandi/fibr/v2/health"
+	"github.com/rahmadafandi/fibr/v2/response"
 )
 
 // Widget is the "expensive to load" resource the cache fronts.

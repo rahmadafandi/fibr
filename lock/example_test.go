@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/rahmadafandi/fibr/lock"
+	"github.com/rahmadafandi/fibr/v2/lock"
 	"github.com/redis/go-redis/v9"
 )
 

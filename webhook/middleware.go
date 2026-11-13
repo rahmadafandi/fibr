@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fibr/apierror"
+	"github.com/rahmadafandi/fibr/v2/apierror"
 )
 
 // MiddlewareConfig configures the inbound-webhook verification middleware.

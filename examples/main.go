@@ -6,11 +6,11 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fibr/bootstrap"
-	"github.com/rahmadafandi/fibr/config"
-	"github.com/rahmadafandi/fibr/database"
-	"github.com/rahmadafandi/fibr/health"
-	"github.com/rahmadafandi/fibr/response"
+	"github.com/rahmadafandi/fibr/v2/bootstrap"
+	"github.com/rahmadafandi/fibr/v2/config"
+	"github.com/rahmadafandi/fibr/v2/database"
+	"github.com/rahmadafandi/fibr/v2/health"
+	"github.com/rahmadafandi/fibr/v2/response"
 )
 
 func main() {

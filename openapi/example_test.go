@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fibr/openapi"
+	"github.com/rahmadafandi/fibr/v2/openapi"
 )
 
 type createUserReq struct {

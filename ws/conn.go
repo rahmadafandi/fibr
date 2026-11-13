@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gofiber/contrib/websocket"
-	"github.com/rahmadafandi/fibr/logger"
+	"github.com/rahmadafandi/fibr/v2/logger"
 )
 
 // Conn is one client connection carrying messages of type T.

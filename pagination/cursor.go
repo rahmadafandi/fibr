@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/rahmadafandi/fibr/parser"
+	"github.com/rahmadafandi/fibr/v2/parser"
 )
 
 // CursorPage is a single keyset (cursor) page together with the cursors needed

@@ -13,7 +13,7 @@ import (
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 	"github.com/uptrace/bun/driver/sqliteshim"
 
-	"github.com/rahmadafandi/fibr/outbox"
+	"github.com/rahmadafandi/fibr/v2/outbox"
 )
 
 func newDB(t *testing.T) (*bun.DB, context.Context) {

@@ -12,7 +12,7 @@ import (
 
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fibr/redis"
+	"github.com/rahmadafandi/fibr/v2/redis"
 )
 
 // Hub tracks connections and rooms for messages of type T.

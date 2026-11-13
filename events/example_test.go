@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rahmadafandi/fibr/events"
+	"github.com/rahmadafandi/fibr/v2/events"
 )
 
 // Subscribe handlers for a typed event, then publish one. In the default sync

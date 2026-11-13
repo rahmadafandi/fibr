@@ -11,8 +11,8 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	gws "github.com/fasthttp/websocket"
 	"github.com/gofiber/fiber/v2"
-	fhredis "github.com/rahmadafandi/fibr/redis"
-	"github.com/rahmadafandi/fibr/ws"
+	fhredis "github.com/rahmadafandi/fibr/v2/redis"
+	"github.com/rahmadafandi/fibr/v2/ws"
 	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )

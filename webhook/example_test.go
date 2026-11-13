@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rahmadafandi/fibr/webhook"
+	"github.com/rahmadafandi/fibr/v2/webhook"
 )
 
 // Sign a payload, then verify it with the same secret.

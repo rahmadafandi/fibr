@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rahmadafandi/fibr/logger"
+	"github.com/rahmadafandi/fibr/v2/logger"
 	"github.com/valyala/fasthttp"
 )
 
