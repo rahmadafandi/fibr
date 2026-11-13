@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
+
+	"github.com/rahmadafandi/fibr/v2/logger"
 )
 
 // Stream writes SSE frames to a single client connection.
@@ -32,12 +34,26 @@ type Event struct {
 // Stream; when fn returns, the stream closes. fn owns its own loop and should
 // stop when a Send returns an error (client gone) or the request context is
 // done.
+//
+// fn runs after the route handler has returned, while the response body is
+// being written. c stays valid for the whole of fn. A panic in fn is recovered
+// and logged, and ends the stream.
 func Handler(fn func(c fiber.Ctx, s *Stream)) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		c.Set(fiber.HeaderContentType, "text/event-stream")
 		c.Set(fiber.HeaderCacheControl, "no-cache")
 		c.Set(fiber.HeaderConnection, "keep-alive")
+		// Fiber returns a Ctx to its pool once the handler returns; abandon it
+		// so fn can keep using c while it streams.
+		c.Abandon()
 		c.RequestCtx().SetBodyStreamWriter(func(w *bufio.Writer) {
+			// fn runs on its own goroutine, outside the recover middleware: an
+			// unrecovered panic here would crash the process.
+			defer func() {
+				if r := recover(); r != nil {
+					logger.Default().Error(fmt.Errorf("%v", r), "sse: stream function panicked")
+				}
+			}()
 			fn(c, &Stream{w: w})
 		})
 		return nil
