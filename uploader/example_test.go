@@ -7,7 +7,7 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/rahmadafandi/fibr/uploader"
+	"github.com/rahmadafandi/fibr/v2/uploader"
 )
 
 // Wire an S3-compatible uploader. Upload(file, "photo.png") then returns

@@ -17,7 +17,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/rahmadafandi/fibr/apierror"
+	"github.com/rahmadafandi/fibr/v2/apierror"
 )
 
 // MetricsPath is the conventional scrape path. Middleware skips it so scrapes

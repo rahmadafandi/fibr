@@ -5,7 +5,7 @@ package jwt_test
 import (
 	"testing"
 
-	"github.com/rahmadafandi/fibr/jwt"
+	"github.com/rahmadafandi/fibr/v2/jwt"
 )
 
 // FuzzValidateToken ensures ValidateToken never panics on arbitrary token

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rahmadafandi/fibr/featureflag"
+	"github.com/rahmadafandi/fibr/v2/featureflag"
 )
 
 func bodyOf(t *testing.T, app *fiber.App, userHeader string) string {

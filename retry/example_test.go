@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rahmadafandi/fibr/retry"
+	"github.com/rahmadafandi/fibr/v2/retry"
 )
 
 // Retry a flaky operation a few times with exponential backoff.

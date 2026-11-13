@@ -205,7 +205,7 @@ func Generate(o Options, out io.Writer) error {
 
 	if !o.NoTidy {
 		if o.Local == "" && o.HelpersVersion != "" {
-			if err := runCmd(out, o.Dir, "go", "get", "github.com/rahmadafandi/fibr@"+o.HelpersVersion); err != nil {
+			if err := runCmd(out, o.Dir, "go", "get", "github.com/rahmadafandi/fibr/v2@"+o.HelpersVersion); err != nil {
 				fmt.Fprintf(out, "warning: go get fibr@%s failed (%v); use --local for an unpublished library\n", o.HelpersVersion, err)
 			}
 		}

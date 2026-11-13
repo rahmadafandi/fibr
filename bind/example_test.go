@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fibr/bind"
+	"github.com/rahmadafandi/fibr/v2/bind"
 )
 
 // Body decodes and validates the request body in one call. On a validation

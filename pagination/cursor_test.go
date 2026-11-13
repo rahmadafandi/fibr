@@ -13,8 +13,8 @@ import (
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 	"github.com/uptrace/bun/driver/sqliteshim"
 
-	"github.com/rahmadafandi/fibr/pagination"
-	"github.com/rahmadafandi/fibr/parser"
+	"github.com/rahmadafandi/fibr/v2/pagination"
+	"github.com/rahmadafandi/fibr/v2/parser"
 )
 
 type row struct {

@@ -10,7 +10,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rahmadafandi/fibr/mailer"
+	"github.com/rahmadafandi/fibr/v2/mailer"
 )
 
 const (

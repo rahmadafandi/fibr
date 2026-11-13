@@ -15,7 +15,7 @@ import (
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 	"github.com/uptrace/bun/driver/sqliteshim"
 
-	"github.com/rahmadafandi/fibr/inbox"
+	"github.com/rahmadafandi/fibr/v2/inbox"
 )
 
 func newDB(t *testing.T) (*bun.DB, context.Context) {

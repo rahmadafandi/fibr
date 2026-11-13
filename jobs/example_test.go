@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/rahmadafandi/fibr/jobs"
+	"github.com/rahmadafandi/fibr/v2/jobs"
 )
 
 // Register schedules a task on a cron spec. At each tick the payload is enqueued

@@ -8,7 +8,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/rahmadafandi/fibr/fibrtest"
+	"github.com/rahmadafandi/fibr/v2/fibrtest"
 )
 
 // Drive a Fiber app under test with a few lines: build the request, assert the

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rahmadafandi/fibr/retry"
+	"github.com/rahmadafandi/fibr/v2/retry"
 )
 
 func TestSucceedsFirstTry(t *testing.T) {

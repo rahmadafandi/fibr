@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/rahmadafandi/fibr/logger"
+	"github.com/rahmadafandi/fibr/v2/logger"
 	"github.com/redis/go-redis/v9"
 )
 

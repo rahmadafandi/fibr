@@ -3,8 +3,8 @@
 [![Release](https://img.shields.io/github/v/release/rahmadafandi/fibr)](https://github.com/rahmadafandi/fibr/releases/latest)
 [![ci](https://github.com/rahmadafandi/fibr/actions/workflows/ci.yml/badge.svg)](https://github.com/rahmadafandi/fibr/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/rahmadafandi/fibr/branch/master/graph/badge.svg)](https://codecov.io/gh/rahmadafandi/fibr)
-[![Go Reference](https://pkg.go.dev/badge/github.com/rahmadafandi/fibr.svg)](https://pkg.go.dev/github.com/rahmadafandi/fibr)
-[![Go Report Card](https://goreportcard.com/badge/github.com/rahmadafandi/fibr)](https://goreportcard.com/report/github.com/rahmadafandi/fibr)
+[![Go Reference](https://pkg.go.dev/badge/github.com/rahmadafandi/fibr.svg)](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rahmadafandi/fibr/v2)](https://goreportcard.com/report/github.com/rahmadafandi/fibr/v2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/rahmadafandi/fibr/blob/master/LICENSE)
 
 A collection of helper packages for the [Fiber](https://gofiber.io/) web
@@ -18,13 +18,13 @@ Requires Go 1.26+. Targets Fiber v2 and Bun ORM (Postgres or SQLite).
 The library:
 
 ```bash
-go get github.com/rahmadafandi/fibr
+go get github.com/rahmadafandi/fibr/v2
 ```
 
 The project generator:
 
 ```bash
-go install github.com/rahmadafandi/fibr/cmd/fibr@latest
+go install github.com/rahmadafandi/fibr/v2/cmd/fibr@latest
 ```
 
 ## Quickstart
@@ -46,4 +46,4 @@ Add features with flags — `--auth`, `--auth-with-team`, `--queue`, `--mailer`,
 - [Generator](generator.md) — all `fibr` options.
 - [Packages](packages.md) — the helper packages.
 - Full API reference:
-  [pkg.go.dev/github.com/rahmadafandi/fibr](https://pkg.go.dev/github.com/rahmadafandi/fibr)
+  [pkg.go.dev/github.com/rahmadafandi/fibr/v2](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2)

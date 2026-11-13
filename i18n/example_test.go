@@ -5,7 +5,7 @@ package i18n_test
 import (
 	"fmt"
 
-	"github.com/rahmadafandi/fibr/i18n"
+	"github.com/rahmadafandi/fibr/v2/i18n"
 )
 
 func ExampleBundle() {

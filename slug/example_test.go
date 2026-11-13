@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rahmadafandi/fibr/slug"
+	"github.com/rahmadafandi/fibr/v2/slug"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 	"github.com/uptrace/bun/driver/sqliteshim"

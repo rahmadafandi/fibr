@@ -8,9 +8,9 @@ import (
 	"runtime/debug"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fibr/context"
-	"github.com/rahmadafandi/fibr/logger"
-	"github.com/rahmadafandi/fibr/response"
+	"github.com/rahmadafandi/fibr/v2/context"
+	"github.com/rahmadafandi/fibr/v2/logger"
+	"github.com/rahmadafandi/fibr/v2/response"
 )
 
 // Recover is a middleware that recovers from panics and logs the error.

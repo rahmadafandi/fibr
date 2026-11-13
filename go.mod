@@ -1,13 +1,8 @@
-module github.com/rahmadafandi/fibr
+module github.com/rahmadafandi/fibr/v2
 
 go 1.26.0
 
 toolchain go1.26.11
-
-// Pre-release tags cut before the project stabilized. Git history was later
-// rewritten, so these refer to commits that no longer exist on master. They
-// were never intended as supported releases; start from v0.2.0.
-retract [v0.1.0, v0.1.13]
 
 require (
 	github.com/alicebob/miniredis/v2 v2.39.0

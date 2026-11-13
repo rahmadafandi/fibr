@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/rahmadafandi/fibr/jobs"
+	"github.com/rahmadafandi/fibr/v2/jobs"
 	"github.com/stretchr/testify/require"
 )
 

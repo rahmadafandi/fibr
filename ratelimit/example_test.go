@@ -9,7 +9,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	goredis "github.com/redis/go-redis/v9"
 
-	"github.com/rahmadafandi/fibr/ratelimit"
+	"github.com/rahmadafandi/fibr/v2/ratelimit"
 )
 
 // A token bucket of 2 with a slow refill: the first two requests pass, the third

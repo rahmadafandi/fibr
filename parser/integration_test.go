@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rahmadafandi/fibr/database"
+	"github.com/rahmadafandi/fibr/v2/database"
 )
 
 // Runs only when FIBR_TEST_POSTGRES_DSN points at a disposable database.

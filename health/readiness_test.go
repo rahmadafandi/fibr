@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rahmadafandi/fibr/health"
+	"github.com/rahmadafandi/fibr/v2/health"
 )
 
 func TestReadinessGate(t *testing.T) {

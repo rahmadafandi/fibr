@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rahmadafandi/fibr/apikey"
+	"github.com/rahmadafandi/fibr/v2/apikey"
 )
 
 // Generate a key for a client, store its hash, then authenticate with it.

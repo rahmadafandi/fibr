@@ -7,7 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/rahmadafandi/fibr/apierror"
+	"github.com/rahmadafandi/fibr/v2/apierror"
 )
 
 const localsKey = "fibr_apikey_identity"

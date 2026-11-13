@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rahmadafandi/fibr/logger"
+	"github.com/rahmadafandi/fibr/v2/logger"
 )
 
 func TestMiddlewareLimitsAndHeaders(t *testing.T) {

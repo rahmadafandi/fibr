@@ -12,7 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/uptrace/bun"
 
-	fibrctx "github.com/rahmadafandi/fibr/context"
+	fibrctx "github.com/rahmadafandi/fibr/v2/context"
 )
 
 // Entry is one audit record.

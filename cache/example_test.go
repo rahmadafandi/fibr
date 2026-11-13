@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rahmadafandi/fibr/cache"
+	"github.com/rahmadafandi/fibr/v2/cache"
 )
 
 // A typed in-memory cache with load-through. GetOrLoad runs the loader once on a

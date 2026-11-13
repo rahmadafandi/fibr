@@ -23,5 +23,5 @@ REDIS_URL=redis://localhost:6379 go run ./queue
 ```
 
 For per-function API snippets, see the runnable godoc examples on
-[pkg.go.dev](https://pkg.go.dev/github.com/rahmadafandi/fibr)
+[pkg.go.dev](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2)
 (packages `pagination`, `jwt`, `validator`, `parser`, `response`, `slug`).

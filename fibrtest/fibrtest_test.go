@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/uptrace/bun"
 
-	"github.com/rahmadafandi/fibr/fibrtest"
-	"github.com/rahmadafandi/fibr/jwt"
+	"github.com/rahmadafandi/fibr/v2/fibrtest"
+	"github.com/rahmadafandi/fibr/v2/jwt"
 )
 
 // recordTB is a stub TB that records whether Fatalf fired, so fatal paths can be

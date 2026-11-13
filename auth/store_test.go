@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	fhredis "github.com/rahmadafandi/fibr/redis"
+	fhredis "github.com/rahmadafandi/fibr/v2/redis"
 	redislib "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )

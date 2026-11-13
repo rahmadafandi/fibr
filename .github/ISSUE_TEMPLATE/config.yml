@@ -4,5 +4,5 @@ contact_links:
     url: https://rahmadafandi.github.io/fibr/
     about: Guides, generator options, and the package index.
   - name: API reference
-    url: https://pkg.go.dev/github.com/rahmadafandi/fibr
+    url: https://pkg.go.dev/github.com/rahmadafandi/fibr/v2
     about: Full Go API documentation.

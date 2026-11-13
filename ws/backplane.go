@@ -5,8 +5,8 @@ package ws
 import (
 	"context"
 
-	"github.com/rahmadafandi/fibr/logger"
-	"github.com/rahmadafandi/fibr/redis"
+	"github.com/rahmadafandi/fibr/v2/logger"
+	"github.com/rahmadafandi/fibr/v2/redis"
 )
 
 // backplane bridges hub broadcasts across replicas via Redis pub/sub. Every

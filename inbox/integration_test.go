@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/uptrace/bun"
 
-	"github.com/rahmadafandi/fibr/database"
-	"github.com/rahmadafandi/fibr/inbox"
+	"github.com/rahmadafandi/fibr/v2/database"
+	"github.com/rahmadafandi/fibr/v2/inbox"
 )
 
 // Runs only when FIBR_TEST_POSTGRES_DSN points at a disposable database.

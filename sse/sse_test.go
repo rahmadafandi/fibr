@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fibr/sse"
+	"github.com/rahmadafandi/fibr/v2/sse"
 	"github.com/stretchr/testify/require"
 )
 

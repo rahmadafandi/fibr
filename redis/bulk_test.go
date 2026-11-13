@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	fhredis "github.com/rahmadafandi/fibr/redis"
+	fhredis "github.com/rahmadafandi/fibr/v2/redis"
 	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )

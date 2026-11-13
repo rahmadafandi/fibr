@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fibr/apierror"
-	"github.com/rahmadafandi/fibr/webhook"
+	"github.com/rahmadafandi/fibr/v2/apierror"
+	"github.com/rahmadafandi/fibr/v2/webhook"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fibr/apierror"
+	"github.com/rahmadafandi/fibr/v2/apierror"
 )
 
 // Return a typed error from a handler; the ErrorHandler renders it as JSON.
