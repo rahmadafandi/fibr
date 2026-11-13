@@ -17,3 +17,24 @@ updates:
       github-actions:
         patterns:
           - "*"
+  # v1 (Fiber v2) maintenance branch: security and patch updates only reach it
+  # if Dependabot is told to target it.
+  - package-ecosystem: gomod
+    directory: /
+    target-branch: v1
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      go-dependencies-v1:
+        patterns:
+          - "*"
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: v1
+    schedule:
+      interval: weekly
+    groups:
+      github-actions-v1:
+        patterns:
+          - "*"

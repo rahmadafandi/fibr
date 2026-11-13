@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 
 - `sse`: use Fiber's own `github.com/gofiber/fiber/v3/middleware/sse`, which adds heartbeats, `Last-Event-ID`, and disconnect detection. The package keeps working and will be removed in fibr v3.
-
 - `reqctx`: `GetContext`, `SetLocal`, and `GetLocal`. Fiber v3 covers them with `c.Context()` and the generic `fiber.Locals`. `GetRequestID` stays.
 
 ### Added
