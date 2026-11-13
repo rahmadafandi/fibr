@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Work in progress towards **v2.0.0** (branch `v2`). See [MIGRATING.md](MIGRATING.md) for upgrade steps.
+## [2.0.0] - 2026-11-13
+
+fibr v2 targets Fiber v3. See [MIGRATING.md](MIGRATING.md) for upgrade steps. v1 (Fiber v2) continues on the `v1` branch.
 
 ### Changed
 

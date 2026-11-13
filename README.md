@@ -28,7 +28,9 @@ line (module path `github.com/rahmadafandi/fibr/v2`), which targets Fiber v3:
   or changed incompatibly until a v3 major release.
 - New functionality arrives in backward-compatible **minor** releases; fixes in
   **patch** releases.
-- Coming from v1 (Fiber v2)? See [MIGRATING.md](MIGRATING.md).
+- Coming from v1 (Fiber v2)? See [MIGRATING.md](MIGRATING.md). v1 stays available
+  at `github.com/rahmadafandi/fibr` and is maintained on the
+  [`v1` branch](https://github.com/rahmadafandi/fibr/tree/v1).
 - The generated-app scaffolding (`fibr new`) follows the same library version but
   generated code is a starting point you own — regenerating is never required.
 
