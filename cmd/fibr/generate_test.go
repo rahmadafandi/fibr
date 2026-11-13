@@ -764,7 +764,7 @@ func TestRealtimeScaffoldArtifacts(t *testing.T) {
 			body := filepath.Join(dir, tc.path)
 			assertFileContains(t, body, "func RegisterRealtime(")
 			assertFileContains(t, body, "ws.NewHub[Message]")
-			assertFileContains(t, body, "sse.Handler(")
+			assertFileContains(t, body, "sse.New(sse.Config{")
 			assertFileContains(t, filepath.Join(dir, "cmd/api/main.go"), "RegisterRealtime(app.App")
 		})
 	}

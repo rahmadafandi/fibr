@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/sse"
 	"github.com/rahmadafandi/fibr/v2/rediskit"
-	"github.com/rahmadafandi/fibr/v2/sse"
 	"github.com/rahmadafandi/fibr/v2/ws"
 )
 
@@ -32,18 +32,23 @@ func RegisterRealtime(app fiber.Router, rds *rediskit.Redis) {
 		OnMessage: func(c *ws.Conn[Message], m Message) { hub.ToRoom(c.Params("room"), m) },
 	}))
 
-	app.Get("/events", sse.Handler(func(c fiber.Ctx, s *sse.Stream) {
+	app.Get("/events", sse.New(sse.Config{Handler: func(c fiber.Ctx, s *sse.Stream) error {
+		// Closed when the server begins shutting down, so an open stream does
+		// not hold up a graceful shutdown.
+		shutdown := c.RequestCtx().Done()
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
 		for n := 0; ; n++ {
-			if err := s.Send("tick", fiber.Map{"count": n}); err != nil {
-				return
+			if err := s.Event(sse.Event{Name: "tick", Data: fiber.Map{"count": n}}); err != nil {
+				return nil // client disconnected
 			}
 			select {
-			case <-c.RequestCtx().Done():
-				return
+			case <-s.Done():
+				return nil
+			case <-shutdown:
+				return nil
 			case <-ticker.C:
 			}
 		}
-	}))
+	}}))
 }
