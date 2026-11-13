@@ -8,8 +8,8 @@ import (
 	"runtime/debug"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/rahmadafandi/fibr/v2/context"
 	"github.com/rahmadafandi/fibr/v2/logger"
+	"github.com/rahmadafandi/fibr/v2/reqctx"
 	"github.com/rahmadafandi/fibr/v2/response"
 )
 
@@ -19,7 +19,7 @@ func Recover(logger *logger.Logger) fiber.Handler {
 		defer func() {
 			if r := recover(); r != nil {
 				err := fmt.Errorf("%v", r)
-				logger.Error(err, string(debug.Stack()), "request_id", context.GetRequestID(c))
+				logger.Error(err, string(debug.Stack()), "request_id", reqctx.GetRequestID(c))
 				_ = c.Status(fiber.StatusInternalServerError).JSON(response.Response{
 					Code:    fiber.StatusInternalServerError,
 					Message: "Internal Server Error",

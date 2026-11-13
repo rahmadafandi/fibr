@@ -12,7 +12,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/uptrace/bun"
 
-	fibrctx "github.com/rahmadafandi/fibr/v2/context"
+	"github.com/rahmadafandi/fibr/v2/reqctx"
 )
 
 // Entry is one audit record.
@@ -72,7 +72,7 @@ func (r *Recorder) Record(ctx context.Context, e Entry) error {
 func (r *Recorder) FromRequest(c fiber.Ctx) Entry {
 	e := Entry{
 		IP:        c.IP(),
-		RequestID: fibrctx.GetRequestID(c),
+		RequestID: reqctx.GetRequestID(c),
 	}
 	if r.actor != nil {
 		e.Actor = r.actor(c)

@@ -320,7 +320,7 @@ A small JSON HTTP client built on [fasthttp](https://github.com/valyala/fasthttp
 import (
     "context"
     "time"
-    fhttp "github.com/rahmadafandi/fibr/v2/http"
+    fhttp "github.com/rahmadafandi/fibr/v2/httpclient"
 )
 
 h := fhttp.New("https://api.example.com",
@@ -371,7 +371,7 @@ import (
     "context"
     "time"
     "github.com/redis/go-redis/v9"
-    firedis "github.com/rahmadafandi/fibr/v2/redis"
+    firedis "github.com/rahmadafandi/fibr/v2/rediskit"
 )
 
 opt, err := firedis.ParseRedisOptions("redis://localhost:6379/0")
@@ -483,7 +483,7 @@ Accessors for values stored on the Fiber context: the request-scoped
 **Usage:**
 
 ```go
-import fhctx "github.com/rahmadafandi/fibr/v2/context"
+import fhctx "github.com/rahmadafandi/fibr/v2/reqctx"
 
 ctx := fhctx.GetContext(c)        // request-scoped context.Context
 id := fhctx.GetRequestID(c)       // request id (set by ContextMiddleware)

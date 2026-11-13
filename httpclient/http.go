@@ -1,7 +1,7 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
-// Package http is a context-aware JSON HTTP client with retries.
-package http
+// Package httpclient is a context-aware JSON HTTP client with retries.
+package httpclient
 
 import (
 	"bytes"

@@ -1,7 +1,7 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
-// Package redis wraps go-redis with cache-aside, a fiber.Storage adapter, pub/sub, and bulk/atomic helpers.
-package redis
+// Package rediskit wraps go-redis with cache-aside, a fiber.Storage adapter, pub/sub, and bulk/atomic helpers.
+package rediskit
 
 import (
 	"context"
