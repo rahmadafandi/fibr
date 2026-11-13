@@ -7,7 +7,7 @@ import (
 	"html/template"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 // bytes marshals the document once and caches the result.
@@ -21,7 +21,7 @@ func (s *Spec) bytes() ([]byte, error) {
 // SpecHandler serves the OpenAPI document as JSON. The document is marshaled
 // once on first request and cached, so register all operations before serving.
 func (s *Spec) SpecHandler() fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		b, err := s.bytes()
 		if err != nil {
 			return err
@@ -34,7 +34,7 @@ func (s *Spec) SpecHandler() fiber.Handler {
 // UIHandler serves a Swagger UI page (loaded from a CDN) pointed at specURL.
 func (s *Spec) UIHandler(specURL string) fiber.Handler {
 	html := swaggerHTML(specURL)
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)
 		return c.SendString(html)
 	}

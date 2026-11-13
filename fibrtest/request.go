@@ -10,6 +10,8 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 // Request builds a single HTTP request against the Client's app.
@@ -100,7 +102,7 @@ func (r *Request) Do() *Response {
 		req.Header.Set("Content-Type", r.contentType)
 	}
 
-	resp, err := r.c.app.Test(req, int(r.c.timeout.Milliseconds()))
+	resp, err := r.c.app.Test(req, fiber.TestConfig{Timeout: r.c.timeout, FailOnTimeout: true})
 	if err != nil {
 		r.c.t.Fatalf("fibrtest: app.Test %s %s: %v", r.method, path, err)
 		return &Response{t: r.c.t}

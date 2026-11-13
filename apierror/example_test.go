@@ -7,14 +7,14 @@ import (
 	"io"
 	"net/http/httptest"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/apierror"
 )
 
 // Return a typed error from a handler; the ErrorHandler renders it as JSON.
 func ExampleHandler() {
 	app := fiber.New(fiber.Config{ErrorHandler: apierror.Handler})
-	app.Get("/users/:id", func(c *fiber.Ctx) error {
+	app.Get("/users/:id", func(c fiber.Ctx) error {
 		return apierror.NotFound("user not found").WithCode("user_not_found")
 	})
 

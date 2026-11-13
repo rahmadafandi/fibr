@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -121,7 +121,7 @@ func TestReadyzTimesOutSlowCheck(t *testing.T) {
 	// Pass a 5s client timeout so app.Test doesn't cut us off before our
 	// overall deadline (checkTimeout + 1s = 1.1s) fires.
 	req := httptest.NewRequest("GET", "/readyz", nil)
-	resp, err := app.Test(req, 5000)
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: 5 * time.Second, FailOnTimeout: true})
 	require.NoError(t, err)
 	body, _ := io.ReadAll(resp.Body)
 	var m map[string]interface{}

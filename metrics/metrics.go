@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/adaptor"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/adaptor"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -70,7 +70,7 @@ func Middleware(opts ...Option) fiber.Handler {
 		o(&cfg)
 	}
 	register(cfg)
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		if c.Path() == MetricsPath {
 			return c.Next()
 		}

@@ -1,7 +1,7 @@
 package router
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/openapi"
 	"github.com/rahmadafandi/fibr/v2/response"
 )
@@ -16,6 +16,6 @@ func RegisterDocs(oapi *openapi.Spec) {
 	oapi.Register("GET", "/", openapi.Op{Summary: "Service info", Tags: []string{"meta"}})
 }
 
-func root(c *fiber.Ctx) error {
+func root(c fiber.Ctx) error {
 	return response.SendSuccess(c, fiber.Map{"name": "{{.Name}}"}, "ok")
 }

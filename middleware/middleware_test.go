@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/apierror"
 	"github.com/rahmadafandi/fibr/v2/logger"
 	"github.com/rs/zerolog"
@@ -23,7 +23,7 @@ func TestMiddleware(t *testing.T) {
 	log := logger.New(&bytes.Buffer{}, zerolog.InfoLevel)
 
 	t.Run("Recover", func(t *testing.T) {
-		app.Get("/recover", Recover(log), func(c *fiber.Ctx) error {
+		app.Get("/recover", Recover(log), func(c fiber.Ctx) error {
 			panic("test panic")
 		})
 
@@ -34,7 +34,7 @@ func TestMiddleware(t *testing.T) {
 	})
 
 	t.Run("RequestLogger", func(t *testing.T) {
-		app.Get("/logger", RequestLogger(log), func(c *fiber.Ctx) error {
+		app.Get("/logger", RequestLogger(log), func(c fiber.Ctx) error {
 			return c.SendStatus(fiber.StatusOK)
 		})
 
@@ -46,7 +46,7 @@ func TestMiddleware(t *testing.T) {
 func TestContextMiddlewareSetsRequestIDHeader(t *testing.T) {
 	app := fiber.New()
 	app.Use(ContextMiddleware(time.Second))
-	app.Get("/", func(c *fiber.Ctx) error { return c.SendString("ok") })
+	app.Get("/", func(c fiber.Ctx) error { return c.SendString("ok") })
 
 	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
 	assert.NoError(t, err)
@@ -61,14 +61,14 @@ func TestRequestLoggerAddsTraceIDs(t *testing.T) {
 	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
 
 	app := fiber.New()
-	app.Use(func(c *fiber.Ctx) error {
-		ctx, span := tp.Tracer("test").Start(c.UserContext(), "req")
+	app.Use(func(c fiber.Ctx) error {
+		ctx, span := tp.Tracer("test").Start(c.Context(), "req")
 		defer span.End()
-		c.SetUserContext(ctx)
+		c.SetContext(ctx)
 		return c.Next()
 	})
 	app.Use(RequestLogger(log))
-	app.Get("/", func(c *fiber.Ctx) error { return c.SendString("ok") })
+	app.Get("/", func(c fiber.Ctx) error { return c.SendString("ok") })
 
 	_, err := app.Test(httptest.NewRequest("GET", "/", nil))
 	require.NoError(t, err)
@@ -81,7 +81,7 @@ func TestRequestLoggerNoTraceIDsWithoutSpan(t *testing.T) {
 	log := logger.New(&buf, zerolog.InfoLevel)
 	app := fiber.New()
 	app.Use(RequestLogger(log))
-	app.Get("/", func(c *fiber.Ctx) error { return c.SendString("ok") })
+	app.Get("/", func(c fiber.Ctx) error { return c.SendString("ok") })
 	_, err := app.Test(httptest.NewRequest("GET", "/", nil))
 	require.NoError(t, err)
 	require.NotContains(t, buf.String(), "trace_id")
@@ -91,7 +91,7 @@ func TestRequestLoggerLogsStatusOfReturnedError(t *testing.T) {
 	var buf bytes.Buffer
 	app := fiber.New(fiber.Config{ErrorHandler: apierror.Handler})
 	app.Use(RequestLogger(logger.New(&buf, zerolog.InfoLevel)))
-	app.Get("/x", func(c *fiber.Ctx) error { return apierror.NotFound("nope") })
+	app.Get("/x", func(c fiber.Ctx) error { return apierror.NotFound("nope") })
 
 	resp, err := app.Test(httptest.NewRequest("GET", "/x", nil))
 	require.NoError(t, err)
@@ -99,19 +99,19 @@ func TestRequestLoggerLogsStatusOfReturnedError(t *testing.T) {
 	assert.Contains(t, buf.String(), `"status":404`)
 }
 
-func TestContextMiddlewareScopesUserContext(t *testing.T) {
+func TestContextMiddlewareScopesRequestContext(t *testing.T) {
 	type key struct{}
 	app := fiber.New()
 	// Outer middleware: sets a value before, and uses the context after Next.
-	app.Use(func(c *fiber.Ctx) error {
-		c.SetUserContext(context.WithValue(context.Background(), key{}, "outer"))
+	app.Use(func(c fiber.Ctx) error {
+		c.SetContext(context.WithValue(context.Background(), key{}, "outer"))
 		err := c.Next()
-		assert.NoError(t, c.UserContext().Err(), "outer middleware must not see the cancelled request context")
+		assert.NoError(t, c.Context().Err(), "outer middleware must not see the cancelled request context")
 		return err
 	})
 	app.Use(ContextMiddleware(time.Second))
-	app.Get("/", func(c *fiber.Ctx) error {
-		ctx := c.UserContext()
+	app.Get("/", func(c fiber.Ctx) error {
+		ctx := c.Context()
 		assert.Equal(t, "outer", ctx.Value(key{}), "values from earlier middleware are kept")
 		_, hasDeadline := ctx.Deadline()
 		assert.True(t, hasDeadline)

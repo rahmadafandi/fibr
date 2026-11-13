@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/context"
 	"github.com/rahmadafandi/fibr/v2/logger"
 	"github.com/rahmadafandi/fibr/v2/response"
@@ -15,7 +15,7 @@ import (
 
 // Recover is a middleware that recovers from panics and logs the error.
 func Recover(logger *logger.Logger) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		defer func() {
 			if r := recover(); r != nil {
 				err := fmt.Errorf("%v", r)

@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http/httptest"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/response"
 )
 
@@ -15,7 +15,7 @@ import (
 // ({code, message, data, status}) and writes it with a 200 status.
 func ExampleSendSuccess() {
 	app := fiber.New()
-	app.Get("/ping", func(c *fiber.Ctx) error {
+	app.Get("/ping", func(c fiber.Ctx) error {
 		return response.SendSuccess(c, fiber.Map{"pong": true}, "ok")
 	})
 

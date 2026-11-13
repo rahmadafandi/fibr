@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/apierror"
 	"github.com/rahmadafandi/fibr/v2/webhook"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +22,7 @@ func TestMiddlewareValid(t *testing.T) {
 
 	app := fiber.New(fiber.Config{ErrorHandler: apierror.Handler})
 	app.Use(webhook.Middleware(webhook.MiddlewareConfig{Secret: secret}))
-	app.Post("/hook", func(c *fiber.Ctx) error { return c.SendString("handled") })
+	app.Post("/hook", func(c fiber.Ctx) error { return c.SendString("handled") })
 
 	req := httptest.NewRequest("POST", "/hook", strings.NewReader(body))
 	req.Header.Set(webhook.DefaultHeader, webhook.Sign([]byte(body), secret, time.Now()))
@@ -36,7 +36,7 @@ func TestMiddlewareValid(t *testing.T) {
 func TestMiddlewareRejectsBadSignature(t *testing.T) {
 	app := fiber.New(fiber.Config{ErrorHandler: apierror.Handler})
 	app.Use(webhook.Middleware(webhook.MiddlewareConfig{Secret: "secret"}))
-	app.Post("/hook", func(c *fiber.Ctx) error { return c.SendString("handled") })
+	app.Post("/hook", func(c fiber.Ctx) error { return c.SendString("handled") })
 
 	req := httptest.NewRequest("POST", "/hook", strings.NewReader(`{"event":"ok"}`))
 	req.Header.Set(webhook.DefaultHeader, "t=1,v1=deadbeef")

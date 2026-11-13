@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/bind"
 )
 
@@ -22,7 +22,7 @@ func ExampleBody() {
 	}
 
 	app := fiber.New()
-	app.Post("/signup", func(c *fiber.Ctx) error {
+	app.Post("/signup", func(c fiber.Ctx) error {
 		in, ok := bind.Body[signupInput](c)
 		if !ok {
 			return nil // 400/422 already written

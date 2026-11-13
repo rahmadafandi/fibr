@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/apierror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -55,7 +55,7 @@ func TestErrorsAs(t *testing.T) {
 
 func TestHandlerAPIError(t *testing.T) {
 	app := fiber.New(fiber.Config{ErrorHandler: apierror.Handler})
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/", func(c fiber.Ctx) error {
 		return apierror.NotFound("user not found").WithCode("user_not_found")
 	})
 	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
@@ -67,7 +67,7 @@ func TestHandlerAPIError(t *testing.T) {
 
 func TestHandlerWithDetails(t *testing.T) {
 	app := fiber.New(fiber.Config{ErrorHandler: apierror.Handler})
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/", func(c fiber.Ctx) error {
 		return apierror.BadRequest("bad").WithDetails([]string{"x"})
 	})
 	resp, _ := app.Test(httptest.NewRequest("GET", "/", nil))
@@ -78,7 +78,7 @@ func TestHandlerWithDetails(t *testing.T) {
 
 func TestHandlerWrappedCauseNoLeak(t *testing.T) {
 	app := fiber.New(fiber.Config{ErrorHandler: apierror.Handler})
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/", func(c fiber.Ctx) error {
 		return apierror.Internal("oops").Wrap(errors.New("db password leaked"))
 	})
 	resp, _ := app.Test(httptest.NewRequest("GET", "/", nil))
@@ -89,7 +89,7 @@ func TestHandlerWrappedCauseNoLeak(t *testing.T) {
 
 func TestHandlerFiberError(t *testing.T) {
 	app := fiber.New(fiber.Config{ErrorHandler: apierror.Handler})
-	app.Get("/", func(c *fiber.Ctx) error { return fiber.NewError(403, "nope") })
+	app.Get("/", func(c fiber.Ctx) error { return fiber.NewError(403, "nope") })
 	resp, _ := app.Test(httptest.NewRequest("GET", "/", nil))
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, 403, resp.StatusCode)
@@ -99,7 +99,7 @@ func TestHandlerFiberError(t *testing.T) {
 
 func TestHandlerGenericNoLeak(t *testing.T) {
 	app := fiber.New(fiber.Config{ErrorHandler: apierror.Handler})
-	app.Get("/", func(c *fiber.Ctx) error { return errors.New("secret internal detail") })
+	app.Get("/", func(c fiber.Ctx) error { return errors.New("secret internal detail") })
 	resp, _ := app.Test(httptest.NewRequest("GET", "/", nil))
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, 500, resp.StatusCode)

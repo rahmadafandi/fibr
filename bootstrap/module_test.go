@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/health"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +26,7 @@ type fakeModule struct {
 func (m *fakeModule) Name() string { return m.name }
 func (m *fakeModule) Register(r fiber.Router) error {
 	m.registered = true
-	r.Get("/"+m.name, func(c *fiber.Ctx) error { return c.SendString(m.name) })
+	r.Get("/"+m.name, func(c fiber.Ctx) error { return c.SendString(m.name) })
 	return m.registerErr
 }
 func (m *fakeModule) Migrate(ctx context.Context) error {

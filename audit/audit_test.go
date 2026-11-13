@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -34,19 +34,19 @@ func TestRecordUsesSinkAndSetsCreatedAt(t *testing.T) {
 
 func TestFromRequestPrefillsContext(t *testing.T) {
 	sink := &captureSink{}
-	rec := audit.New(sink, audit.WithActor(func(c *fiber.Ctx) string {
+	rec := audit.New(sink, audit.WithActor(func(c fiber.Ctx) string {
 		return c.Get("X-User")
 	}))
 
 	app := fiber.New()
-	app.Use(func(c *fiber.Ctx) error {
+	app.Use(func(c fiber.Ctx) error {
 		c.Locals("requestid", "req-123") // what context.GetRequestID reads
 		return c.Next()
 	})
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/", func(c fiber.Ctx) error {
 		e := rec.FromRequest(c)
 		e.Action = "page.view"
-		return rec.Record(c.UserContext(), e)
+		return rec.Record(c.Context(), e)
 	})
 
 	req := httptest.NewRequest("GET", "/", nil)

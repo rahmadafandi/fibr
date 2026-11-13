@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/bind"
 	"github.com/rahmadafandi/fibr/v2/auth"
 	"github.com/rahmadafandi/fibr/v2/jwt"
@@ -65,12 +65,12 @@ func (h *AuthHandler) RegisterRoutes(r fiber.Router) {
 	g.Get("/admin", auth.RequireAuth(h.secret, auth.WithBlocklist(h.store)), auth.RequireScope("admin"), h.admin)
 }
 
-func (h *AuthHandler) register(c *fiber.Ctx) error {
+func (h *AuthHandler) register(c fiber.Ctx) error {
 	in, ok := bind.Body[credentials](c)
 	if !ok {
 		return nil
 	}
-	a, err := h.svc.Register(c.UserContext(), in.Email, in.Password)
+	a, err := h.svc.Register(c.Context(), in.Email, in.Password)
 	if err != nil {
 		if errors.Is(err, service.ErrEmailTaken) {
 			return apierror.Conflict("email already registered").WithCode("email_taken")
@@ -80,16 +80,16 @@ func (h *AuthHandler) register(c *fiber.Ctx) error {
 	return response.SendSuccess(c, fiber.Map{"id": a.ID, "email": a.Email, "scopes": strings.Split(a.Scopes, ",")}, "created", fiber.StatusCreated)
 }
 
-func (h *AuthHandler) login(c *fiber.Ctx) error {
+func (h *AuthHandler) login(c fiber.Ctx) error {
 	in, ok := bind.Body[credentials](c)
 	if !ok {
 		return nil
 	}
-	a, err := h.svc.Authenticate(c.UserContext(), in.Email, in.Password)
+	a, err := h.svc.Authenticate(c.Context(), in.Email, in.Password)
 	if err != nil {
 		return apierror.Unauthorized("invalid credentials")
 	}
-	pair, err := h.issuer.Issue(c.UserContext(), jwt.MapClaims{
+	pair, err := h.issuer.Issue(c.Context(), jwt.MapClaims{
 		"sub":    strconv.FormatInt(a.ID, 10),
 		"email":  a.Email,
 		"scopes": strings.Split(a.Scopes, ","),
@@ -100,12 +100,12 @@ func (h *AuthHandler) login(c *fiber.Ctx) error {
 	return response.SendSuccess(c, pair, "ok")
 }
 
-func (h *AuthHandler) refresh(c *fiber.Ctx) error {
+func (h *AuthHandler) refresh(c fiber.Ctx) error {
 	in, ok := bind.Body[refreshRequest](c)
 	if !ok {
 		return nil
 	}
-	pair, err := h.issuer.Refresh(c.UserContext(), in.RefreshToken)
+	pair, err := h.issuer.Refresh(c.Context(), in.RefreshToken)
 	if err != nil {
 		if errors.Is(err, auth.ErrTokenReuse) {
 			log.Warn().Str("event", "refresh_reuse").Msg("refresh token reuse detected")
@@ -115,7 +115,7 @@ func (h *AuthHandler) refresh(c *fiber.Ctx) error {
 	return response.SendSuccess(c, pair, "ok")
 }
 
-func (h *AuthHandler) logout(c *fiber.Ctx) error {
+func (h *AuthHandler) logout(c fiber.Ctx) error {
 	// Strip the bearer prefix case-insensitively, matching auth.RequireAuth.
 	const bearerPrefix = "Bearer "
 	authz := c.Get("Authorization")
@@ -124,20 +124,20 @@ func (h *AuthHandler) logout(c *fiber.Ctx) error {
 		access = authz[len(bearerPrefix):]
 	}
 	var in refreshRequest
-	_ = c.BodyParser(&in)
-	if err := h.issuer.Logout(c.UserContext(), access, in.RefreshToken); err != nil {
+	_ = c.Bind().Body(&in)
+	if err := h.issuer.Logout(c.Context(), access, in.RefreshToken); err != nil {
 		return apierror.Internal("could not log out")
 	}
 	return response.SendSuccess(c, fiber.Map{"ok": true}, "logged out")
 }
 
-func (h *AuthHandler) me(c *fiber.Ctx) error {
+func (h *AuthHandler) me(c fiber.Ctx) error {
 	return response.SendSuccess(c, fiber.Map{
 		"sub":    auth.Subject(c),
 		"scopes": auth.Scopes(c),
 	}, "ok")
 }
 
-func (h *AuthHandler) admin(c *fiber.Ctx) error {
+func (h *AuthHandler) admin(c fiber.Ctx) error {
 	return response.SendSuccess(c, fiber.Map{"ok": true}, "admin area")
 }

@@ -9,7 +9,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/uptrace/bun"
 
 	fibrctx "github.com/rahmadafandi/fibr/v2/context"
@@ -38,14 +38,14 @@ type Sink interface {
 // Recorder records entries through a Sink.
 type Recorder struct {
 	sink  Sink
-	actor func(*fiber.Ctx) string
+	actor func(fiber.Ctx) string
 }
 
 // Option configures a Recorder.
 type Option func(*Recorder)
 
 // WithActor sets how the actor is derived from a request (e.g. auth.Subject).
-func WithActor(fn func(*fiber.Ctx) string) Option {
+func WithActor(fn func(fiber.Ctx) string) Option {
 	return func(r *Recorder) { r.actor = fn }
 }
 
@@ -69,7 +69,7 @@ func (r *Recorder) Record(ctx context.Context, e Entry) error {
 // FromRequest returns an Entry prefilled with Actor (via the configured
 // extractor, if any), IP, and RequestID. The caller fills Action/Target/etc and
 // passes it to Record.
-func (r *Recorder) FromRequest(c *fiber.Ctx) Entry {
+func (r *Recorder) FromRequest(c fiber.Ctx) Entry {
 	e := Entry{
 		IP:        c.IP(),
 		RequestID: fibrctx.GetRequestID(c),

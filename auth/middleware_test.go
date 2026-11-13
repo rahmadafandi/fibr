@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	gojwt "github.com/golang-jwt/jwt/v5"
 	"github.com/rahmadafandi/fibr/v2/jwt"
 	"github.com/stretchr/testify/assert"
@@ -51,7 +51,7 @@ func doBody(t *testing.T, app *fiber.App, method, path, bearer string) (int, str
 
 func TestRequireAuth(t *testing.T) {
 	app := fiber.New()
-	app.Get("/p", RequireAuth(middlewareTestSecret), func(c *fiber.Ctx) error {
+	app.Get("/p", RequireAuth(middlewareTestSecret), func(c fiber.Ctx) error {
 		return c.SendString(Subject(c))
 	})
 
@@ -68,7 +68,7 @@ func TestRequireAuth(t *testing.T) {
 
 func TestOptional(t *testing.T) {
 	app := fiber.New()
-	app.Get("/o", Optional(middlewareTestSecret), func(c *fiber.Ctx) error {
+	app.Get("/o", Optional(middlewareTestSecret), func(c fiber.Ctx) error {
 		if _, ok := Claims(c); ok {
 			return c.SendString("authed")
 		}
@@ -84,7 +84,7 @@ func TestOptional(t *testing.T) {
 
 func TestRequireScope(t *testing.T) {
 	app := fiber.New()
-	app.Get("/admin", RequireAuth(middlewareTestSecret), RequireScope("admin"), func(c *fiber.Ctx) error {
+	app.Get("/admin", RequireAuth(middlewareTestSecret), RequireScope("admin"), func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 	tok := mintToken(t, jwt.MapClaims{"sub": "u1", "scopes": []string{"user", "admin"}}, time.Hour)
@@ -95,7 +95,7 @@ func TestRequireScope(t *testing.T) {
 
 func TestRequireScopeNoClaims(t *testing.T) {
 	app := fiber.New()
-	app.Get("/x", RequireScope("admin"), func(c *fiber.Ctx) error { return c.SendString("ok") })
+	app.Get("/x", RequireScope("admin"), func(c fiber.Ctx) error { return c.SendString("ok") })
 	assert.Equal(t, 401, do(t, app, "GET", "/x", ""))
 }
 
@@ -108,7 +108,7 @@ func TestScopesNormalization(t *testing.T) {
 
 func TestHasScopeAfterRoundTrip(t *testing.T) {
 	app := fiber.New()
-	app.Get("/r", RequireAuth(middlewareTestSecret), func(c *fiber.Ctx) error {
+	app.Get("/r", RequireAuth(middlewareTestSecret), func(c fiber.Ctx) error {
 		assert.True(t, HasScope(c, "admin"))
 		assert.False(t, HasScope(c, "nope"))
 		return c.SendString("ok")
@@ -125,7 +125,7 @@ func TestRequireAuthBlocklist(t *testing.T) {
 	require.NoError(t, err)
 
 	app := fiber.New()
-	app.Get("/p", RequireAuth(testSecret, WithBlocklist(store)), func(c *fiber.Ctx) error {
+	app.Get("/p", RequireAuth(testSecret, WithBlocklist(store)), func(c fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusOK)
 	})
 
@@ -150,7 +150,7 @@ func TestRequireAuthRejectsRefreshToken(t *testing.T) {
 	require.NoError(t, err)
 
 	app := fiber.New()
-	app.Get("/p", RequireAuth(testSecret), func(c *fiber.Ctx) error { return c.SendStatus(200) })
+	app.Get("/p", RequireAuth(testSecret), func(c fiber.Ctx) error { return c.SendStatus(200) })
 
 	req := httptest.NewRequest("GET", "/p", nil)
 	req.Header.Set("Authorization", "Bearer "+pair.RefreshToken)
@@ -169,7 +169,7 @@ func TestOptionalBlocklistProceeds(t *testing.T) {
 	require.NoError(t, store.Block(ctx, ac["jti"].(string), time.Hour))
 
 	app := fiber.New()
-	app.Get("/p", Optional(testSecret, WithBlocklist(store)), func(c *fiber.Ctx) error {
+	app.Get("/p", Optional(testSecret, WithBlocklist(store)), func(c fiber.Ctx) error {
 		if _, ok := Claims(c); ok {
 			return c.SendString("authed")
 		}
@@ -199,7 +199,7 @@ func TestRequireAuthBlocklistFailsClosed(t *testing.T) {
 	require.NoError(t, err)
 
 	app := fiber.New()
-	app.Get("/p", RequireAuth(testSecret, WithBlocklist(errStore{})), func(c *fiber.Ctx) error {
+	app.Get("/p", RequireAuth(testSecret, WithBlocklist(errStore{})), func(c fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusOK)
 	})
 
@@ -213,7 +213,7 @@ func TestRequireAuthBlocklistFailsClosed(t *testing.T) {
 func TestRequireAuthExpirationRequired(t *testing.T) {
 	noExp, err := jwt.GenerateToken(jwt.MapClaims{"sub": "1"}, middlewareTestSecret)
 	require.NoError(t, err)
-	ok := func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) }
+	ok := func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) }
 
 	app := fiber.New()
 	app.Get("/lax", RequireAuth(middlewareTestSecret), ok)
@@ -227,7 +227,7 @@ func TestRequireAuthExpirationRequired(t *testing.T) {
 
 func TestRequireAuthEmptySecretRejectsEverything(t *testing.T) {
 	app := fiber.New()
-	app.Get("/", RequireAuth(""), func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })
+	app.Get("/", RequireAuth(""), func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })
 
 	// A correctly signed HS256 token under an empty key, as an attacker would forge it.
 	forged, err := gojwt.NewWithClaims(gojwt.SigningMethodHS256, gojwt.MapClaims{"sub": "admin"}).SignedString([]byte(""))
