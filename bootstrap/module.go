@@ -45,12 +45,12 @@ func (a *App) Mount(mods ...Module) error {
 		if a.autoMigrate {
 			if mg, ok := m.(Migrator); ok {
 				if err := mg.Migrate(ctx); err != nil {
-					return fmt.Errorf("mount %s: migrate: %w", m.Name(), err)
+					return fmt.Errorf("bootstrap: mount %s: migrate: %w", m.Name(), err)
 				}
 			}
 		}
 		if err := m.Register(a.App); err != nil {
-			return fmt.Errorf("mount %s: register: %w", m.Name(), err)
+			return fmt.Errorf("bootstrap: mount %s: register: %w", m.Name(), err)
 		}
 		if hc, ok := m.(HealthChecker); ok {
 			a.mu.Lock()
