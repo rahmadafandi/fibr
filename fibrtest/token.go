@@ -2,7 +2,7 @@
 
 package fibrtest
 
-import "github.com/rahmadafandi/fibr/jwt"
+import "github.com/rahmadafandi/fibr/v2/jwt"
 
 // Token mints a signed JWT with the given claims, for testing authed routes
 // without going through a login flow. A signing error calls Fatalf.

@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rahmadafandi/fibr/featureflag"
+	"github.com/rahmadafandi/fibr/v2/featureflag"
 )
 
 // Evaluate a flag with a percentage rollout and a user allowlist.

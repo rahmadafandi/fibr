@@ -6,7 +6,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/rahmadafandi/fibr/i18n"
+	"github.com/rahmadafandi/fibr/v2/i18n"
 	"github.com/stretchr/testify/require"
 )
 

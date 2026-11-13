@@ -12,7 +12,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/rahmadafandi/fibr/logger"
+	"github.com/rahmadafandi/fibr/v2/logger"
 )
 
 const keyPrefix = "ratelimit:"

@@ -11,7 +11,7 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fibr/response"
+	"github.com/rahmadafandi/fibr/v2/response"
 )
 
 // Error is a typed HTTP error: an HTTP status, a machine-readable code, a human

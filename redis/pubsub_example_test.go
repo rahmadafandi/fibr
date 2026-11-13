@@ -5,7 +5,7 @@ package redis_test
 import (
 	"context"
 
-	fibrredis "github.com/rahmadafandi/fibr/redis"
+	fibrredis "github.com/rahmadafandi/fibr/v2/redis"
 	goredis "github.com/redis/go-redis/v9"
 )
 

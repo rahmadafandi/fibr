@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rahmadafandi/fibr/pagination"
+	"github.com/rahmadafandi/fibr/v2/pagination"
 )
 
 func TestLinkHeaderNextAndPrev(t *testing.T) {

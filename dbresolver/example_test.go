@@ -10,7 +10,7 @@ import (
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 	"github.com/uptrace/bun/driver/sqliteshim"
 
-	"github.com/rahmadafandi/fibr/dbresolver"
+	"github.com/rahmadafandi/fibr/v2/dbresolver"
 )
 
 func open(name string) *bun.DB {

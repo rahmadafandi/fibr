@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/rahmadafandi/fibr/logger"
+	"github.com/rahmadafandi/fibr/v2/logger"
 )
 
 // Bus is an in-process event bus. Handlers are keyed by event type.

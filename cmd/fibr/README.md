@@ -5,7 +5,7 @@ Generate a ready-to-run [Fiber](https://gofiber.io/) project wired with [fibr](h
 ## Install
 
 ```bash
-go install github.com/rahmadafandi/fibr/cmd/fibr@latest
+go install github.com/rahmadafandi/fibr/v2/cmd/fibr@latest
 ```
 
 ## Usage
@@ -78,4 +78,4 @@ alongside `--sample` (accounts and the demo users table are independent).
 
 ## Note
 
-Generated projects depend on `github.com/rahmadafandi/fibr`. Until that module is published to a proxy, use `--local /path/to/fibr` (adds a `replace`) or `--no-tidy` and wire the dependency manually.
+Generated projects depend on `github.com/rahmadafandi/fibr/v2`. Until that module is published to a proxy, use `--local /path/to/fibr` (adds a `replace`) or `--no-tidy` and wire the dependency manually.

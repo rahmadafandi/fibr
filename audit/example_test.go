@@ -11,7 +11,7 @@ import (
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 	"github.com/uptrace/bun/driver/sqliteshim"
 
-	"github.com/rahmadafandi/fibr/audit"
+	"github.com/rahmadafandi/fibr/v2/audit"
 )
 
 // Record an audit entry and read it back.

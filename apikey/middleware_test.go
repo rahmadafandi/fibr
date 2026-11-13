@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rahmadafandi/fibr/apierror"
-	"github.com/rahmadafandi/fibr/apikey"
+	"github.com/rahmadafandi/fibr/v2/apierror"
+	"github.com/rahmadafandi/fibr/v2/apikey"
 )
 
 func testApp(t *testing.T) (*fiber.App, string) {

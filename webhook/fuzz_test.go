@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahmadafandi/fibr/webhook"
+	"github.com/rahmadafandi/fibr/v2/webhook"
 )
 
 // FuzzVerify ensures Verify never panics on arbitrary signature headers and

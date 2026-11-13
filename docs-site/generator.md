@@ -6,7 +6,7 @@ Scaffolds a batteries-included Fiber project (a cobra single binary with `serve`
 ## Install
 
 ```bash
-go install github.com/rahmadafandi/fibr/cmd/fibr@latest
+go install github.com/rahmadafandi/fibr/v2/cmd/fibr@latest
 ```
 
 ## Usage

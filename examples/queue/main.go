@@ -14,7 +14,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/rahmadafandi/fibr/jobs"
+	"github.com/rahmadafandi/fibr/v2/jobs"
 )
 
 // WelcomePayload is the JSON payload carried by the task.

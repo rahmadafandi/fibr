@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rahmadafandi/fibr/audit"
+	"github.com/rahmadafandi/fibr/v2/audit"
 )
 
 // captureSink records the last entry it received.

@@ -9,8 +9,8 @@ package bind
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fibr/response"
-	"github.com/rahmadafandi/fibr/validator"
+	"github.com/rahmadafandi/fibr/v2/response"
+	"github.com/rahmadafandi/fibr/v2/validator"
 )
 
 // Body decodes the request body (JSON/form/multipart, by Content-Type) into T

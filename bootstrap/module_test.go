@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fibr/health"
+	"github.com/rahmadafandi/fibr/v2/health"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

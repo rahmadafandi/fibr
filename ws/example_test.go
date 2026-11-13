@@ -4,7 +4,7 @@ package ws_test
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/rahmadafandi/fibr/ws"
+	"github.com/rahmadafandi/fibr/v2/ws"
 )
 
 type message struct {

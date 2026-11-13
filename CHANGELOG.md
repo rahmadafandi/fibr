@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Work in progress towards **v2.0.0** (branch `v2`).
+
+### Changed
+
+- **Breaking:** the module path is now `github.com/rahmadafandi/fibr/v2`. Update imports and `go get github.com/rahmadafandi/fibr/v2`.
+
 ## [1.6.1] - 2026-11-13
 
 ### Changed
