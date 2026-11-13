@@ -175,7 +175,7 @@ func (r *Relay) process(ctx context.Context, renew func() error) (published int,
 		if _, merr := r.db.NewUpdate().
 			Model((*Event)(nil)).
 			Set("published_at = ?", time.Now()).
-			Where("id IN (?)", bun.In(sent)).
+			Where("id IN (?)", bun.List(sent)).
 			Exec(mctx); merr != nil {
 			published = 0
 			err = errors.Join(err, fmt.Errorf("outbox: mark %d events published: %w", len(sent), merr))
