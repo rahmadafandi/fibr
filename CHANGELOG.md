@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Deprecated
+
+- `jwt.ExtractClaimsFromJwt`: use `ExtractClaimsFromJWT`.
+- `middleware.ContextMiddleware`: use `middleware.RequestContext`.
+- `i18n.MWOption`: use `i18n.MiddlewareOption`.
+
+The old names keep working and will be removed in fibr v3.
+
 ### Added
 
 - `fibrtest`: `NewRedis(t)` starts an in-memory Redis (miniredis) and returns it with a connected go-redis client, both closed at test end.

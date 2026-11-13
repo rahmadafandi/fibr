@@ -476,7 +476,7 @@ app.Use(middleware.RequestLogger(logger))
 app.Use(auth.RequireAuth(secret))
 
 // Context
-app.Use(middleware.ContextMiddleware(10 * time.Second))
+app.Use(middleware.RequestContext(10 * time.Second))
 ```
 
 ### `reqctx`
@@ -489,7 +489,7 @@ Accessors for values stored on the Fiber context: the request-scoped
 ```go
 import "github.com/rahmadafandi/fibr/v2/reqctx"
 
-id := reqctx.GetRequestID(c)       // request id (set by ContextMiddleware)
+id := reqctx.GetRequestID(c)       // request id (set by RequestContext)
 ```
 
 `GetContext`, `SetLocal`, and `GetLocal` are deprecated: Fiber v3 covers them with `c.Context()` and the generic `fiber.Locals(c, "user", user)` / `fiber.Locals[User](c, "user")`.

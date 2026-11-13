@@ -20,18 +20,23 @@ type mwConfig struct {
 	cookieKey string
 }
 
-// MWOption configures the middleware.
-type MWOption func(*mwConfig)
+// MiddlewareOption configures the middleware.
+type MiddlewareOption func(*mwConfig)
+
+// MWOption is the old name of MiddlewareOption.
+//
+// Deprecated: use MiddlewareOption.
+type MWOption = MiddlewareOption
 
 // WithQueryKey sets the query parameter checked for the locale (default "lang").
-func WithQueryKey(k string) MWOption { return func(c *mwConfig) { c.queryKey = k } }
+func WithQueryKey(k string) MiddlewareOption { return func(c *mwConfig) { c.queryKey = k } }
 
 // WithCookieKey sets the cookie checked for the locale (default "lang").
-func WithCookieKey(k string) MWOption { return func(c *mwConfig) { c.cookieKey = k } }
+func WithCookieKey(k string) MiddlewareOption { return func(c *mwConfig) { c.cookieKey = k } }
 
 // Middleware resolves the request locale (query > cookie > Accept-Language >
 // fallback) and stores it, with the bundle, for T/N/Locale.
-func Middleware(b *Bundle, opts ...MWOption) fiber.Handler {
+func Middleware(b *Bundle, opts ...MiddlewareOption) fiber.Handler {
 	cfg := mwConfig{queryKey: "lang", cookieKey: "lang"}
 	for _, o := range opts {
 		o(&cfg)

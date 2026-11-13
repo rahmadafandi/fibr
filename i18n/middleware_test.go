@@ -67,3 +67,6 @@ func TestFallbackWhenUnknown(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, readBody(t, resp), `"locale":"en"`)
 }
+
+// The old option type name must stay assignable to the new one.
+var _ []i18n.MWOption = []i18n.MiddlewareOption{i18n.WithQueryKey("lang")} //nolint:staticcheck // deprecated alias kept for compatibility

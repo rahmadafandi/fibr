@@ -63,14 +63,21 @@ func ValidateToken(tokenString string, secret string) (*Token, error) {
 	})
 }
 
-// ExtractClaimsFromJwt extracts the MapClaims from a parsed JWT token.
+// ExtractClaimsFromJWT extracts the MapClaims from a parsed JWT token.
 // It returns an error if the token's Claims field is not a MapClaims value.
-func ExtractClaimsFromJwt(jwtToken *Token) (MapClaims, error) {
+func ExtractClaimsFromJWT(jwtToken *Token) (MapClaims, error) {
 	claims, ok := jwtToken.Claims.(MapClaims)
 	if !ok {
 		return nil, errors.New("jwt: invalid claims")
 	}
 	return claims, nil
+}
+
+// ExtractClaimsFromJwt is the old spelling of ExtractClaimsFromJWT.
+//
+// Deprecated: use ExtractClaimsFromJWT.
+func ExtractClaimsFromJwt(jwtToken *Token) (MapClaims, error) {
+	return ExtractClaimsFromJWT(jwtToken)
 }
 
 // Claims gets claims from a JWT token in the fiber context or set claims to the fiber context.

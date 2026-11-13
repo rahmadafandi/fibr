@@ -336,7 +336,7 @@ func (s *TeamService) AcceptInvitation(ctx context.Context, accountID int64, cal
 	if err != nil || parsed == nil || !parsed.Valid {
 		return nil, ErrInviteInvalid
 	}
-	claims, err := jwt.ExtractClaimsFromJwt(parsed)
+	claims, err := jwt.ExtractClaimsFromJWT(parsed)
 	if err != nil {
 		return nil, ErrInviteInvalid
 	}

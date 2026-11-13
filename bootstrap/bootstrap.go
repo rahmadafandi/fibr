@@ -103,12 +103,12 @@ func New(o Options) *App {
 	}
 	f := fiber.New(o.FiberConfig)
 	f.Use(middleware.Recover(o.Logger))
-	// Tracing goes before ContextMiddleware so the request context it builds
+	// Tracing goes before RequestContext so the request context it builds
 	// is a child of the request span.
 	if o.Tracing {
 		f.Use(fiberotel.New())
 	}
-	f.Use(middleware.ContextMiddleware(o.RequestTimeout))
+	f.Use(middleware.RequestContext(o.RequestTimeout))
 	if o.I18n != nil {
 		f.Use(i18n.Middleware(o.I18n))
 	}

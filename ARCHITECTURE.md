@@ -125,7 +125,7 @@ flat `Options` struct into a wired `*fiber.App`. Order matters:
 **Request pipeline** (`f.Use`, in order):
 1. `middleware.Recover` — panic guard
 2. tracing (`contrib/v3/otel`) *(if `Tracing`)* — first, so the request context is a child of the request span
-3. `middleware.ContextMiddleware` — request-id, context, timeout
+3. `middleware.RequestContext` — request-id, context, timeout
 4. `i18n.Middleware` *(if `Options.I18n`)*
 5. `helmet` *(if `SecurityHeaders`)*
 6. `compress` *(if `Compression`)*

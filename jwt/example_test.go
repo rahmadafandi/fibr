@@ -22,7 +22,7 @@ func ExampleGenerateToken() {
 		panic(err)
 	}
 
-	claims, err := jwt.ExtractClaimsFromJwt(parsed)
+	claims, err := jwt.ExtractClaimsFromJWT(parsed)
 	if err != nil {
 		panic(err)
 	}

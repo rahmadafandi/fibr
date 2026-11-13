@@ -17,13 +17,13 @@ const (
 	RequestIDKey contextKey = "request_id"
 )
 
-// ContextMiddleware attaches a timeout-bounded context and a unique request ID
+// RequestContext attaches a timeout-bounded context and a unique request ID
 // to every incoming Fiber request. The context is derived from c.Context()
 // (so it keeps values set by earlier middleware, such as a tracing span) and is
 // available both from context.GetContext and c.Context() while the rest of
 // the chain runs; the previous user context is restored afterwards, so outer
 // middleware never sees the cancelled one.
-func ContextMiddleware(timeout time.Duration) fiber.Handler {
+func RequestContext(timeout time.Duration) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		parent := c.Context()
 		ctx, cancel := context.WithTimeout(parent, timeout)
@@ -43,3 +43,8 @@ func ContextMiddleware(timeout time.Duration) fiber.Handler {
 		return c.Next()
 	}
 }
+
+// ContextMiddleware is the old name of RequestContext.
+//
+// Deprecated: use RequestContext.
+func ContextMiddleware(timeout time.Duration) fiber.Handler { return RequestContext(timeout) }
