@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-13
+
 ### Deprecated
 
 - `sse`: use Fiber's own `github.com/gofiber/fiber/v3/middleware/sse`, which adds heartbeats, `Last-Event-ID`, and disconnect detection. The package keeps working and will be removed in fibr v3.
