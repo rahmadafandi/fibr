@@ -34,7 +34,7 @@ func parse(c fiber.Ctx, secret string, cfg config) (jwt.MapClaims, bool) {
 	if err != nil {
 		return nil, false
 	}
-	if _, hasExp := claims["exp"]; cfg.requireExp && !hasExp {
+	if _, hasExp := claims["exp"]; !hasExp && !cfg.allowNoExp {
 		return nil, false
 	}
 	if t, _ := claims["type"].(string); t == "refresh" {
@@ -61,7 +61,7 @@ func blocklisted(ctx context.Context, store TokenStore, claims jwt.MapClaims) (b
 // RequireAuth extracts a bearer token, validates it with secret, stores the
 // claims in the request context, then calls the next handler. A missing or
 // invalid token gets a 401 response, as does every request when secret is
-// empty. Pass WithExpirationRequired to reject tokens without an "exp" claim. Pass WithBlocklist to also reject revoked
+// empty, and tokens without an "exp" claim unless WithExpirationOptional is set. Pass WithBlocklist to also reject revoked
 // tokens by jti (fail-closed: a store error is treated as unauthorized). Tokens
 // with no jti field (not minted by an Issuer) are not subject to the blocklist.
 func RequireAuth(secret string, opts ...Option) fiber.Handler {

@@ -35,15 +35,11 @@ func newS3Uploader(client objectPutter, bucket string, opts ...Option) *S3Upload
 	return &S3Uploader{client: client, bucket: bucket, cfg: newConfig(opts...)}
 }
 
-// Upload validates the file, then puts it at <keyPrefix><sanitized-name> in the
+// Upload validates the file, then puts it at <keyPrefix><name> in the
 // bucket. It returns the object key, or <baseURL>+key when WithBaseURL is set.
-// An existing object of the same key is replaced unless WithUniqueNames is set.
-func (u *S3Uploader) Upload(file multipart.File, filename string) (string, error) {
-	return u.UploadContext(context.Background(), file, filename)
-}
-
-// UploadContext is Upload with a context bounding the put request.
-func (u *S3Uploader) UploadContext(ctx context.Context, file multipart.File, filename string) (string, error) {
+// The name is made unique ("<random>-<name>") unless WithOriginalNames is set.
+// ctx bounds the put request.
+func (u *S3Uploader) Upload(ctx context.Context, file multipart.File, filename string) (string, error) {
 	safe, mimeType, err := u.cfg.validate(file, filename)
 	if err != nil {
 		return "", err

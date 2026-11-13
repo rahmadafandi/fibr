@@ -210,14 +210,14 @@ func TestRequireAuthBlocklistFailsClosed(t *testing.T) {
 	require.Equal(t, fiber.StatusUnauthorized, resp.StatusCode) // store error -> 401
 }
 
-func TestRequireAuthExpirationRequired(t *testing.T) {
+func TestRequireAuthRequiresExpirationByDefault(t *testing.T) {
 	noExp, err := jwt.GenerateToken(jwt.MapClaims{"sub": "1"}, middlewareTestSecret)
 	require.NoError(t, err)
 	ok := func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) }
 
 	app := fiber.New()
-	app.Get("/lax", RequireAuth(middlewareTestSecret), ok)
-	app.Get("/strict", RequireAuth(middlewareTestSecret, WithExpirationRequired()), ok)
+	app.Get("/lax", RequireAuth(middlewareTestSecret, WithExpirationOptional()), ok)
+	app.Get("/strict", RequireAuth(middlewareTestSecret), ok)
 
 	assert.Equal(t, fiber.StatusOK, do(t, app, "GET", "/lax", noExp))
 	assert.Equal(t, fiber.StatusUnauthorized, do(t, app, "GET", "/strict", noExp))

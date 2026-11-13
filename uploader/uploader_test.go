@@ -31,8 +31,8 @@ func TestLocalUploader(t *testing.T) {
 	defer os.RemoveAll(path)
 
 	t.Run("Basic", func(t *testing.T) {
-		u := NewLocalUploader(path)
-		filePath, err := u.Upload(newFile([]byte("test file")), "test.txt")
+		u := NewLocalUploader(path, WithOriginalNames())
+		filePath, err := u.Upload(ctx, newFile([]byte("test file")), "test.txt")
 		assert.NoError(t, err)
 		assert.Equal(t, filepath.Join(path, "test.txt"), filePath)
 		_, err = os.Stat(filePath)
@@ -40,8 +40,8 @@ func TestLocalUploader(t *testing.T) {
 	})
 
 	t.Run("SanitizesTraversal", func(t *testing.T) {
-		u := NewLocalUploader(path)
-		_, err := u.Upload(newFile([]byte("x")), "../../etc/evil")
+		u := NewLocalUploader(path, WithOriginalNames())
+		_, err := u.Upload(ctx, newFile([]byte("x")), "../../etc/evil")
 		assert.NoError(t, err) // filepath.Base strips the path...
 		// ...and the file lands inside path, named "evil".
 		_, statErr := os.Stat(filepath.Join(path, "evil"))
@@ -52,25 +52,25 @@ func TestLocalUploader(t *testing.T) {
 
 	t.Run("RejectsEmptyName", func(t *testing.T) {
 		u := NewLocalUploader(path)
-		_, err := u.Upload(newFile([]byte("x")), "")
+		_, err := u.Upload(ctx, newFile([]byte("x")), "")
 		assert.Error(t, err)
 	})
 
 	t.Run("MaxSize", func(t *testing.T) {
 		u := NewLocalUploader(path, WithMaxSize(4))
-		_, err := u.Upload(newFile([]byte("too large")), "big.txt")
+		_, err := u.Upload(ctx, newFile([]byte("too large")), "big.txt")
 		assert.Error(t, err)
 	})
 
 	t.Run("AllowedMime", func(t *testing.T) {
 		u := NewLocalUploader(path, WithAllowedMime([]string{"image/png"}))
-		_, err := u.Upload(newFile([]byte("plain text not png")), "x.txt")
+		_, err := u.Upload(ctx, newFile([]byte("plain text not png")), "x.txt")
 		assert.Error(t, err)
 	})
 
 	t.Run("FilePermissions", func(t *testing.T) {
 		u := NewLocalUploader(path)
-		fp, err := u.Upload(newFile([]byte("perm")), "perm.txt")
+		fp, err := u.Upload(ctx, newFile([]byte("perm")), "perm.txt")
 		assert.NoError(t, err)
 		info, err := os.Stat(fp)
 		assert.NoError(t, err)
@@ -78,8 +78,8 @@ func TestLocalUploader(t *testing.T) {
 	})
 
 	t.Run("AllowsDotsInName", func(t *testing.T) {
-		u := NewLocalUploader(path)
-		fp, err := u.Upload(newFile([]byte("v2")), "version..2.tar.gz")
+		u := NewLocalUploader(path, WithOriginalNames())
+		fp, err := u.Upload(ctx, newFile([]byte("v2")), "version..2.tar.gz")
 		assert.NoError(t, err)
 		assert.Equal(t, filepath.Join(path, "version..2.tar.gz"), fp)
 	})
