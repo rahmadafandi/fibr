@@ -1,13 +1,13 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
-package redis_test
+package rediskit_test
 
 import (
 	"fmt"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	fibrredis "github.com/rahmadafandi/fibr/v2/redis"
+	"github.com/rahmadafandi/fibr/v2/rediskit"
 	goredis "github.com/redis/go-redis/v9"
 )
 
@@ -18,7 +18,7 @@ func ExampleNewStorage() {
 	defer mr.Close()
 
 	client := goredis.NewClient(&goredis.Options{Addr: mr.Addr()})
-	store := fibrredis.NewStorage(client, fibrredis.WithPrefix("ratelimit:"))
+	store := rediskit.NewStorage(client, rediskit.WithPrefix("ratelimit:"))
 
 	_ = store.Set("1.2.3.4", []byte("1"), time.Minute)
 	v, _ := store.Get("1.2.3.4")

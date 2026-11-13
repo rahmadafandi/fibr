@@ -6,7 +6,7 @@ import (
 	"context"
 	"time"
 
-	fhredis "github.com/rahmadafandi/fibr/v2/redis"
+	"github.com/rahmadafandi/fibr/v2/rediskit"
 	redislib "github.com/redis/go-redis/v9"
 )
 
@@ -14,7 +14,7 @@ import (
 // client for native key operations (string set with expiry, existence checks,
 // delete).
 type RedisStore struct {
-	r      *fhredis.Redis
+	r      *rediskit.Redis
 	prefix string
 }
 
@@ -31,7 +31,7 @@ func WithStorePrefix(prefix string) StoreOption {
 }
 
 // NewRedisStore creates a redis-backed token store on top of the redis package.
-func NewRedisStore(r *fhredis.Redis, opts ...StoreOption) *RedisStore {
+func NewRedisStore(r *rediskit.Redis, opts ...StoreOption) *RedisStore {
 	s := &RedisStore{r: r, prefix: "auth:"}
 	for _, o := range opts {
 		o(s)

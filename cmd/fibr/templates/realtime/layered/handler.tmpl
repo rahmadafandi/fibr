@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
-	fhredis "github.com/rahmadafandi/fibr/v2/redis"
+	"github.com/rahmadafandi/fibr/v2/rediskit"
 	"github.com/rahmadafandi/fibr/v2/sse"
 	"github.com/rahmadafandi/fibr/v2/ws"
 )
@@ -20,7 +20,7 @@ type Message struct {
 //
 // When rds is non-nil the hub uses a Redis backplane so broadcasts reach every
 // replica.
-func RegisterRealtime(app fiber.Router, rds *fhredis.Redis) {
+func RegisterRealtime(app fiber.Router, rds *rediskit.Redis) {
 	var opts []ws.Option
 	if rds != nil {
 		opts = append(opts, ws.WithRedis(rds, "realtime"))

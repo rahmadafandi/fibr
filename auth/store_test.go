@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	fhredis "github.com/rahmadafandi/fibr/v2/redis"
+	"github.com/rahmadafandi/fibr/v2/rediskit"
 	redislib "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
@@ -77,9 +77,9 @@ func TestRedisStore(t *testing.T) {
 	if url == "" {
 		t.Skip("REDIS_URL not set; skipping RedisStore integration test")
 	}
-	opt, err := fhredis.ParseRedisOptions(url)
+	opt, err := rediskit.ParseRedisOptions(url)
 	require.NoError(t, err)
-	r := fhredis.New(redislib.NewClient(opt))
+	r := rediskit.New(redislib.NewClient(opt))
 	ctx := context.Background()
 	require.NoError(t, r.Client.Ping(ctx).Err())
 

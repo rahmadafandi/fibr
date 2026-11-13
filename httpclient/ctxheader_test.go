@@ -1,6 +1,6 @@
 // Copyright 2026 Rahmad Afandi. MIT License.
 
-package http
+package httpclient
 
 import (
 	"context"

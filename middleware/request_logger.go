@@ -7,8 +7,8 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/apierror"
-	"github.com/rahmadafandi/fibr/v2/context"
 	"github.com/rahmadafandi/fibr/v2/logger"
+	"github.com/rahmadafandi/fibr/v2/reqctx"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
@@ -35,7 +35,7 @@ func RequestLogger(logger *logger.Logger) fiber.Handler {
 			"path", c.Path(),
 			"status", status,
 			"latency", stop.Sub(start).String(),
-			"request_id", context.GetRequestID(c),
+			"request_id", reqctx.GetRequestID(c),
 		}
 		if sc := oteltrace.SpanContextFromContext(c.Context()); sc.IsValid() {
 			fields = append(fields, "trace_id", sc.TraceID().String(), "span_id", sc.SpanID().String())

@@ -6,7 +6,7 @@ import (
 	"context"
 
 	"github.com/rahmadafandi/fibr/v2/logger"
-	"github.com/rahmadafandi/fibr/v2/redis"
+	"github.com/rahmadafandi/fibr/v2/rediskit"
 )
 
 // backplane bridges hub broadcasts across replicas via Redis pub/sub. Every
@@ -15,9 +15,9 @@ import (
 // giving a single delivery path.
 type backplane[T any] struct {
 	hub     *Hub[T]
-	rds     *redis.Redis
+	rds     *rediskit.Redis
 	channel string
-	sub     *redis.Subscription
+	sub     *rediskit.Subscription
 	ctx     context.Context
 	cancel  context.CancelFunc
 	err     error // subscribe error, if the backplane failed to start
@@ -31,7 +31,7 @@ type envelope[T any] struct {
 func newBackplane[T any](h *Hub[T]) *backplane[T] {
 	ctx, cancel := context.WithCancel(context.Background())
 	b := &backplane[T]{hub: h, rds: h.cfg.rds, channel: h.cfg.channel, ctx: ctx, cancel: cancel}
-	sub, err := redis.Subscribe[envelope[T]](ctx, b.rds, b.channel, func(_ context.Context, env envelope[T]) error {
+	sub, err := rediskit.Subscribe[envelope[T]](ctx, b.rds, b.channel, func(_ context.Context, env envelope[T]) error {
 		if env.Room == "" {
 			h.localBroadcast(env.Data)
 		} else {

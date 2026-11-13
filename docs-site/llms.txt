@@ -25,13 +25,13 @@ The library is `github.com/rahmadafandi/fibr/v2` (`go get github.com/rahmadafand
 - [bind](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/bind): parse and validate a request body/query/params into `T` in one call; writes `400`/`422` on failure.
 - [jwt](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/jwt): JWT generation and validation helpers.
 - [retry](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/retry): generic retry with exponential backoff + jitter (`Do`/`DoValue[T]`, `WithAttempts`/`WithDelay`/`WithRetryIf`/...).
-- [http](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/http): context-aware JSON HTTP client with retry, an optional circuit breaker (`WithCircuitBreaker`), and context header propagation (`WithContextHeader`), plus `PostForm` and `PostMultipart`.
-- [redis](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/redis): Redis wrapper with `Remember` cache-aside (singleflight-deduped), bulk/atomic ops, a `fiber.Storage` adapter, and `Publish`/`Subscribe[T]` pub/sub.
+- [http](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/httpclient): context-aware JSON HTTP client with retry, an optional circuit breaker (`WithCircuitBreaker`), and context header propagation (`WithContextHeader`), plus `PostForm` and `PostMultipart`.
+- [redis](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/rediskit): Redis wrapper with `Remember` cache-aside (singleflight-deduped), bulk/atomic ops, a `fiber.Storage` adapter, and `Publish`/`Subscribe[T]` pub/sub.
 - [lock](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/lock): single-instance Redis distributed mutex (`TryAcquire`/`Acquire`/`Do`, owner-only `Release`/`Extend`) for single-execution across replicas.
 - [slug](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/slug): unique URL-safe slug generator backed by a Bun database.
 - [uploader](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/uploader): local file uploader with size/MIME limits, plus `S3Uploader` for S3-compatible storage (AWS S3, MinIO, R2).
 - [middleware](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/middleware): recover, request logging, and request-id middleware.
-- [context](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/context): request context, request-id, and type-safe local accessors.
+- [context](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/reqctx): request context, request-id, and type-safe local accessors.
 - [database](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/database): Bun connector with Postgres/SQLite dialect auto-detection (plus `WithTracing`).
 - [dbresolver](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/dbresolver): explicit read/write split over Bun — `Writer()` (primary) / `Reader()` (round-robin replica), plus `Ping`/`Close`.
 - [migrate](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/migrate): versioned migrations with `bun/migrate` and a ready cobra command.
