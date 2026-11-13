@@ -54,7 +54,7 @@ The library is `github.com/rahmadafandi/fibr/v2` (`go get github.com/rahmadafand
 - [webhook](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/webhook): HMAC sign/verify (Stripe-style, replay-protected) + inbound verification middleware.
 - [openapi](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/openapi): generate an OpenAPI 3.0.3 document from registered routes + reflected request/response structs, served with a Swagger UI.
 - [ws](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/ws): typed WebSocket `Hub[T]` with rooms and JSON broadcast; optional Redis backplane for multi-replica fanout.
-- [sse](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/sse): Server-Sent Events — a one-way `text/event-stream` helper with JSON event encoding.
+- [sse](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/sse): deprecated, use Fiber's `middleware/sse`. Server-Sent Events — a one-way `text/event-stream` helper with JSON event encoding.
 - [i18n](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/i18n): dependency-free internationalization — a message `Bundle` + locale-detection middleware and `T`/`N`/`Locale` helpers.
 - [fibrtest](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/fibrtest): test harness — a fluent HTTP client over `*fiber.App`, response assertions, plus `NewDB` and `Token` helpers.
 - [bootstrap](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2/bootstrap): one-call app wiring — middleware, health, DB, metrics, tracing, security headers, compression, idempotency, OpenAPI docs, graceful shutdown.
