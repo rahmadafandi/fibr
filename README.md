@@ -9,6 +9,12 @@
 
 A collection of helper packages for the [Fiber](https://gofiber.io/) web framework.
 
+> **This is the v1 maintenance branch (Fiber v2).** New development happens on
+> [v2](https://github.com/rahmadafandi/fibr), which targets Fiber v3 and lives at
+> `github.com/rahmadafandi/fibr/v2`. v1 receives security and critical fixes
+> only. To upgrade, see
+> [MIGRATING.md](https://github.com/rahmadafandi/fibr/blob/master/MIGRATING.md).
+
 📖 **[Documentation](https://rahmadafandi.github.io/fibr/)** · [API reference (pkg.go.dev)](https://pkg.go.dev/github.com/rahmadafandi/fibr)
 
 ## Install
