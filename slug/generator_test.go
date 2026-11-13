@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 	"github.com/uptrace/bun/driver/sqliteshim"
@@ -55,4 +56,29 @@ func TestGenerateFormat(t *testing.T) {
 	parts := strings.Split(got, "-")
 	suffix := parts[len(parts)-1]
 	assert.Len(t, suffix, 16) // 10 random bytes -> 16 base32 chars
+}
+
+func TestGenerateReadable(t *testing.T) {
+	db := newBunDB(t)
+	ctx := context.Background()
+
+	// Free: the plain slug, no suffix.
+	got, err := GenerateReadable(ctx, db, "posts", "Hello World")
+	require.NoError(t, err)
+	assert.Equal(t, "hello-world", got)
+
+	// Taken: falls back to the suffixed form.
+	_, err = db.NewInsert().Model(&post{Slug: "hello-world"}).Exec(ctx)
+	require.NoError(t, err)
+	got, err = GenerateReadable(ctx, db, "posts", "Hello World")
+	require.NoError(t, err)
+	assert.Regexp(t, `^hello-world-[a-z2-7]{16}$`, got)
+
+	// A title with no slug-able characters never returns an empty slug.
+	got, err = GenerateReadable(ctx, db, "posts", "!!!")
+	require.NoError(t, err)
+	assert.NotEmpty(t, got)
+
+	_, err = GenerateReadable(ctx, nil, "posts", "x")
+	assert.Error(t, err)
 }
