@@ -13,15 +13,13 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rahmadafandi/fibr/v2/fibrtest"
 )
 
 func newTestClient(t *testing.T) (*miniredis.Miniredis, *redis.Client) {
 	t.Helper()
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	t.Cleanup(mr.Close)
-	c := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	t.Cleanup(func() { _ = c.Close() })
+	mr, c := fibrtest.NewRedis(t)
 	return mr, c
 }
 

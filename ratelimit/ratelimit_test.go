@@ -7,19 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
-	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rahmadafandi/fibr/v2/fibrtest"
 )
 
 func newLimiter(t *testing.T) (*Limiter, *time.Time) {
 	t.Helper()
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	t.Cleanup(mr.Close)
-	client := goredis.NewClient(&goredis.Options{Addr: mr.Addr()})
-	t.Cleanup(func() { _ = client.Close() })
+	_, client := fibrtest.NewRedis(t)
 
 	l := New(client)
 	now := time.Unix(1000, 0)

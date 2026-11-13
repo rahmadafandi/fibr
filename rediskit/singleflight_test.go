@@ -9,17 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
-	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+
+	"github.com/rahmadafandi/fibr/v2/fibrtest"
 )
 
 func TestRememberSingleflightDedupesConcurrentMisses(t *testing.T) {
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	t.Cleanup(mr.Close)
-	r := New(goredis.NewClient(&goredis.Options{Addr: mr.Addr()}))
+	_, client := fibrtest.NewRedis(t)
+	r := New(client)
 
 	var calls int64
 	loader := func() (string, error) {

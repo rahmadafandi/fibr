@@ -7,18 +7,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
 	"github.com/rahmadafandi/fibr/v2/rediskit"
-	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rahmadafandi/fibr/v2/fibrtest"
 )
 
 func newR(t *testing.T) *rediskit.Redis {
 	t.Helper()
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	t.Cleanup(mr.Close)
-	return rediskit.New(goredis.NewClient(&goredis.Options{Addr: mr.Addr()}))
+	_, client := fibrtest.NewRedis(t)
+	return rediskit.New(client)
 }
 
 func TestMSetMGet(t *testing.T) {

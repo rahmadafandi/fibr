@@ -9,19 +9,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/alicebob/miniredis/v2"
-	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/rahmadafandi/fibr/v2/fibrtest"
 	"github.com/rahmadafandi/fibr/v2/health"
 )
 
 func TestPingRedis(t *testing.T) {
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	client := goredis.NewClient(&goredis.Options{Addr: mr.Addr()})
-	t.Cleanup(func() { _ = client.Close() })
+	mr, client := fibrtest.NewRedis(t)
 
 	check := health.PingRedis(client)
 	assert.Equal(t, "redis", check.Name)

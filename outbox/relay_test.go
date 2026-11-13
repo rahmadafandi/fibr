@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
-	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/rahmadafandi/fibr/v2/lock"
 	"github.com/rahmadafandi/fibr/v2/logger"
 	"github.com/rahmadafandi/fibr/v2/outbox"
+
+	"github.com/rahmadafandi/fibr/v2/fibrtest"
 )
 
 type call struct {
@@ -128,11 +128,7 @@ func TestProcessWithLockSkipsWhenHeld(t *testing.T) {
 	db, ctx := newDB(t)
 	require.NoError(t, outbox.Enqueue(ctx, db, "a", nil))
 
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	t.Cleanup(mr.Close)
-	client := goredis.NewClient(&goredis.Options{Addr: mr.Addr()})
-	t.Cleanup(func() { _ = client.Close() })
+	_, client := fibrtest.NewRedis(t)
 
 	const key = "outbox:relay"
 	// A different owner already holds the lock.
@@ -153,16 +149,12 @@ func TestProcessWithLockSkipsWhenHeld(t *testing.T) {
 }
 
 func TestRedisPublisherSendsRawBytes(t *testing.T) {
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	t.Cleanup(mr.Close)
-	client := goredis.NewClient(&goredis.Options{Addr: mr.Addr()})
-	t.Cleanup(func() { _ = client.Close() })
+	_, client := fibrtest.NewRedis(t)
 
 	ctx := context.Background()
 	sub := client.Subscribe(ctx, "order.created")
 	t.Cleanup(func() { _ = sub.Close() })
-	_, err = sub.Receive(ctx) // wait for subscribe confirmation
+	_, err := sub.Receive(ctx) // wait for subscribe confirmation
 	require.NoError(t, err)
 
 	pub := outbox.NewRedisPublisher(client)
@@ -255,11 +247,7 @@ func TestProcessWithLockReleasesAndStopsWhenLockLost(t *testing.T) {
 		require.NoError(t, outbox.Enqueue(ctx, db, topic, nil))
 	}
 
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	t.Cleanup(mr.Close)
-	client := goredis.NewClient(&goredis.Options{Addr: mr.Addr()})
-	t.Cleanup(func() { _ = client.Close() })
+	mr, client := fibrtest.NewRedis(t)
 	const key = "outbox:relay"
 
 	// Losing the lock mid-batch (here: another owner takes it during the first
