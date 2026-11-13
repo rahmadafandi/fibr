@@ -421,6 +421,8 @@ import (
 s, err := slug.Generate(ctx, db, "posts", "My First Post")
 ```
 
+`Generate` always appends a random suffix (`my-title-<16 chars>`), which is safe under concurrent calls. For nicer URLs, `slug.GenerateReadable` returns the plain `my-title` when no row has it yet and falls back to the suffixed form otherwise. Because the check and your insert are separate steps, keep a unique index on the slug column and retry with `Generate` on a unique violation.
+
 ### `uploader`
 
 A helper package for uploading files to local storage. `NewLocalUploader` accepts functional options for max file size and MIME type allowlist. The filename is sanitized automatically.
@@ -487,12 +489,10 @@ Accessors for values stored on the Fiber context: the request-scoped
 ```go
 import "github.com/rahmadafandi/fibr/v2/reqctx"
 
-ctx := reqctx.GetContext(c)        // request-scoped context.Context
 id := reqctx.GetRequestID(c)       // request id (set by ContextMiddleware)
-
-reqctx.SetLocal(c, "user", user)   // store a typed value
-u := reqctx.GetLocal[User](c, "user") // retrieve it (zero value if absent)
 ```
+
+`GetContext`, `SetLocal`, and `GetLocal` are deprecated: Fiber v3 covers them with `c.Context()` and the generic `fiber.Locals(c, "user", user)` / `fiber.Locals[User](c, "user")`.
 
 ### `database`
 
@@ -748,9 +748,9 @@ _, _ = outbox.Prune(ctx, db, 7*24*time.Hour)
 
 Consumers subscribe with `rediskit.Subscribe[OrderCreated](...)` — the relay publishes the stored JSON bytes verbatim, so they decode directly.
 
-- **Ordering and failures.** Events are published oldest first, and a publish error stops the batch so order is preserved — which means one event that can never be published blocks everything behind it. `WithMaxAttempts(n)` moves such an event to the `outbox_dead` table (`outbox.DeadEvent`, with the error) after `n` consecutive failures and carries on. The attempt count is kept in memory, per relay process. `Migrate` creates `outbox_dead`; run it again after upgrading.
+- **Ordering and failures.** Events are published oldest first, and a publish error stops the batch so order is preserved — which means one event that can never be published blocks everything behind it. `WithMaxAttempts(n)` moves such an event to the `outbox_dead` table (`outbox.DeadEvent`, with the error) after `n` consecutive failures and carries on. The attempt count is stored in the `outbox_attempts` table, so it survives restarts and is shared by every replica. `Migrate` creates `outbox_dead` and `outbox_attempts`; run it again after upgrading.
 - **Locking.** With `WithLock`, the relay renews the lock before every event, so the TTL only needs to exceed the time to publish one event, not a whole batch.
-- **Retention.** Published rows are kept until you call `outbox.Prune`.
+- **Retention.** Published rows are kept until you call `outbox.Prune`, which also clears attempt counters of events that are no longer pending.
 
 ### `inbox`
 
@@ -999,7 +999,7 @@ bootstrap.Options{
 }
 ```
 
-Inside a handler, `c.Context()` and `reqctx.GetContext(c)` return the same request context: bounded by `RequestTimeout`, carrying the request id, and — with `Tracing: true` — the request span, so database calls made with it show up under the request's trace.
+Inside a handler, `c.Context()` is the request context: bounded by `RequestTimeout`, carrying the request id, and — with `Tracing: true` — the request span, so database calls made with it show up under the request's trace.
 
 ### `fibrtest`
 
