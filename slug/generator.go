@@ -37,7 +37,7 @@ func Generate(ctx context.Context, db *bun.DB, tableName string, title string) (
 
 		count, err := db.NewSelect().Table(tableName).Where("slug = ?", slugCandidate).Count(ctx)
 		if err != nil {
-			return "", fmt.Errorf("error checking slug uniqueness: %w", err)
+			return "", fmt.Errorf("slug: check uniqueness: %w", err)
 		}
 
 		if count == 0 {
@@ -45,7 +45,7 @@ func Generate(ctx context.Context, db *bun.DB, tableName string, title string) (
 		}
 	}
 
-	return "", fmt.Errorf("could not generate a unique slug for %q after %d attempts", title, maxSlugAttempts)
+	return "", fmt.Errorf("slug: no unique slug for %q after %d attempts", title, maxSlugAttempts)
 }
 
 // GenerateReadable returns the plain slug for title ("my-title") when the table
@@ -62,7 +62,7 @@ func GenerateReadable(ctx context.Context, db *bun.DB, tableName string, title s
 	if plain != "" {
 		count, err := db.NewSelect().Table(tableName).Where("slug = ?", plain).Count(ctx)
 		if err != nil {
-			return "", fmt.Errorf("error checking slug uniqueness: %w", err)
+			return "", fmt.Errorf("slug: check uniqueness: %w", err)
 		}
 		if count == 0 {
 			return plain, nil

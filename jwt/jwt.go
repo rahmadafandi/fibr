@@ -57,7 +57,7 @@ func ValidateToken(tokenString string, secret string) (*Token, error) {
 	}
 	return jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("jwt: unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(secret), nil
 	})
@@ -68,7 +68,7 @@ func ValidateToken(tokenString string, secret string) (*Token, error) {
 func ExtractClaimsFromJwt(jwtToken *Token) (MapClaims, error) {
 	claims, ok := jwtToken.Claims.(MapClaims)
 	if !ok {
-		return nil, errors.New("invalid claims")
+		return nil, errors.New("jwt: invalid claims")
 	}
 	return claims, nil
 }
@@ -83,7 +83,7 @@ func Claims(c fiber.Ctx, localKey string, claims ...MapClaims) (MapClaims, error
 
 	claimsData, ok := c.Locals(localKey).(MapClaims)
 	if !ok {
-		return MapClaims{}, errors.New("invalid claims")
+		return MapClaims{}, errors.New("jwt: invalid claims")
 	}
 
 	return claimsData, nil

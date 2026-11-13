@@ -25,13 +25,13 @@ var durationType = reflect.TypeOf(time.Duration(0))
 func LoadConfig(out any) error {
 	wd, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("error getting working directory: %w", err)
+		return fmt.Errorf("config: get working directory: %w", err)
 	}
 
 	envPath := filepath.Join(wd, ".env")
 	if err := godotenv.Load(envPath); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("error loading .env file: %w", err)
+			return fmt.Errorf("config: load .env file: %w", err)
 		}
 	}
 
@@ -82,13 +82,13 @@ func LoadConfig(out any) error {
 
 	var problems []string
 	if len(missing) > 0 {
-		problems = append(problems, "missing required config: "+strings.Join(missing, ", "))
+		problems = append(problems, "missing required: "+strings.Join(missing, ", "))
 	}
 	if len(parseErrs) > 0 {
-		problems = append(problems, "config parse errors: "+strings.Join(parseErrs, "; "))
+		problems = append(problems, "parse errors: "+strings.Join(parseErrs, "; "))
 	}
 	if len(problems) > 0 {
-		return fmt.Errorf("%s", strings.Join(problems, "; "))
+		return fmt.Errorf("config: %s", strings.Join(problems, "; "))
 	}
 
 	return nil
