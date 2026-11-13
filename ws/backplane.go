@@ -5,7 +5,6 @@ package ws
 import (
 	"context"
 
-	"github.com/rahmadafandi/fibr/v2/logger"
 	"github.com/rahmadafandi/fibr/v2/rediskit"
 )
 
@@ -41,7 +40,7 @@ func newBackplane[T any](h *Hub[T]) *backplane[T] {
 	})
 	if err != nil {
 		b.err = err
-		logger.Default().Error(err, "ws: backplane subscribe", "channel", b.channel)
+		h.cfg.log.Error(err, "ws: backplane subscribe", "channel", b.channel)
 		return b
 	}
 	b.sub = sub
@@ -50,7 +49,7 @@ func newBackplane[T any](h *Hub[T]) *backplane[T] {
 
 func (b *backplane[T]) publish(room string, msg T) {
 	if err := b.rds.Publish(b.ctx, b.channel, envelope[T]{Room: room, Data: msg}); err != nil {
-		logger.Default().Error(err, "ws: backplane publish", "channel", b.channel)
+		b.hub.cfg.log.Error(err, "ws: backplane publish", "channel", b.channel)
 	}
 }
 

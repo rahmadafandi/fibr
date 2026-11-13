@@ -42,7 +42,10 @@ func Subscribe[T any](ctx context.Context, r *Redis, channel string, handler fun
 		return nil, fmt.Errorf("redis: subscribe %s: %w", channel, err)
 	}
 
-	log := logger.Default()
+	log := r.Logger
+	if log == nil {
+		log = logger.Default()
+	}
 	go func() {
 		ch := ps.Channel()
 		for {

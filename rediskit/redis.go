@@ -11,6 +11,8 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/singleflight"
+
+	"github.com/rahmadafandi/fibr/v2/logger"
 )
 
 type (
@@ -22,6 +24,10 @@ type (
 // Redis wraps a go-redis client with JSON (de)serialization helpers.
 type Redis struct {
 	Client *Client
+
+	// Logger receives errors from background work (Subscribe handlers and
+	// message decoding). Nil means logger.Default().
+	Logger *logger.Logger
 
 	// group deduplicates concurrent Remember loads for the same key within this
 	// process, preventing a cache stampede on a miss.

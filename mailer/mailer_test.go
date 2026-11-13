@@ -4,6 +4,7 @@ package mailer
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"net"
 	"strings"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rahmadafandi/fibr/v2/logger"
 )
 
 func TestMemorySenderCaptures(t *testing.T) {
@@ -145,4 +148,12 @@ func TestRenderExecErrors(t *testing.T) {
 	assert.ErrorContains(t, err, "mailer: parse text")
 	_, _, err = Render("ok", "{{.Missing.Field}}", struct{}{})
 	assert.ErrorContains(t, err, "mailer: exec text")
+}
+
+func TestLogSenderWithLoggerWritesThere(t *testing.T) {
+	var buf bytes.Buffer
+	s := NewLogSenderWithLogger(logger.New(&buf, logger.InfoLevel))
+	require.NoError(t, s.Send(context.Background(), Message{To: []string{"bob@example.com"}, Subject: "Hi"}))
+	assert.Contains(t, buf.String(), "bob@example.com")
+	assert.Contains(t, buf.String(), `"subject":"Hi"`)
 }

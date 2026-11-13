@@ -87,7 +87,10 @@ type LogSender struct {
 }
 
 // NewLogSender returns a LogSender backed by the default logger.
-func NewLogSender() *LogSender { return &LogSender{log: logger.Default()} }
+func NewLogSender() *LogSender { return NewLogSenderWithLogger(logger.Default()) }
+
+// NewLogSenderWithLogger returns a LogSender that writes to l.
+func NewLogSenderWithLogger(l *logger.Logger) *LogSender { return &LogSender{log: l} }
 
 // Send logs the message metadata and returns nil.
 func (s *LogSender) Send(ctx context.Context, msg Message) error {
