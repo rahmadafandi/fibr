@@ -76,16 +76,16 @@ func plan(d Data) []fileSpec {
 	switch d.Layout {
 	case "ddd":
 		specs = append(specs,
-			fileSpec{"ddd/main.tmpl", "cmd/api/main.go"},
-			fileSpec{"ddd/config.tmpl", "internal/infrastructure/config/config.go"},
+			fileSpec{"common/main.tmpl", "cmd/api/main.go"},
+			fileSpec{"common/config.tmpl", "internal/infrastructure/config/config.go"},
 			fileSpec{"ddd/database.tmpl", "internal/infrastructure/database/database.go"},
-			fileSpec{"ddd/router.tmpl", "internal/interface/http/router.go"},
+			fileSpec{"common/router.tmpl", "internal/interface/http/router.go"},
 		)
 	case "layered":
 		specs = append(specs,
-			fileSpec{"layered/main.tmpl", "cmd/api/main.go"},
-			fileSpec{"layered/config.tmpl", "internal/config/config.go"},
-			fileSpec{"layered/router.tmpl", "internal/router/router.go"},
+			fileSpec{"common/main.tmpl", "cmd/api/main.go"},
+			fileSpec{"common/config.tmpl", "internal/config/config.go"},
+			fileSpec{"common/router.tmpl", "internal/router/router.go"},
 		)
 	}
 	return specs
@@ -230,12 +230,12 @@ func planAuth(d Data) []fileSpec {
 				fileSpec{"auth/ddd/team_repository.tmpl", "internal/domain/team/repository.go"},
 				fileSpec{"auth/ddd/team_persistence.tmpl", "internal/infrastructure/persistence/team_repository_bun.go"},
 				fileSpec{"auth/ddd/team_service.tmpl", "internal/application/team/service.go"},
-				fileSpec{"auth/ddd/handler_team.tmpl", "internal/interface/http/auth_handler.go"},
+				fileSpec{"auth/handler_team.tmpl", "internal/interface/http/auth_handler.go"},
 				fileSpec{"auth/ddd/module_team.tmpl", "internal/interface/http/auth_module.go"},
 			)
 		}
 		return append(specs,
-			fileSpec{"auth/ddd/handler.tmpl", "internal/interface/http/auth_handler.go"},
+			fileSpec{"auth/handler.tmpl", "internal/interface/http/auth_handler.go"},
 			fileSpec{"auth/ddd/module.tmpl", "internal/interface/http/auth_module.go"},
 		)
 	case "layered":
@@ -249,12 +249,12 @@ func planAuth(d Data) []fileSpec {
 				fileSpec{"auth/layered/team_model.tmpl", "internal/model/team.go"},
 				fileSpec{"auth/layered/team_repository.tmpl", "internal/repository/team_repo.go"},
 				fileSpec{"auth/layered/team_service.tmpl", "internal/service/team_service.go"},
-				fileSpec{"auth/layered/handler_team.tmpl", "internal/handler/auth_handler.go"},
+				fileSpec{"auth/handler_team.tmpl", "internal/handler/auth_handler.go"},
 				fileSpec{"auth/layered/module_team.tmpl", "internal/handler/auth_module.go"},
 			)
 		}
 		return append(specs,
-			fileSpec{"auth/layered/handler.tmpl", "internal/handler/auth_handler.go"},
+			fileSpec{"auth/handler.tmpl", "internal/handler/auth_handler.go"},
 			fileSpec{"auth/layered/module.tmpl", "internal/handler/auth_module.go"},
 		)
 	}
@@ -276,9 +276,9 @@ func planQueue(d Data) []fileSpec {
 func planRealtime(d Data) []fileSpec {
 	switch d.Layout {
 	case "layered":
-		return []fileSpec{{"realtime/layered/handler.tmpl", "internal/handler/realtime_handler.go"}}
+		return []fileSpec{{"realtime/handler.tmpl", "internal/handler/realtime_handler.go"}}
 	default:
-		return []fileSpec{{"realtime/ddd/handler.tmpl", "internal/interface/http/realtime_handler.go"}}
+		return []fileSpec{{"realtime/handler.tmpl", "internal/interface/http/realtime_handler.go"}}
 	}
 }
 
@@ -291,9 +291,9 @@ func planI18n(d Data) []fileSpec {
 	}
 	switch d.Layout {
 	case "layered":
-		return append(specs, fileSpec{"i18n/layered/handler.tmpl", "internal/handler/i18n_handler.go"})
+		return append(specs, fileSpec{"i18n/handler.tmpl", "internal/handler/i18n_handler.go"})
 	default:
-		return append(specs, fileSpec{"i18n/ddd/handler.tmpl", "internal/interface/http/i18n_handler.go"})
+		return append(specs, fileSpec{"i18n/handler.tmpl", "internal/interface/http/i18n_handler.go"})
 	}
 }
 

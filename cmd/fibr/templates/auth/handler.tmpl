@@ -1,4 +1,9 @@
-package http
+{{- /* One template for both layouts: $ddd selects the layout-specific names and blocks. */ -}}
+{{- $ddd := eq .Layout "ddd" -}}
+{{- $pkg := "handler" -}}{{- if $ddd}}{{$pkg = "http"}}{{end -}}
+{{- $accountSvc := "service.AuthService" -}}{{- if $ddd}}{{$accountSvc = "appaccount.Service"}}{{end -}}
+{{- $account := "service" -}}{{- if $ddd}}{{$account = "appaccount"}}{{end -}}
+package {{$pkg}}
 
 import (
 	"errors"
@@ -13,8 +18,9 @@ import (
 	"github.com/rahmadafandi/fibr/v2/openapi"
 	"github.com/rahmadafandi/fibr/v2/response"
 	"github.com/rs/zerolog/log"
-	appaccount "{{.Module}}/internal/application/account"
-)
+{{if $ddd}}	appaccount "{{.Module}}/internal/application/account"
+{{else}}	"{{.Module}}/internal/service"
+{{end}})
 
 // RegisterAuthDocs documents the auth routes in the OpenAPI spec.
 func RegisterAuthDocs(oapi *openapi.Spec) {
@@ -34,14 +40,14 @@ func RegisterAuthDocs(oapi *openapi.Spec) {
 
 // AuthHandler exposes the auth routes.
 type AuthHandler struct {
-	svc    *appaccount.Service
+	svc    *{{$accountSvc}}
 	secret string
 	issuer *auth.Issuer
 	store  auth.TokenStore
 }
 
 // NewAuthHandler creates an AuthHandler.
-func NewAuthHandler(svc *appaccount.Service, secret string, store auth.TokenStore) *AuthHandler {
+func NewAuthHandler(svc *{{$accountSvc}}, secret string, store auth.TokenStore) *AuthHandler {
 	return &AuthHandler{svc: svc, secret: secret, issuer: auth.NewIssuer(secret, store), store: store}
 }
 
@@ -72,7 +78,7 @@ func (h *AuthHandler) register(c fiber.Ctx) error {
 	}
 	a, err := h.svc.Register(c.Context(), in.Email, in.Password)
 	if err != nil {
-		if errors.Is(err, appaccount.ErrEmailTaken) {
+		if errors.Is(err, {{$account}}.ErrEmailTaken) {
 			return apierror.Conflict("email already registered").WithCode("email_taken")
 		}
 		return apierror.Internal("could not create account")

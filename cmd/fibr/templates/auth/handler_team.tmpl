@@ -1,4 +1,12 @@
-package http
+{{- /* One template for both layouts: $ddd selects the layout-specific names and blocks. */ -}}
+{{- $ddd := eq .Layout "ddd" -}}
+{{- $pkg := "handler" -}}{{- if $ddd}}{{$pkg = "http"}}{{end -}}
+{{- $accountSvc := "service.AuthService" -}}{{- if $ddd}}{{$accountSvc = "appaccount.Service"}}{{end -}}
+{{- $teamSvc := "service.TeamService" -}}{{- if $ddd}}{{$teamSvc = "appteam.Service"}}{{end -}}
+{{- $model := "model" -}}{{- if $ddd}}{{$model = "teamdomain"}}{{end -}}
+{{- $account := "service" -}}{{- if $ddd}}{{$account = "appaccount"}}{{end -}}
+{{- $team := "service" -}}{{- if $ddd}}{{$team = "appteam"}}{{end -}}
+package {{$pkg}}
 
 import (
 	"errors"
@@ -13,10 +21,12 @@ import (
 	"github.com/rahmadafandi/fibr/v2/openapi"
 	"github.com/rahmadafandi/fibr/v2/response"
 	"github.com/rs/zerolog/log"
-	appaccount "{{.Module}}/internal/application/account"
+{{if $ddd}}	appaccount "{{.Module}}/internal/application/account"
 	appteam "{{.Module}}/internal/application/team"
 	teamdomain "{{.Module}}/internal/domain/team"
-)
+{{else}}	"{{.Module}}/internal/model"
+	"{{.Module}}/internal/service"
+{{end}})
 
 // RegisterAuthDocs documents the auth routes in the OpenAPI spec.
 func RegisterAuthDocs(oapi *openapi.Spec) {
@@ -36,15 +46,15 @@ func RegisterAuthDocs(oapi *openapi.Spec) {
 
 // AuthHandler exposes the auth and team routes.
 type AuthHandler struct {
-	accounts *appaccount.Service
-	teams    *appteam.Service
+	accounts *{{$accountSvc}}
+	teams    *{{$teamSvc}}
 	secret   string
 	issuer   *auth.Issuer
 	store    auth.TokenStore
 }
 
 // NewAuthHandler creates an AuthHandler.
-func NewAuthHandler(accounts *appaccount.Service, teams *appteam.Service, secret string, store auth.TokenStore) *AuthHandler {
+func NewAuthHandler(accounts *{{$accountSvc}}, teams *{{$teamSvc}}, secret string, store auth.TokenStore) *AuthHandler {
 	return &AuthHandler{accounts: accounts, teams: teams, secret: secret, issuer: auth.NewIssuer(secret, store), store: store}
 }
 
@@ -92,7 +102,7 @@ func (h *AuthHandler) RegisterRoutes(r fiber.Router) {
 
 // teamClaims builds JWT claims for an account active in a membership with the
 // resolved permission set.
-func teamClaims(sub, email string, m *teamdomain.Membership, perms []string) jwt.MapClaims {
+func teamClaims(sub, email string, m *{{$model}}.Membership, perms []string) jwt.MapClaims {
 	return jwt.MapClaims{
 		"sub":    sub,
 		"email":  email,
@@ -114,7 +124,7 @@ func (h *AuthHandler) register(c fiber.Ctx) error {
 	}
 	a, err := h.accounts.Register(c.Context(), in.Email, in.Password)
 	if err != nil {
-		if errors.Is(err, appaccount.ErrEmailTaken) {
+		if errors.Is(err, {{$account}}.ErrEmailTaken) {
 			return apierror.Conflict("email already registered").WithCode("email_taken")
 		}
 		return apierror.Internal("could not create account")
@@ -147,7 +157,7 @@ func (h *AuthHandler) login(c fiber.Ctx) error {
 		if cerr != nil {
 			return response.SendError(c, nil, "could not create team", fiber.StatusInternalServerError)
 		}
-		m = &teamdomain.Membership{AccountID: a.ID, TeamID: t.ID, Role: "owner"}
+		m = &{{$model}}.Membership{AccountID: a.ID, TeamID: t.ID, Role: "owner"}
 	}
 	perms, err := h.teams.PermissionsForRole(c.Context(), m.TeamID, m.Role)
 	if err != nil {
@@ -236,7 +246,7 @@ func (h *AuthHandler) me(c fiber.Ctx) error {
 }
 
 func (h *AuthHandler) permissions(c fiber.Ctx) error {
-	return response.SendSuccess(c, appteam.AllPermissions, "ok")
+	return response.SendSuccess(c, {{$team}}.AllPermissions, "ok")
 }
 
 func (h *AuthHandler) listTeams(c fiber.Ctx) error {
@@ -293,11 +303,11 @@ func (h *AuthHandler) addMember(c fiber.Ctx) error {
 	m, err := h.teams.AddMemberByEmail(c.Context(), teamID, in.Email, in.Role)
 	if err != nil {
 		switch {
-		case errors.Is(err, appteam.ErrRoleNotFound):
+		case errors.Is(err, {{$team}}.ErrRoleNotFound):
 			return response.SendError(c, nil, "unknown role", fiber.StatusNotFound)
-		case errors.Is(err, appteam.ErrAccountNotFound):
+		case errors.Is(err, {{$team}}.ErrAccountNotFound):
 			return response.SendError(c, nil, "account not found", fiber.StatusNotFound)
-		case errors.Is(err, appteam.ErrAlreadyMember):
+		case errors.Is(err, {{$team}}.ErrAlreadyMember):
 			return response.SendError(c, nil, "already a member", fiber.StatusConflict)
 		default:
 			return response.SendError(c, nil, "could not add member", fiber.StatusInternalServerError)
@@ -327,11 +337,11 @@ func (h *AuthHandler) changeMemberRole(c fiber.Ctx) error {
 	m, err := h.teams.ChangeMemberRole(c.Context(), teamID, in.Email, in.Role)
 	if err != nil {
 		switch {
-		case errors.Is(err, appteam.ErrRoleNotFound):
+		case errors.Is(err, {{$team}}.ErrRoleNotFound):
 			return response.SendError(c, nil, "unknown role", fiber.StatusNotFound)
-		case errors.Is(err, appteam.ErrAccountNotFound):
+		case errors.Is(err, {{$team}}.ErrAccountNotFound):
 			return response.SendError(c, nil, "account not found", fiber.StatusNotFound)
-		case errors.Is(err, appteam.ErrNotAMember):
+		case errors.Is(err, {{$team}}.ErrNotAMember):
 			return response.SendError(c, nil, "not a member", fiber.StatusNotFound)
 		default:
 			return response.SendError(c, nil, "could not change role", fiber.StatusInternalServerError)
@@ -376,9 +386,9 @@ func (h *AuthHandler) createRole(c fiber.Ctx) error {
 	role, err := h.teams.CreateRole(c.Context(), teamID, in.Name, in.Permissions)
 	if err != nil {
 		switch {
-		case errors.Is(err, appteam.ErrInvalidPermission):
+		case errors.Is(err, {{$team}}.ErrInvalidPermission):
 			return response.SendError(c, nil, "unknown permission", fiber.StatusBadRequest)
-		case errors.Is(err, appteam.ErrRoleExists):
+		case errors.Is(err, {{$team}}.ErrRoleExists):
 			return response.SendError(c, nil, "role already exists", fiber.StatusConflict)
 		default:
 			return response.SendError(c, nil, "could not create role", fiber.StatusInternalServerError)
@@ -404,9 +414,9 @@ func (h *AuthHandler) updateRole(c fiber.Ctx) error {
 	role, err := h.teams.UpdateRolePermissions(c.Context(), teamID, c.Params("name"), in.Permissions)
 	if err != nil {
 		switch {
-		case errors.Is(err, appteam.ErrInvalidPermission):
+		case errors.Is(err, {{$team}}.ErrInvalidPermission):
 			return response.SendError(c, nil, "unknown permission", fiber.StatusBadRequest)
-		case errors.Is(err, appteam.ErrRoleNotFound):
+		case errors.Is(err, {{$team}}.ErrRoleNotFound):
 			return response.SendError(c, nil, "role not found", fiber.StatusNotFound)
 		default:
 			return response.SendError(c, nil, "could not update role", fiber.StatusInternalServerError)
@@ -425,11 +435,11 @@ func (h *AuthHandler) deleteRole(c fiber.Ctx) error {
 	}
 	if err := h.teams.DeleteRole(c.Context(), teamID, c.Params("name")); err != nil {
 		switch {
-		case errors.Is(err, appteam.ErrProtectedRole):
+		case errors.Is(err, {{$team}}.ErrProtectedRole):
 			return response.SendError(c, nil, "role is protected", fiber.StatusBadRequest)
-		case errors.Is(err, appteam.ErrRoleNotFound):
+		case errors.Is(err, {{$team}}.ErrRoleNotFound):
 			return response.SendError(c, nil, "role not found", fiber.StatusNotFound)
-		case errors.Is(err, appteam.ErrRoleInUse):
+		case errors.Is(err, {{$team}}.ErrRoleInUse):
 			return response.SendError(c, nil, "role is assigned to members", fiber.StatusConflict)
 		default:
 			return response.SendError(c, nil, "could not delete role", fiber.StatusInternalServerError)
@@ -465,7 +475,7 @@ func (h *AuthHandler) inviteMember(c fiber.Ctx) error {
 	}
 	token, inv, err := h.teams.Invite(c.Context(), teamID, in.Email, in.Role)
 	if err != nil {
-		if errors.Is(err, appteam.ErrRoleNotFound) {
+		if errors.Is(err, {{$team}}.ErrRoleNotFound) {
 			return response.SendError(c, nil, "unknown role", fiber.StatusNotFound)
 		}
 		return response.SendError(c, nil, "could not create invitation", fiber.StatusInternalServerError)
@@ -531,15 +541,15 @@ func (h *AuthHandler) acceptInvitation(c fiber.Ctx) error {
 	m, err := h.teams.AcceptInvitation(c.Context(), accountID, email, in.Token)
 	if err != nil {
 		switch {
-		case errors.Is(err, appteam.ErrInviteInvalid):
+		case errors.Is(err, {{$team}}.ErrInviteInvalid):
 			return response.SendError(c, nil, "invalid invitation token", fiber.StatusUnauthorized)
-		case errors.Is(err, appteam.ErrInviteNotPending):
+		case errors.Is(err, {{$team}}.ErrInviteNotPending):
 			return response.SendError(c, nil, "invitation is not pending", fiber.StatusConflict)
-		case errors.Is(err, appteam.ErrEmailMismatch):
+		case errors.Is(err, {{$team}}.ErrEmailMismatch):
 			return response.SendError(c, nil, "invitation email does not match account", fiber.StatusForbidden)
-		case errors.Is(err, appteam.ErrRoleNotFound):
+		case errors.Is(err, {{$team}}.ErrRoleNotFound):
 			return response.SendError(c, nil, "unknown role", fiber.StatusConflict)
-		case errors.Is(err, appteam.ErrAlreadyMember):
+		case errors.Is(err, {{$team}}.ErrAlreadyMember):
 			return response.SendError(c, nil, "already a member", fiber.StatusConflict)
 		default:
 			return response.SendError(c, nil, "could not accept invitation", fiber.StatusInternalServerError)
@@ -586,9 +596,9 @@ func (h *AuthHandler) deleteTeam(c fiber.Ctx) error {
 	}
 	if err := h.teams.DeleteTeam(c.Context(), accountID, teamID); err != nil {
 		switch {
-		case errors.Is(err, appteam.ErrNotOwner):
+		case errors.Is(err, {{$team}}.ErrNotOwner):
 			return response.SendError(c, nil, "only the owner can delete the team", fiber.StatusForbidden)
-		case errors.Is(err, appteam.ErrLastTeam):
+		case errors.Is(err, {{$team}}.ErrLastTeam):
 			return response.SendError(c, nil, "cannot delete your last team", fiber.StatusConflict)
 		default:
 			return response.SendError(c, nil, "could not delete team", fiber.StatusInternalServerError)
@@ -621,11 +631,11 @@ func (h *AuthHandler) transferOwnership(c fiber.Ctx) error {
 	newOwnerID, err := h.teams.TransferOwnership(c.Context(), teamID, accountID, in.Email)
 	if err != nil {
 		switch {
-		case errors.Is(err, appteam.ErrNotOwner):
+		case errors.Is(err, {{$team}}.ErrNotOwner):
 			return response.SendError(c, nil, "only the owner can transfer ownership", fiber.StatusForbidden)
-		case errors.Is(err, appteam.ErrAccountNotFound):
+		case errors.Is(err, {{$team}}.ErrAccountNotFound):
 			return response.SendError(c, nil, "account not found", fiber.StatusNotFound)
-		case errors.Is(err, appteam.ErrNotAMember):
+		case errors.Is(err, {{$team}}.ErrNotAMember):
 			return response.SendError(c, nil, "new owner must be a team member", fiber.StatusNotFound)
 		default:
 			return response.SendError(c, nil, "could not transfer ownership", fiber.StatusInternalServerError)
@@ -657,13 +667,13 @@ func (h *AuthHandler) removeMember(c fiber.Ctx) error {
 	}
 	if err := h.teams.RemoveMember(c.Context(), teamID, in.Email, accountID); err != nil {
 		switch {
-		case errors.Is(err, appteam.ErrAccountNotFound):
+		case errors.Is(err, {{$team}}.ErrAccountNotFound):
 			return response.SendError(c, nil, "account not found", fiber.StatusNotFound)
-		case errors.Is(err, appteam.ErrCannotRemoveSelf):
+		case errors.Is(err, {{$team}}.ErrCannotRemoveSelf):
 			return response.SendError(c, nil, "cannot remove yourself; use DELETE /teams/:id/members/me", fiber.StatusForbidden)
-		case errors.Is(err, appteam.ErrOwnerRemoval):
+		case errors.Is(err, {{$team}}.ErrOwnerRemoval):
 			return response.SendError(c, nil, "owner cannot be removed; transfer ownership first", fiber.StatusConflict)
-		case errors.Is(err, appteam.ErrNotAMember):
+		case errors.Is(err, {{$team}}.ErrNotAMember):
 			return response.SendError(c, nil, "not a member", fiber.StatusNotFound)
 		default:
 			return response.SendError(c, nil, "could not remove member", fiber.StatusInternalServerError)
@@ -689,9 +699,9 @@ func (h *AuthHandler) leaveTeam(c fiber.Ctx) error {
 	}
 	if err := h.teams.LeaveTeam(c.Context(), accountID, teamID); err != nil {
 		switch {
-		case errors.Is(err, appteam.ErrOwnerRemoval):
+		case errors.Is(err, {{$team}}.ErrOwnerRemoval):
 			return response.SendError(c, nil, "owner cannot leave; transfer ownership first", fiber.StatusConflict)
-		case errors.Is(err, appteam.ErrNotAMember):
+		case errors.Is(err, {{$team}}.ErrNotAMember):
 			return response.SendError(c, nil, "not a member", fiber.StatusNotFound)
 		default:
 			return response.SendError(c, nil, "could not leave team", fiber.StatusInternalServerError)

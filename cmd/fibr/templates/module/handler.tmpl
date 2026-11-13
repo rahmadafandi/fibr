@@ -1,4 +1,7 @@
-package http
+{{- /* One template for both layouts: $ddd selects the layout-specific names and blocks. */ -}}
+{{- $ddd := eq .Layout "ddd" -}}
+{{- $pkg := "handler" -}}{{- if $ddd}}{{$pkg = "http"}}{{end -}}
+package {{$pkg}}
 
 import (
 	"strconv"
@@ -6,18 +9,22 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/bind"
 	"github.com/rahmadafandi/fibr/v2/response"
-	app{{.Pkg}} "{{.Module}}/internal/application/{{.Pkg}}"
+{{if $ddd}}	app{{.Pkg}} "{{.Module}}/internal/application/{{.Pkg}}"
 	domain "{{.Module}}/internal/domain/{{.Pkg}}"
-)
+{{else}}	"{{.Module}}/internal/model"
+	"{{.Module}}/internal/service"
+{{end}})
 
 // {{.Type}}Handler exposes {{.Pkg}} HTTP routes.
 type {{.Type}}Handler struct {
-	svc *app{{.Pkg}}.Service
-}
+{{if $ddd}}	svc *app{{.Pkg}}.Service
+{{else}}	svc *service.{{.Type}}Service
+{{end}}}
 
 // New{{.Type}}Handler creates a {{.Type}}Handler.
-func New{{.Type}}Handler(svc *app{{.Pkg}}.Service) *{{.Type}}Handler {
-	return &{{.Type}}Handler{svc: svc}
+{{if $ddd}}func New{{.Type}}Handler(svc *app{{.Pkg}}.Service) *{{.Type}}Handler {
+{{else}}func New{{.Type}}Handler(svc *service.{{.Type}}Service) *{{.Type}}Handler {
+{{end}}	return &{{.Type}}Handler{svc: svc}
 }
 
 // RegisterRoutes mounts the {{.Pkg}} routes under /{{.Plural}}.
@@ -49,8 +56,9 @@ func (h *{{.Type}}Handler) get(c fiber.Ctx) error {
 }
 
 func (h *{{.Type}}Handler) create(c fiber.Ctx) error {
-	e, ok := bind.Body[domain.{{.Type}}](c)
-	if !ok {
+{{if $ddd}}	e, ok := bind.Body[domain.{{.Type}}](c)
+{{else}}	e, ok := bind.Body[model.{{.Type}}](c)
+{{end}}	if !ok {
 		return nil
 	}
 	if err := h.svc.Create(c.Context(), &e); err != nil {
