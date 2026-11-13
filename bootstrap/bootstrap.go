@@ -125,6 +125,11 @@ func New(o Options) *App {
 	if o.Metrics {
 		f.Use(metrics.Middleware())
 	}
+	// A second Recover, inside the logger and metrics, turns a handler panic
+	// into a 500 response before it unwinds through them, so the request is
+	// still logged and counted. The outer one stays as the safety net for
+	// panics in the middleware above.
+	f.Use(middleware.Recover(o.Logger))
 
 	app := &App{App: f, shutdownTimeout: o.ShutdownTimeout, autoMigrate: o.AutoMigrate}
 	app.healthChecks = append(app.healthChecks, o.HealthChecks...)
