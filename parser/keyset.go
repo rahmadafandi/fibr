@@ -43,7 +43,7 @@ func Keyset(kq KeysetQuery, cols []KeysetColumn) func(*bun.SelectQuery) *bun.Sel
 		limit := clampLimit(kq.Limit, defaultKeysetLimit)
 
 		if len(cols) == 0 || !keysetColumnsValid(cols) {
-			return q.Limit(limit + 1)
+			return q.Limit(int64(limit) + 1)
 		}
 
 		if kq.Cursor != "" {
@@ -60,7 +60,7 @@ func Keyset(kq KeysetQuery, cols []KeysetColumn) func(*bun.SelectQuery) *bun.Sel
 			}
 			q = q.OrderExpr(c.Name + " " + dir)
 		}
-		return q.Limit(limit + 1)
+		return q.Limit(int64(limit) + 1)
 	}
 }
 

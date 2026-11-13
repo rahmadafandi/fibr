@@ -36,7 +36,7 @@ func TestPostgresSearchAndPaginate(t *testing.T) {
 
 	n, err := db.NewSelect().Model((*article)(nil)).Apply(Count("ALPHA", []string{"name"})).Count(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, 2, n, "search must be case-insensitive on Postgres")
+	assert.EqualValues(t, 2, n, "search must be case-insensitive on Postgres")
 
 	var got []article
 	pq := &PaginationQuery{Search: "alpha", Sort: "name", Order: "desc", Limit: 1}
