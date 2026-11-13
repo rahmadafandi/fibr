@@ -4,17 +4,16 @@ package pagination_test
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
 
 	"github.com/rahmadafandi/fibr/v2/pagination"
 	"github.com/rahmadafandi/fibr/v2/parser"
+
+	"github.com/rahmadafandi/fibr/v2/fibrtest"
 )
 
 type row struct {
@@ -29,13 +28,10 @@ func extractRow(r row) []any { return []any{r.Name, r.ID} }
 
 func newDB(t *testing.T, names ...string) (*bun.DB, context.Context) {
 	t.Helper()
-	sqldb, err := sql.Open(sqliteshim.ShimName, "file::memory:?cache=shared")
-	require.NoError(t, err)
-	db := bun.NewDB(sqldb, sqlitedialect.New())
-	t.Cleanup(func() { db.Close() })
+	db := fibrtest.NewDB(t)
 
 	ctx := context.Background()
-	_, err = db.NewCreateTable().Model((*row)(nil)).Exec(ctx)
+	_, err := db.NewCreateTable().Model((*row)(nil)).Exec(ctx)
 	require.NoError(t, err)
 	for _, n := range names {
 		_, err = db.NewInsert().Model(&row{Name: n}).Exec(ctx)

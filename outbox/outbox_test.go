@@ -4,24 +4,20 @@ package outbox_test
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
 
 	"github.com/rahmadafandi/fibr/v2/outbox"
+
+	"github.com/rahmadafandi/fibr/v2/fibrtest"
 )
 
 func newDB(t *testing.T) (*bun.DB, context.Context) {
 	t.Helper()
-	sqldb, err := sql.Open(sqliteshim.ShimName, "file::memory:?cache=shared")
-	require.NoError(t, err)
-	db := bun.NewDB(sqldb, sqlitedialect.New())
-	t.Cleanup(func() { db.Close() })
+	db := fibrtest.NewDB(t)
 
 	ctx := context.Background()
 	require.NoError(t, outbox.Migrate(ctx, db))

@@ -4,15 +4,14 @@ package parser
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
+
+	"github.com/rahmadafandi/fibr/v2/fibrtest"
 )
 
 func TestPaginationQueryValidate(t *testing.T) {
@@ -52,13 +51,10 @@ type article struct {
 
 func newBunDB(t *testing.T) *bun.DB {
 	t.Helper()
-	sqldb, err := sql.Open(sqliteshim.ShimName, "file::memory:?cache=shared")
-	assert.NoError(t, err)
-	db := bun.NewDB(sqldb, sqlitedialect.New())
-	t.Cleanup(func() { db.Close() })
+	db := fibrtest.NewDB(t)
 
 	ctx := context.Background()
-	_, err = db.NewCreateTable().Model((*article)(nil)).Exec(ctx)
+	_, err := db.NewCreateTable().Model((*article)(nil)).Exec(ctx)
 	assert.NoError(t, err)
 	for _, name := range []string{"alpha", "bravo", "charlie", "delta", "echo"} {
 		_, err = db.NewInsert().Model(&article{Name: name}).Exec(ctx)
