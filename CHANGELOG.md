@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `fibrtest`: `NewRedis(t)` starts an in-memory Redis (miniredis) and returns it with a connected go-redis client, both closed at test end.
+
 ## [2.2.0] - 2026-11-13
 
 ### Changed
