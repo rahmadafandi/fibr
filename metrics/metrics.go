@@ -24,6 +24,9 @@ import (
 // are not self-counted.
 const MetricsPath = "/metrics"
 
+// unmatchedPath is the path label for requests no route matched.
+const unmatchedPath = "unmatched"
+
 type config struct {
 	namespace string
 }
@@ -63,7 +66,8 @@ func register(cfg config) {
 }
 
 // Middleware returns a Fiber handler that records request count and duration,
-// labeled by method, route template (e.g. "/items/:id"), and status.
+// labeled by method, route template (e.g. "/items/:id", or "unmatched" when no
+// route matched), and status.
 func Middleware(opts ...Option) fiber.Handler {
 	var cfg config
 	for _, o := range opts {
@@ -76,16 +80,22 @@ func Middleware(opts ...Option) fiber.Handler {
 		}
 		start := time.Now()
 		err := c.Next()
-		path := c.Path()
-		if r := c.Route(); r != nil && r.Path != "" {
-			path = r.Path
-		}
 		// When a handler returns an error, Fiber's error handler sets the
 		// response code only after the middleware chain unwinds, so derive the
 		// status from the error instead.
 		code := c.Response().StatusCode()
 		if err != nil {
 			code = apierror.StatusOf(err)
+		}
+		path := c.Path()
+		if r := c.Route(); r != nil && r.Path != "" {
+			path = r.Path
+		}
+		// When no route matched, Fiber reports the root middleware route ("/").
+		// Label those requests separately so 404s for arbitrary paths are not
+		// mixed into the real "/" route (and cannot inflate label cardinality).
+		if code == fiber.StatusNotFound && path == "/" && c.Path() != "/" {
+			path = unmatchedPath
 		}
 		status := strconv.Itoa(code)
 		method := c.Method()
