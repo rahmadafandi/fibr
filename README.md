@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/rahmadafandi/fibr/actions/workflows/ci.yml/badge.svg)](https://github.com/rahmadafandi/fibr/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/rahmadafandi/fibr/branch/master/graph/badge.svg)](https://codecov.io/gh/rahmadafandi/fibr)
-[![Go Reference](https://pkg.go.dev/badge/github.com/rahmadafandi/fibr.svg)](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2)
+[![Go Reference](https://pkg.go.dev/badge/github.com/rahmadafandi/fibr/v2.svg)](https://pkg.go.dev/github.com/rahmadafandi/fibr/v2)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rahmadafandi/fibr/v2)](https://goreportcard.com/report/github.com/rahmadafandi/fibr/v2)
 [![Release](https://img.shields.io/github/v/release/rahmadafandi/fibr)](https://github.com/rahmadafandi/fibr/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
