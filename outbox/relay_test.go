@@ -250,15 +250,19 @@ func TestProcessWithLockReleasesAndStopsWhenLockLost(t *testing.T) {
 	mr, client := fibrtest.NewRedis(t)
 	const key = "outbox:relay"
 
-	// Losing the lock mid-batch (here: another owner takes it during the first
-	// publish) must stop the batch before the next event.
+	// A lock is lost when it expires, i.e. when a publish outlasts the TTL. The
+	// first publish here takes longer than a third of the TTL (the renewal
+	// threshold) and another owner has the key by the time it returns, so the
+	// batch must stop before the next event.
+	const ttl = 90 * time.Millisecond
 	var delivered []string
 	steal := funcPublisher(func(topic string) error {
 		delivered = append(delivered, topic)
+		time.Sleep(ttl/3 + 10*time.Millisecond)
 		mr.Set(key, "other-owner")
 		return nil
 	})
-	relay := outbox.NewRelay(db, steal, outbox.WithLock(lock.New(client), key, 30*time.Second))
+	relay := outbox.NewRelay(db, steal, outbox.WithLock(lock.New(client), key, ttl))
 	n, err := relay.Process(ctx)
 	require.ErrorIs(t, err, lock.ErrNotHeld)
 	assert.Equal(t, 1, n)
@@ -389,4 +393,52 @@ func TestPruneDropsOrphanAttempts(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, left)
 	assert.Len(t, pending(t, db, ctx), 1)
+}
+
+func TestProcessMarksBatchOnCancelledContext(t *testing.T) {
+	db, bg := newDB(t)
+	for _, topic := range []string{"a", "b", "c"} {
+		require.NoError(t, outbox.Enqueue(bg, db, topic, nil))
+	}
+
+	// The context is cancelled while the second event is being published
+	// (a shutdown): the first, already sent, must still be recorded.
+	ctx, cancel := context.WithCancel(bg)
+	calls := 0
+	pub := funcPublisher(func(string) error {
+		calls++
+		if calls == 2 {
+			cancel()
+			return context.Canceled
+		}
+		return nil
+	})
+
+	n, err := outbox.NewRelay(db, pub).Process(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Equal(t, 1, n)
+
+	rows := pending(t, db, bg)
+	require.Len(t, rows, 3)
+	assert.NotNil(t, rows[0].PublishedAt, "the event sent before the cancellation must be marked")
+	assert.Nil(t, rows[1].PublishedAt)
+	assert.Nil(t, rows[2].PublishedAt)
+}
+
+func TestProcessWithLockRenewsSparingly(t *testing.T) {
+	db, ctx := newDB(t)
+	for range 20 {
+		require.NoError(t, outbox.Enqueue(ctx, db, "t", nil))
+	}
+	mr, client := fibrtest.NewRedis(t)
+
+	// A fast batch finishes well inside a third of the TTL, so beyond acquiring
+	// and releasing the lock it should not touch Redis once per event.
+	before := mr.CommandCount()
+	relay := outbox.NewRelay(db, funcPublisher(func(string) error { return nil }),
+		outbox.WithLock(lock.New(client), "outbox:relay", time.Minute))
+	n, err := relay.Process(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 20, n)
+	assert.Less(t, mr.CommandCount()-before, 10, "lock commands must not scale with the batch size")
 }

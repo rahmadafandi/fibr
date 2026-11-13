@@ -4,6 +4,7 @@ package outbox
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -79,8 +80,9 @@ func WithLogger(l *logger.Logger) RelayOption {
 }
 
 // WithLock makes Process run each batch under a distributed lock, so only one
-// replica relays at a time. The lock is held for ttl and renewed before every
-// event, so ttl only needs to exceed the time to publish a single event.
+// replica relays at a time. The lock is held for ttl and renewed during the
+// batch whenever a third of ttl has passed, so ttl needs to exceed roughly
+// three times the time to publish a single event, not a whole batch.
 func WithLock(l *lock.Locker, key string, ttl time.Duration) RelayOption {
 	return func(r *Relay) {
 		r.locker = l
@@ -105,12 +107,18 @@ func NewRelay(db *bun.DB, pub Publisher, opts ...RelayOption) *Relay {
 }
 
 // Process publishes one batch of pending events, oldest first, up to the
-// configured batch size. Each event's PublishedAt is set only after its Publish
-// succeeds; a Publish error stops the batch and is returned, leaving the failed
-// event and the rest pending (unless WithMaxAttempts dead-letters it, in which
-// case the batch continues). It returns the number of events published. When a
-// Locker is configured and another replica holds the lock, Process returns
-// (0, nil). Process must not be called concurrently on the same Relay.
+// configured batch size. A Publish error stops the batch and is returned,
+// leaving the failed event and the rest pending (unless WithMaxAttempts
+// dead-letters it, in which case the batch continues). It returns the number of
+// events published and marked. When a Locker is configured and another replica
+// holds the lock, Process returns (0, nil). Process must not be called
+// concurrently on the same Relay.
+//
+// The events published in a batch are marked with a single UPDATE when the
+// batch ends, on every exit path including a cancelled context. Delivery is
+// at-least-once: if the process dies mid-batch, the events it had already
+// published are published again on the next run, so consumers must be
+// idempotent (see the inbox package).
 func (r *Relay) Process(ctx context.Context) (int, error) {
 	if r.locker == nil {
 		return r.process(ctx, nil)
@@ -123,12 +131,30 @@ func (r *Relay) Process(ctx context.Context) (int, error) {
 		return 0, nil
 	}
 	defer func() { _ = lk.Release(context.WithoutCancel(ctx)) }()
-	return r.process(ctx, func() error { return lk.Extend(ctx, r.lockTTL) })
+
+	// Renew once a third of the TTL has passed rather than before every event.
+	// The lock can only be lost by expiring, which takes longer than that, so a
+	// lost lock is still noticed before the next event is published.
+	renewed := time.Now()
+	return r.process(ctx, func() error {
+		if time.Since(renewed) < r.lockTTL/3 {
+			return nil
+		}
+		if err := lk.Extend(ctx, r.lockTTL); err != nil {
+			return err
+		}
+		renewed = time.Now()
+		return nil
+	})
 }
+
+// markTimeout bounds the final UPDATE that records a batch's progress. It runs
+// detached from the caller's context so a shutdown still records what was sent.
+const markTimeout = 5 * time.Second
 
 // process runs one batch. renew, when non-nil, is called before each event to
 // keep the relay lock alive; its failure means the lock was lost.
-func (r *Relay) process(ctx context.Context, renew func() error) (int, error) {
+func (r *Relay) process(ctx context.Context, renew func() error) (published int, err error) {
 	var events []Event
 	if err := r.db.NewSelect().
 		Model(&events).
@@ -139,43 +165,53 @@ func (r *Relay) process(ctx context.Context, renew func() error) (int, error) {
 		return 0, fmt.Errorf("outbox: load pending: %w", err)
 	}
 
-	published := 0
+	sent := make([]int64, 0, len(events))
+	defer func() {
+		if len(sent) == 0 {
+			return
+		}
+		mctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), markTimeout)
+		defer cancel()
+		if _, merr := r.db.NewUpdate().
+			Model((*Event)(nil)).
+			Set("published_at = ?", time.Now()).
+			Where("id IN (?)", bun.In(sent)).
+			Exec(mctx); merr != nil {
+			published = 0
+			err = errors.Join(err, fmt.Errorf("outbox: mark %d events published: %w", len(sent), merr))
+			return
+		}
+		published = len(sent)
+	}()
+
 	for i := range events {
 		e := &events[i]
 		if renew != nil {
 			if err := renew(); err != nil {
-				return published, fmt.Errorf("outbox: renew relay lock: %w", err)
+				return 0, fmt.Errorf("outbox: renew relay lock: %w", err)
 			}
 		}
 		if err := r.pub.Publish(ctx, e.Topic, e.Payload); err != nil {
 			// A cancelled context (shutdown) says nothing about the event, so
 			// it must not count towards WithMaxAttempts.
 			if ctx.Err() != nil {
-				return published, fmt.Errorf("outbox: publish event %d: %w", e.ID, err)
+				return 0, fmt.Errorf("outbox: publish event %d: %w", e.ID, err)
 			}
 			exhausted, aerr := r.exhausted(ctx, e.ID)
 			if aerr != nil {
-				return published, aerr
+				return 0, aerr
 			}
 			if !exhausted {
-				return published, fmt.Errorf("outbox: publish event %d: %w", e.ID, err)
+				return 0, fmt.Errorf("outbox: publish event %d: %w", e.ID, err)
 			}
 			if derr := r.deadLetter(ctx, e, err); derr != nil {
-				return published, derr
+				return 0, derr
 			}
 			continue
 		}
-		now := time.Now()
-		if _, err := r.db.NewUpdate().
-			Model(e).
-			Set("published_at = ?", now).
-			WherePK().
-			Exec(ctx); err != nil {
-			return published, fmt.Errorf("outbox: mark event %d published: %w", e.ID, err)
-		}
-		published++
+		sent = append(sent, e.ID)
 	}
-	return published, nil
+	return 0, nil
 }
 
 // exhausted records one more failed attempt for event id and reports whether it
