@@ -68,3 +68,23 @@ func TestMiddlewareRecordsAPIErrorStatus(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	require.Contains(t, string(body), `path="/missing",status="404"`)
 }
+
+func TestMiddlewareLabelsUnmatchedRoutes(t *testing.T) {
+	app := fiber.New()
+	app.Use(metrics.Middleware())
+	app.Get("/", func(c fiber.Ctx) error { return c.SendString("home") })
+	app.Get(metrics.MetricsPath, metrics.Handler())
+
+	for _, p := range []string{"/", "/no-such-route", "/another/missing"} {
+		_, err := app.Test(httptest.NewRequest("GET", p, nil))
+		require.NoError(t, err)
+	}
+
+	resp, err := app.Test(httptest.NewRequest("GET", "/metrics", nil))
+	require.NoError(t, err)
+	body, _ := io.ReadAll(resp.Body)
+	out := string(body)
+	require.Contains(t, out, `http_requests_total{method="GET",path="unmatched",status="404"}`)
+	require.Contains(t, out, `http_requests_total{method="GET",path="/",status="200"}`)
+	require.NotContains(t, out, `path="/",status="404"`)
+}
