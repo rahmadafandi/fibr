@@ -7,10 +7,11 @@ package apikey
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+
+	"github.com/rahmadafandi/fibr/v2/internal/randhex"
 )
 
 // Identity is who an API key belongs to.
@@ -56,10 +57,9 @@ func Hash(key string) string {
 // Generate returns a new random API key and its hash. Give the key to the
 // client and persist the hash.
 func Generate() (key, hash string, err error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
+	key, err = randhex.String(32)
+	if err != nil {
 		return "", "", fmt.Errorf("apikey: generate: %w", err)
 	}
-	key = hex.EncodeToString(b)
 	return key, Hash(key), nil
 }
