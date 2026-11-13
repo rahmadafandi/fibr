@@ -11,8 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `sse`: use Fiber's own `github.com/gofiber/fiber/v3/middleware/sse`, which adds heartbeats, `Last-Event-ID`, and disconnect detection. The package keeps working and will be removed in fibr v3.
 
+- `reqctx`: `GetContext`, `SetLocal`, and `GetLocal`. Fiber v3 covers them with `c.Context()` and the generic `fiber.Locals`. `GetRequestID` stays.
+
+### Added
+
+- `slug`: `GenerateReadable` returns the plain slug (`my-title`) when it is free and falls back to the suffixed form otherwise.
+- `outbox`: the `Attempt` model and `outbox_attempts` table (created by `Migrate`).
+
+### Fixed
+
+- `bootstrap`: a request whose handler panicked was missing from the request log and from the metrics. A second recover middleware inside them now turns the panic into a 500 that both record.
+- `metrics`: requests that matched no route were all counted under `path="/"`, mixed with the real root route. They are now labeled `path="unmatched"`.
+
 ### Changed
 
+- `outbox`: `WithMaxAttempts` counts failed publishes in the `outbox_attempts` table instead of in memory, so the count survives restarts and is shared across replicas. **Re-run `outbox.Migrate`** after upgrading if you use `WithMaxAttempts`. `Prune` also clears counters of events that are no longer pending.
 - Generator: the realtime sample (`fibr new --realtime`) now uses Fiber's SSE middleware, and ends its stream when the server starts shutting down so an open stream does not hold up a graceful shutdown.
 
 ## [2.0.1] - 2026-11-13
