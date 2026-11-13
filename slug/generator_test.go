@@ -4,15 +4,14 @@ package slug
 
 import (
 	"context"
-	"database/sql"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
+
+	"github.com/rahmadafandi/fibr/v2/fibrtest"
 )
 
 type post struct {
@@ -23,11 +22,8 @@ type post struct {
 
 func newBunDB(t *testing.T) *bun.DB {
 	t.Helper()
-	sqldb, err := sql.Open(sqliteshim.ShimName, "file::memory:?cache=shared")
-	assert.NoError(t, err)
-	db := bun.NewDB(sqldb, sqlitedialect.New())
-	t.Cleanup(func() { db.Close() })
-	_, err = db.NewCreateTable().Model((*post)(nil)).Exec(context.Background())
+	db := fibrtest.NewDB(t)
+	_, err := db.NewCreateTable().Model((*post)(nil)).Exec(context.Background())
 	assert.NoError(t, err)
 	return db
 }
