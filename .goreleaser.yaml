@@ -46,3 +46,5 @@ changelog:
 release:
   draft: false
   prerelease: auto
+  # v1 is the maintenance line; the "latest" release on GitHub stays on v2.
+  make_latest: false
