@@ -10,7 +10,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/response"
 )
 
@@ -88,7 +88,7 @@ func Internal(message string) *Error {
 // Handler is a fiber.ErrorHandler that renders errors as the standard JSON
 // envelope: *Error at its status with its code, *fiber.Error at its code, and
 // any other error as a generic 500 (the raw message is not exposed).
-func Handler(c *fiber.Ctx, err error) error {
+func Handler(c fiber.Ctx, err error) error {
 	var ae *Error
 	if errors.As(err, &ae) {
 		return c.Status(ae.Status).JSON(&response.Response{

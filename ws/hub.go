@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gofiber/contrib/websocket"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/contrib/v3/websocket"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/redis"
 )
 
@@ -105,7 +105,7 @@ func (h *Hub[T]) Handle(cfg Handler[T]) fiber.Handler {
 		// race with the write pump still touching it.
 		<-c.done
 	})
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		if !websocket.IsWebSocketUpgrade(c) {
 			return fiber.ErrUpgradeRequired
 		}

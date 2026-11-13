@@ -9,14 +9,14 @@ import (
 	"sync"
 	"time"
 
-	otelfiber "github.com/gofiber/contrib/otelfiber/v2"
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/adaptor"
-	"github.com/gofiber/fiber/v2/middleware/compress"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/helmet"
-	"github.com/gofiber/fiber/v2/middleware/idempotency"
-	"github.com/gofiber/fiber/v2/middleware/limiter"
+	fiberotel "github.com/gofiber/contrib/v3/otel"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/adaptor"
+	"github.com/gofiber/fiber/v3/middleware/compress"
+	"github.com/gofiber/fiber/v3/middleware/cors"
+	"github.com/gofiber/fiber/v3/middleware/helmet"
+	"github.com/gofiber/fiber/v3/middleware/idempotency"
+	"github.com/gofiber/fiber/v3/middleware/limiter"
 	"github.com/rahmadafandi/fibr/v2/apierror"
 	"github.com/rahmadafandi/fibr/v2/health"
 	"github.com/rahmadafandi/fibr/v2/i18n"
@@ -104,7 +104,7 @@ func New(o Options) *App {
 	// Tracing goes before ContextMiddleware so the request context it builds
 	// is a child of the request span.
 	if o.Tracing {
-		f.Use(otelfiber.Middleware())
+		f.Use(fiberotel.New())
 	}
 	f.Use(middleware.ContextMiddleware(o.RequestTimeout))
 	if o.I18n != nil {

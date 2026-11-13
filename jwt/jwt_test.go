@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -91,7 +91,7 @@ func TestExtractClaimsAndLocals(t *testing.T) {
 	assert.Error(t, err)
 
 	app := fiber.New()
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/", func(c fiber.Ctx) error {
 		_, err := Claims(c, "claims")
 		assert.Error(t, err, "nothing stored yet")
 		_, err = Claims(c, "claims", MapClaims{"sub": "7"})

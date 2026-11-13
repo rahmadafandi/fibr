@@ -5,7 +5,7 @@ package middleware
 import (
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/apierror"
 	"github.com/rahmadafandi/fibr/v2/context"
 	"github.com/rahmadafandi/fibr/v2/logger"
@@ -16,7 +16,7 @@ import (
 // the request carries a valid OTel span context, it adds trace_id and span_id
 // fields so logs can be correlated with traces.
 func RequestLogger(logger *logger.Logger) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		start := time.Now()
 
 		err := c.Next()
@@ -37,7 +37,7 @@ func RequestLogger(logger *logger.Logger) fiber.Handler {
 			"latency", stop.Sub(start).String(),
 			"request_id", context.GetRequestID(c),
 		}
-		if sc := oteltrace.SpanContextFromContext(c.UserContext()); sc.IsValid() {
+		if sc := oteltrace.SpanContextFromContext(c.Context()); sc.IsValid() {
 			fields = append(fields, "trace_id", sc.TraceID().String(), "span_id", sc.SpanID().String())
 		}
 		logger.Info("request", fields...)

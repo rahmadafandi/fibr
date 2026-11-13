@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/bind"
 	"github.com/stretchr/testify/require"
 )
@@ -28,7 +28,7 @@ func bodyOf(t *testing.T, resp *http.Response) string {
 
 func TestBodyValid(t *testing.T) {
 	app := fiber.New()
-	app.Post("/", func(c *fiber.Ctx) error {
+	app.Post("/", func(c fiber.Ctx) error {
 		in, ok := bind.Body[createInput](c)
 		if !ok {
 			return nil
@@ -46,7 +46,7 @@ func TestBodyValid(t *testing.T) {
 
 func TestBodyMalformed(t *testing.T) {
 	app := fiber.New()
-	app.Post("/", func(c *fiber.Ctx) error {
+	app.Post("/", func(c fiber.Ctx) error {
 		_, ok := bind.Body[createInput](c)
 		if !ok {
 			return nil
@@ -64,7 +64,7 @@ func TestBodyMalformed(t *testing.T) {
 
 func TestBodyValidationFails(t *testing.T) {
 	app := fiber.New()
-	app.Post("/", func(c *fiber.Ctx) error {
+	app.Post("/", func(c fiber.Ctx) error {
 		_, ok := bind.Body[createInput](c)
 		if !ok {
 			return nil
@@ -89,7 +89,7 @@ type filterInput struct {
 
 func TestQueryValidAndInvalid(t *testing.T) {
 	app := fiber.New()
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/", func(c fiber.Ctx) error {
 		in, ok := bind.Query[filterInput](c)
 		if !ok {
 			return nil
@@ -111,12 +111,12 @@ func TestQueryValidAndInvalid(t *testing.T) {
 // min=1 (not required): a route id is always present but `required` on an int
 // means "non-zero", which would 422 a legitimate /items/0. min=1 is the intent.
 type idParam struct {
-	ID int `params:"id" validate:"min=1"`
+	ID int `uri:"id" validate:"min=1"`
 }
 
 func TestParamsValidAndInvalid(t *testing.T) {
 	app := fiber.New()
-	app.Get("/items/:id", func(c *fiber.Ctx) error {
+	app.Get("/items/:id", func(c fiber.Ctx) error {
 		_, ok := bind.Params[idParam](c)
 		if !ok {
 			return nil
@@ -130,6 +130,6 @@ func TestParamsValidAndInvalid(t *testing.T) {
 
 	bad, err := app.Test(httptest.NewRequest("GET", "/items/abc", nil))
 	require.NoError(t, err)
-	require.Equal(t, 400, bad.StatusCode) // ParamsParser fails to parse "abc" into int
+	require.Equal(t, 400, bad.StatusCode) // URI binding fails to parse "abc" into int
 	require.Contains(t, bodyOf(t, bad), `"status":"error"`)
 }

@@ -5,7 +5,7 @@ package webhook
 import (
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/apierror"
 )
 
@@ -26,7 +26,7 @@ func Middleware(cfg MiddlewareConfig) fiber.Handler {
 	if cfg.Tolerance == 0 {
 		cfg.Tolerance = DefaultTolerance
 	}
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		if err := Verify(c.Body(), c.Get(cfg.Header), cfg.Secret, cfg.Tolerance); err != nil {
 			return apierror.Unauthorized("invalid webhook signature").WithCode("invalid_signature")
 		}

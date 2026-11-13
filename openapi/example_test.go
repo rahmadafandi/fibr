@@ -5,7 +5,7 @@ package openapi_test
 import (
 	"fmt"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/openapi"
 )
 

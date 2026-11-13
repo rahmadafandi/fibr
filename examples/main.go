@@ -5,7 +5,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/bootstrap"
 	"github.com/rahmadafandi/fibr/v2/config"
 	"github.com/rahmadafandi/fibr/v2/database"
@@ -35,7 +35,7 @@ func main() {
 		HealthChecks: []health.NamedCheck{health.PingBun(db)},
 	})
 
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/", func(c fiber.Ctx) error {
 		return response.SendSuccess(c, "Hello, World!", "Welcome")
 	})
 

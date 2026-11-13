@@ -5,7 +5,7 @@ package apikey
 import (
 	"slices"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 
 	"github.com/rahmadafandi/fibr/v2/apierror"
 )
@@ -39,12 +39,12 @@ func New(cfg Config) *Authenticator {
 // and on success stores the Identity in locals and calls Next; otherwise it
 // returns 401 (or 500 on a store error).
 func (a *Authenticator) Middleware() fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		key := c.Get(a.header)
 		if key == "" {
 			return apierror.Unauthorized("missing API key")
 		}
-		id, err := a.store.Lookup(c.UserContext(), Hash(key))
+		id, err := a.store.Lookup(c.Context(), Hash(key))
 		if err != nil {
 			return apierror.Internal("api key lookup failed")
 		}
@@ -59,7 +59,7 @@ func (a *Authenticator) Middleware() fiber.Handler {
 // RequireScope is middleware that returns 403 unless the request's Identity has
 // scope. It must run after Middleware.
 func (a *Authenticator) RequireScope(scope string) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		id, ok := FromContext(c)
 		if !ok {
 			return apierror.Unauthorized("not authenticated")
@@ -72,13 +72,13 @@ func (a *Authenticator) RequireScope(scope string) fiber.Handler {
 }
 
 // FromContext returns the authenticated identity stored by Middleware.
-func FromContext(c *fiber.Ctx) (*Identity, bool) {
+func FromContext(c fiber.Ctx) (*Identity, bool) {
 	id, ok := c.Locals(localsKey).(*Identity)
 	return id, ok
 }
 
 // HasScope reports whether the request's Identity has scope.
-func HasScope(c *fiber.Ctx, scope string) bool {
+func HasScope(c fiber.Ctx, scope string) bool {
 	id, ok := FromContext(c)
 	return ok && slices.Contains(id.Scopes, scope)
 }

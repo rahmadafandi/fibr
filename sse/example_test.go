@@ -5,13 +5,13 @@ package sse_test
 import (
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/sse"
 )
 
 func ExampleHandler() {
 	app := fiber.New()
-	app.Get("/events", sse.Handler(func(c *fiber.Ctx, s *sse.Stream) {
+	app.Get("/events", sse.Handler(func(c fiber.Ctx, s *sse.Stream) {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
 		for n := 0; ; n++ {
@@ -19,7 +19,7 @@ func ExampleHandler() {
 				return // client disconnected
 			}
 			select {
-			case <-c.Context().Done():
+			case <-c.RequestCtx().Done():
 				return
 			case <-ticker.C:
 			}

@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 // Stream writes SSE frames to a single client connection.
@@ -32,12 +32,12 @@ type Event struct {
 // Stream; when fn returns, the stream closes. fn owns its own loop and should
 // stop when a Send returns an error (client gone) or the request context is
 // done.
-func Handler(fn func(c *fiber.Ctx, s *Stream)) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func Handler(fn func(c fiber.Ctx, s *Stream)) fiber.Handler {
+	return func(c fiber.Ctx) error {
 		c.Set(fiber.HeaderContentType, "text/event-stream")
 		c.Set(fiber.HeaderCacheControl, "no-cache")
 		c.Set(fiber.HeaderConnection, "keep-alive")
-		c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
+		c.RequestCtx().SetBodyStreamWriter(func(w *bufio.Writer) {
 			fn(c, &Stream{w: w})
 		})
 		return nil

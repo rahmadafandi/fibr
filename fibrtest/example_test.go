@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 
 	"github.com/rahmadafandi/fibr/v2/fibrtest"
 )
@@ -15,11 +15,11 @@ import (
 // status, and decode the JSON response.
 func ExampleClient() {
 	app := fiber.New()
-	app.Post("/greet", func(c *fiber.Ctx) error {
+	app.Post("/greet", func(c fiber.Ctx) error {
 		var in struct {
 			Name string `json:"name"`
 		}
-		if err := c.BodyParser(&in); err != nil {
+		if err := c.Bind().Body(&in); err != nil {
 			return c.SendStatus(fiber.StatusBadRequest)
 		}
 		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"hello": in.Name})

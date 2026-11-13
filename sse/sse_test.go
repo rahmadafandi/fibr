@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/sse"
 	"github.com/stretchr/testify/require"
 )
@@ -22,13 +22,13 @@ func readAll(t *testing.T, r io.Reader) string {
 
 func TestStreamFraming(t *testing.T) {
 	app := fiber.New()
-	app.Get("/events", sse.Handler(func(c *fiber.Ctx, s *sse.Stream) {
+	app.Get("/events", sse.Handler(func(c fiber.Ctx, s *sse.Stream) {
 		_ = s.Send("tick", map[string]int{"n": 1})
 		_ = s.Comment("keepalive")
 		_ = s.SendRaw("msg", "hello")
 	}))
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/events", nil), -1)
+	resp, err := app.Test(httptest.NewRequest("GET", "/events", nil), fiber.TestConfig{})
 	require.NoError(t, err)
 	require.Equal(t, 200, resp.StatusCode)
 	require.Contains(t, resp.Header.Get("Content-Type"), "text/event-stream")
@@ -43,10 +43,10 @@ func TestStreamFraming(t *testing.T) {
 
 func TestMultilineData(t *testing.T) {
 	app := fiber.New()
-	app.Get("/e", sse.Handler(func(c *fiber.Ctx, s *sse.Stream) {
+	app.Get("/e", sse.Handler(func(c fiber.Ctx, s *sse.Stream) {
 		_ = s.SendRaw("x", "line1\nline2")
 	}))
-	resp, err := app.Test(httptest.NewRequest("GET", "/e", nil), -1)
+	resp, err := app.Test(httptest.NewRequest("GET", "/e", nil), fiber.TestConfig{})
 	require.NoError(t, err)
 	body := readAll(t, resp.Body)
 	require.Contains(t, body, "data: line1\ndata: line2\n")

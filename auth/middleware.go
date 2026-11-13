@@ -6,13 +6,13 @@ import (
 	"context"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	fhcontext "github.com/rahmadafandi/fibr/v2/context"
 	"github.com/rahmadafandi/fibr/v2/jwt"
 	"github.com/rahmadafandi/fibr/v2/response"
 )
 
-func bearerToken(c *fiber.Ctx) string {
+func bearerToken(c fiber.Ctx) string {
 	const prefix = "Bearer "
 	h := c.Get("Authorization")
 	if len(h) > len(prefix) && strings.EqualFold(h[:len(prefix)], prefix) {
@@ -21,7 +21,7 @@ func bearerToken(c *fiber.Ctx) string {
 	return ""
 }
 
-func parse(c *fiber.Ctx, secret string, cfg config) (jwt.MapClaims, bool) {
+func parse(c fiber.Ctx, secret string, cfg config) (jwt.MapClaims, bool) {
 	tok := bearerToken(c)
 	if tok == "" {
 		return nil, false
@@ -66,12 +66,12 @@ func blocklisted(ctx context.Context, store TokenStore, claims jwt.MapClaims) (b
 // with no jti field (not minted by an Issuer) are not subject to the blocklist.
 func RequireAuth(secret string, opts ...Option) fiber.Handler {
 	cfg := newConfig(opts...)
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		claims, ok := parse(c, secret, cfg)
 		if !ok {
 			return response.SendError(c, nil, "unauthorized", fiber.StatusUnauthorized)
 		}
-		if blocked, err := blocklisted(c.UserContext(), cfg.store, claims); err != nil || blocked {
+		if blocked, err := blocklisted(c.Context(), cfg.store, claims); err != nil || blocked {
 			return response.SendError(c, nil, "unauthorized", fiber.StatusUnauthorized)
 		}
 		fhcontext.SetLocal(c, cfg.contextKey, claims)
@@ -84,9 +84,9 @@ func RequireAuth(secret string, opts ...Option) fiber.Handler {
 // treated as no auth (the handler runs anonymously) rather than rejected.
 func Optional(secret string, opts ...Option) fiber.Handler {
 	cfg := newConfig(opts...)
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		if claims, ok := parse(c, secret, cfg); ok {
-			if blocked, err := blocklisted(c.UserContext(), cfg.store, claims); err == nil && !blocked {
+			if blocked, err := blocklisted(c.Context(), cfg.store, claims); err == nil && !blocked {
 				fhcontext.SetLocal(c, cfg.contextKey, claims)
 			}
 		}
@@ -95,7 +95,7 @@ func Optional(secret string, opts ...Option) fiber.Handler {
 }
 
 // Claims returns the claims stored by the auth middleware.
-func Claims(c *fiber.Ctx, opts ...Option) (jwt.MapClaims, bool) {
+func Claims(c fiber.Ctx, opts ...Option) (jwt.MapClaims, bool) {
 	cfg := newConfig(opts...)
 	claims := fhcontext.GetLocal[jwt.MapClaims](c, cfg.contextKey)
 	if claims == nil {
@@ -105,7 +105,7 @@ func Claims(c *fiber.Ctx, opts ...Option) (jwt.MapClaims, bool) {
 }
 
 // Subject returns claims["sub"] as a string ("" if absent or not a string).
-func Subject(c *fiber.Ctx, opts ...Option) string {
+func Subject(c fiber.Ctx, opts ...Option) string {
 	claims, ok := Claims(c, opts...)
 	if !ok {
 		return ""
@@ -119,7 +119,7 @@ func Subject(c *fiber.Ctx, opts ...Option) string {
 // Scopes reads the "scopes" claim (a JSON array of strings) set when the token
 // was issued; it normalizes the JWT-decoded []any (or []string) form to
 // []string. This library's RequireScope, HasScope, and Scopes all read that key.
-func Scopes(c *fiber.Ctx, opts ...Option) []string {
+func Scopes(c fiber.Ctx, opts ...Option) []string {
 	claims, ok := Claims(c, opts...)
 	if !ok {
 		return nil
@@ -145,7 +145,7 @@ func toStringSlice(v any) []string {
 
 // HasScope reports whether the request's claims include scope. It reads the
 // same "scopes" claim as Scopes and RequireScope.
-func HasScope(c *fiber.Ctx, scope string, opts ...Option) bool {
+func HasScope(c fiber.Ctx, scope string, opts ...Option) bool {
 	for _, s := range Scopes(c, opts...) {
 		if s == scope {
 			return true
@@ -159,7 +159,7 @@ func HasScope(c *fiber.Ctx, scope string, opts ...Option) bool {
 // is missing. If you pass WithContextKey to RequireAuth, pass the same option
 // here so both use the same claims key.
 func RequireScope(scope string, opts ...Option) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		if _, ok := Claims(c, opts...); !ok {
 			return response.SendError(c, nil, "unauthorized", fiber.StatusUnauthorized)
 		}

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -74,7 +74,7 @@ func ExtractClaimsFromJwt(jwtToken *Token) (MapClaims, error) {
 }
 
 // Claims gets claims from a JWT token in the fiber context or set claims to the fiber context.
-func Claims(c *fiber.Ctx, localKey string, claims ...MapClaims) (MapClaims, error) {
+func Claims(c fiber.Ctx, localKey string, claims ...MapClaims) (MapClaims, error) {
 	if len(claims) > 0 {
 		c.Locals(localKey, claims[0])
 

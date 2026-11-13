@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,7 +14,7 @@ import (
 
 func TestActiveTeamAndRole(t *testing.T) {
 	app := fiber.New()
-	app.Get("/p", RequireAuth(middlewareTestSecret), func(c *fiber.Ctx) error {
+	app.Get("/p", RequireAuth(middlewareTestSecret), func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"team": ActiveTeam(c), "role": TeamRole(c)})
 	})
 
@@ -27,7 +27,7 @@ func TestActiveTeamAndRole(t *testing.T) {
 
 func TestRequireTeam(t *testing.T) {
 	app := fiber.New()
-	app.Get("/with", RequireAuth(middlewareTestSecret), RequireTeam(), func(c *fiber.Ctx) error { return c.SendStatus(200) })
+	app.Get("/with", RequireAuth(middlewareTestSecret), RequireTeam(), func(c fiber.Ctx) error { return c.SendStatus(200) })
 
 	// has team -> 200
 	tok := mintToken(t, jwt.MapClaims{"sub": "1", "team": "7"}, time.Hour)
@@ -43,7 +43,7 @@ func TestRequireTeam(t *testing.T) {
 
 func TestRequireRole(t *testing.T) {
 	app := fiber.New()
-	app.Get("/admin", RequireAuth(middlewareTestSecret), RequireRole("owner", "admin"), func(c *fiber.Ctx) error { return c.SendStatus(200) })
+	app.Get("/admin", RequireAuth(middlewareTestSecret), RequireRole("owner", "admin"), func(c fiber.Ctx) error { return c.SendStatus(200) })
 
 	owner := mintToken(t, jwt.MapClaims{"sub": "1", "team": "7", "role": "owner"}, time.Hour)
 	assert.Equal(t, 200, do(t, app, "GET", "/admin", owner))

@@ -14,7 +14,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 
 	"github.com/rahmadafandi/fibr/v2/apierror"
 	"github.com/rahmadafandi/fibr/v2/apikey"
@@ -60,7 +60,7 @@ func main() {
 		hash: {ID: "demo-user", Scopes: []string{"widgets:read"}},
 	})})
 
-	actorOf := func(c *fiber.Ctx) string {
+	actorOf := func(c fiber.Ctx) string {
 		if id, ok := apikey.FromContext(c); ok {
 			return id.ID
 		}
@@ -87,24 +87,24 @@ func main() {
 		HealthChecks: []health.NamedCheck{health.PingBun(db)},
 	})
 
-	app.Get("/public", func(c *fiber.Ctx) error {
+	app.Get("/public", func(c fiber.Ctx) error {
 		return response.SendSuccess(c, fiber.Map{"ok": true}, "public")
 	})
 
 	// Everything below requires a valid API key.
-	api := app.Group("/", keys.Middleware(), flags.Middleware(func(c *fiber.Ctx) featureflag.Eval {
+	api := app.Group("/", keys.Middleware(), flags.Middleware(func(c fiber.Ctx) featureflag.Eval {
 		return featureflag.Eval{UserID: actorOf(c)}
 	}))
 
-	api.Get("/me", func(c *fiber.Ctx) error {
+	api.Get("/me", func(c fiber.Ctx) error {
 		id, _ := apikey.FromContext(c)
 		return response.SendSuccess(c, id, "identity")
 	})
 
-	api.Get("/widgets/:id", keys.RequireScope("widgets:read"), func(c *fiber.Ctx) error {
+	api.Get("/widgets/:id", keys.RequireScope("widgets:read"), func(c fiber.Ctx) error {
 		id := c.Params("id")
 
-		w, err := widgets.GetOrLoad(c.UserContext(), "widget:"+id, func() (Widget, error) {
+		w, err := widgets.GetOrLoad(c.Context(), "widget:"+id, func() (Widget, error) {
 			// Pretend this is a slow DB/API call.
 			name := "widget-" + id
 			if featureflag.Enabled(c, "fancy_widget_name") {
@@ -117,10 +117,10 @@ func main() {
 		}
 
 		// Fan out a domain event and record an audit entry.
-		_ = events.Publish(c.UserContext(), bus, WidgetViewed{WidgetID: id, Actor: actorOf(c)})
+		_ = events.Publish(c.Context(), bus, WidgetViewed{WidgetID: id, Actor: actorOf(c)})
 		e := rec.FromRequest(c)
 		e.Action, e.Target, e.TargetID = "widget.view", "widget", id
-		_ = rec.Record(c.UserContext(), e)
+		_ = rec.Record(c.Context(), e)
 
 		return response.SendSuccess(c, w, "widget")
 	})

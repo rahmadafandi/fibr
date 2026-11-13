@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/apierror"
 	"github.com/rahmadafandi/fibr/v2/metrics"
 	"github.com/stretchr/testify/require"
@@ -16,7 +16,7 @@ import (
 func TestMiddlewareRecordsAndHandlerScrapes(t *testing.T) {
 	app := fiber.New()
 	app.Use(metrics.Middleware())
-	app.Get("/items/:id", func(c *fiber.Ctx) error { return c.SendString("ok") })
+	app.Get("/items/:id", func(c fiber.Ctx) error { return c.SendString("ok") })
 	app.Get(metrics.MetricsPath, metrics.Handler())
 
 	resp, err := app.Test(httptest.NewRequest("GET", "/items/42", nil))
@@ -40,7 +40,7 @@ func TestMiddlewareRecordsAndHandlerScrapes(t *testing.T) {
 func TestMiddlewareRecordsErrorStatus(t *testing.T) {
 	app := fiber.New()
 	app.Use(metrics.Middleware())
-	app.Get("/boom", func(c *fiber.Ctx) error { return fiber.NewError(503, "down") })
+	app.Get("/boom", func(c fiber.Ctx) error { return fiber.NewError(503, "down") })
 	app.Get(metrics.MetricsPath, metrics.Handler())
 
 	resp, err := app.Test(httptest.NewRequest("GET", "/boom", nil))
@@ -56,7 +56,7 @@ func TestMiddlewareRecordsErrorStatus(t *testing.T) {
 func TestMiddlewareRecordsAPIErrorStatus(t *testing.T) {
 	app := fiber.New(fiber.Config{ErrorHandler: apierror.Handler})
 	app.Use(metrics.Middleware())
-	app.Get("/missing", func(c *fiber.Ctx) error { return apierror.NotFound("nope") })
+	app.Get("/missing", func(c fiber.Ctx) error { return apierror.NotFound("nope") })
 	app.Get(metrics.MetricsPath, metrics.Handler())
 
 	resp, err := app.Test(httptest.NewRequest("GET", "/missing", nil))

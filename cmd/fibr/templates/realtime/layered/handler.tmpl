@@ -3,7 +3,7 @@ package handler
 import (
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	fhredis "github.com/rahmadafandi/fibr/v2/redis"
 	"github.com/rahmadafandi/fibr/v2/sse"
 	"github.com/rahmadafandi/fibr/v2/ws"
@@ -32,7 +32,7 @@ func RegisterRealtime(app fiber.Router, rds *fhredis.Redis) {
 		OnMessage: func(c *ws.Conn[Message], m Message) { hub.ToRoom(c.Params("room"), m) },
 	}))
 
-	app.Get("/events", sse.Handler(func(c *fiber.Ctx, s *sse.Stream) {
+	app.Get("/events", sse.Handler(func(c fiber.Ctx, s *sse.Stream) {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
 		for n := 0; ; n++ {
@@ -40,7 +40,7 @@ func RegisterRealtime(app fiber.Router, rds *fhredis.Redis) {
 				return
 			}
 			select {
-			case <-c.Context().Done():
+			case <-c.RequestCtx().Done():
 				return
 			case <-ticker.C:
 			}

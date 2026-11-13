@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,10 +25,10 @@ func TestMiddlewareLimitsAndHeaders(t *testing.T) {
 	l := New(client)
 
 	app := fiber.New()
-	app.Use(l.Middleware(Rule{Capacity: 2, RefillPerSec: 1}, func(c *fiber.Ctx) string {
+	app.Use(l.Middleware(Rule{Capacity: 2, RefillPerSec: 1}, func(c fiber.Ctx) string {
 		return "fixed" // same bucket for every request
 	}))
-	app.Get("/", func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })
+	app.Get("/", func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })
 
 	// First two pass.
 	for range 2 {
@@ -57,7 +57,7 @@ func TestMiddlewareFailsOpenAndLogsToInjectedLogger(t *testing.T) {
 	l := New(client, WithLogger(logger.New(&buf, logger.ErrorLevel)))
 	app := fiber.New()
 	app.Use(l.Middleware(Rule{Capacity: 1, RefillPerSec: 1}, nil))
-	app.Get("/", func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })
+	app.Get("/", func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })
 
 	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
 	require.NoError(t, err)
