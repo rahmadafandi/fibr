@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -33,10 +33,10 @@ func TestFiberMiddlewareAndEnabled(t *testing.T) {
 	}))
 
 	app := fiber.New()
-	app.Use(f.Middleware(func(c *fiber.Ctx) featureflag.Eval {
+	app.Use(f.Middleware(func(c fiber.Ctx) featureflag.Eval {
 		return featureflag.Eval{UserID: c.Get("X-User")}
 	}))
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/", func(c fiber.Ctx) error {
 		if featureflag.Enabled(c, "beta") {
 			return c.SendString("beta")
 		}
@@ -49,7 +49,7 @@ func TestFiberMiddlewareAndEnabled(t *testing.T) {
 
 func TestEnabledWithoutMiddleware(t *testing.T) {
 	app := fiber.New()
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/", func(c fiber.Ctx) error {
 		assert.False(t, featureflag.Enabled(c, "anything"))
 		return c.SendStatus(fiber.StatusOK)
 	})

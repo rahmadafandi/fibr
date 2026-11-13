@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,7 +15,7 @@ func TestLocals(t *testing.T) {
 	app := fiber.New()
 
 	t.Run("SetAndGetString", func(t *testing.T) {
-		app.Get("/str", func(c *fiber.Ctx) error {
+		app.Get("/str", func(c fiber.Ctx) error {
 			SetLocal(c, "k", "value")
 			assert.Equal(t, "value", GetLocal[string](c, "k"))
 			return nil
@@ -26,7 +26,7 @@ func TestLocals(t *testing.T) {
 	})
 
 	t.Run("MissingReturnsZero", func(t *testing.T) {
-		app.Get("/missing", func(c *fiber.Ctx) error {
+		app.Get("/missing", func(c fiber.Ctx) error {
 			assert.Equal(t, "", GetLocal[string](c, "absent"))
 			assert.Equal(t, 0, GetLocal[int](c, "absent"))
 			return nil
@@ -38,7 +38,7 @@ func TestLocals(t *testing.T) {
 
 	t.Run("SetAndGetStruct", func(t *testing.T) {
 		type payload struct{ Name string }
-		app.Get("/struct", func(c *fiber.Ctx) error {
+		app.Get("/struct", func(c fiber.Ctx) error {
 			SetLocal(c, "p", payload{Name: "x"})
 			assert.Equal(t, payload{Name: "x"}, GetLocal[payload](c, "p"))
 			return nil
@@ -52,7 +52,7 @@ func TestLocals(t *testing.T) {
 func TestGetContextAndRequestID(t *testing.T) {
 	type key struct{}
 	app := fiber.New()
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/", func(c fiber.Ctx) error {
 		// Nothing stored yet: safe fallbacks.
 		assert.Equal(t, context.Background(), GetContext(c))
 		assert.Equal(t, "", GetRequestID(c))

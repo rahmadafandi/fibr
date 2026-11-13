@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uptrace/bun"
@@ -31,23 +31,23 @@ func (r *recordTB) Fatalf(format string, args ...any) {
 
 func testApp() *fiber.App {
 	app := fiber.New()
-	app.Get("/ping", func(c *fiber.Ctx) error {
+	app.Get("/ping", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"msg": "pong"})
 	})
-	app.Post("/echo", func(c *fiber.Ctx) error {
+	app.Post("/echo", func(c fiber.Ctx) error {
 		var in map[string]any
-		if err := c.BodyParser(&in); err != nil {
+		if err := c.Bind().Body(&in); err != nil {
 			return c.SendStatus(fiber.StatusBadRequest)
 		}
 		return c.Status(fiber.StatusCreated).JSON(in)
 	})
-	app.Get("/auth", func(c *fiber.Ctx) error {
+	app.Get("/auth", func(c fiber.Ctx) error {
 		if c.Get("Authorization") == "" {
 			return c.SendStatus(fiber.StatusUnauthorized)
 		}
 		return c.JSON(fiber.Map{"auth": c.Get("Authorization")})
 	})
-	app.Get("/q", func(c *fiber.Ctx) error {
+	app.Get("/q", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"k": c.Query("k")})
 	})
 	return app

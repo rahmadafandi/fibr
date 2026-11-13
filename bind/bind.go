@@ -8,7 +8,7 @@
 package bind
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/response"
 	"github.com/rahmadafandi/fibr/v2/validator"
 )
@@ -16,15 +16,15 @@ import (
 // Body decodes the request body (JSON/form/multipart, by Content-Type) into T
 // and validates it. On success it returns (value, true). On failure it writes
 // the error response and returns (zero, false).
-func Body[T any](c *fiber.Ctx) (T, bool) { return bindAndValidate[T](c, c.BodyParser) }
+func Body[T any](c fiber.Ctx) (T, bool) { return bindAndValidate[T](c, c.Bind().Body) }
 
 // Query decodes the URL query string into T and validates it. See Body.
-func Query[T any](c *fiber.Ctx) (T, bool) { return bindAndValidate[T](c, c.QueryParser) }
+func Query[T any](c fiber.Ctx) (T, bool) { return bindAndValidate[T](c, c.Bind().Query) }
 
 // Params decodes the route path parameters into T and validates it. See Body.
-func Params[T any](c *fiber.Ctx) (T, bool) { return bindAndValidate[T](c, c.ParamsParser) }
+func Params[T any](c fiber.Ctx) (T, bool) { return bindAndValidate[T](c, c.Bind().URI) }
 
-func bindAndValidate[T any](c *fiber.Ctx, parse func(any) error) (T, bool) {
+func bindAndValidate[T any](c fiber.Ctx, parse func(any) error) (T, bool) {
 	var v T
 	if err := parse(&v); err != nil {
 		_ = response.SendError(c, nil, err.Error(), fiber.StatusBadRequest)

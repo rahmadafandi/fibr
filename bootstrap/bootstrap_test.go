@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/rahmadafandi/fibr/v2/apierror"
 	fibrcontext "github.com/rahmadafandi/fibr/v2/context"
 	"github.com/rahmadafandi/fibr/v2/database"
@@ -30,7 +30,7 @@ import (
 
 func TestNewRoutesWork(t *testing.T) {
 	app := New(Options{})
-	app.Get("/ping", func(c *fiber.Ctx) error { return c.SendString("pong") })
+	app.Get("/ping", func(c fiber.Ctx) error { return c.SendString("pong") })
 
 	resp, err := app.Test(httptest.NewRequest("GET", "/ping", nil))
 	require.NoError(t, err)
@@ -54,7 +54,7 @@ func TestNewWiresHealth(t *testing.T) {
 
 func TestNewSetsRequestIDHeader(t *testing.T) {
 	app := New(Options{})
-	app.Get("/", func(c *fiber.Ctx) error { return c.SendString("ok") })
+	app.Get("/", func(c fiber.Ctx) error { return c.SendString("ok") })
 	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Header.Get("X-Request-ID"))
@@ -89,7 +89,7 @@ func TestHealthExemptFromRateLimit(t *testing.T) {
 
 func TestMetricsOptInServesScrape(t *testing.T) {
 	app := New(Options{Metrics: true})
-	app.Get("/x", func(c *fiber.Ctx) error { return c.SendString("ok") })
+	app.Get("/x", func(c fiber.Ctx) error { return c.SendString("ok") })
 
 	_, err := app.Test(httptest.NewRequest("GET", "/x", nil))
 	require.NoError(t, err)
@@ -114,11 +114,11 @@ func TestTracingOptInRecordsSpan(t *testing.T) {
 	otel.SetTracerProvider(tp)
 
 	app := New(Options{Tracing: true})
-	app.Get("/x", func(c *fiber.Ctx) error { return c.SendString("ok") })
+	app.Get("/x", func(c fiber.Ctx) error { return c.SendString("ok") })
 
 	_, err := app.Test(httptest.NewRequest("GET", "/x", nil))
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(sr.Ended()), 1, "otelfiber should record a server span")
+	require.GreaterOrEqual(t, len(sr.Ended()), 1, "the tracing middleware should record a server span")
 }
 
 func TestAsynqmonMountServes(t *testing.T) {
@@ -137,7 +137,7 @@ func TestAsynqmonMountServes(t *testing.T) {
 
 func TestAsynqmonMiddlewareApplied(t *testing.T) {
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
-	guard := func(c *fiber.Ctx) error { return c.SendStatus(401) }
+	guard := func(c fiber.Ctx) error { return c.SendStatus(401) }
 	app := New(Options{Asynqmon: &AsynqmonMount{Handler: h, Path: "/monitoring", Middleware: []fiber.Handler{guard}}})
 
 	resp, err := app.Test(httptest.NewRequest("GET", "/monitoring", nil))
@@ -158,7 +158,7 @@ func TestCleanupHooksRegistered(t *testing.T) {
 
 func TestDefaultErrorHandlerRendersAPIError(t *testing.T) {
 	app := New(Options{})
-	app.Get("/boom", func(c *fiber.Ctx) error {
+	app.Get("/boom", func(c fiber.Ctx) error {
 		return apierror.NotFound("nope").WithCode("gone")
 	})
 	resp, err := app.Test(httptest.NewRequest("GET", "/boom", nil))
@@ -169,11 +169,11 @@ func TestDefaultErrorHandlerRendersAPIError(t *testing.T) {
 }
 
 func TestUserErrorHandlerNotOverridden(t *testing.T) {
-	sentinel := func(c *fiber.Ctx, err error) error {
+	sentinel := func(c fiber.Ctx, err error) error {
 		return c.Status(418).SendString("teapot")
 	}
 	app := New(Options{FiberConfig: fiber.Config{ErrorHandler: sentinel}})
-	app.Get("/boom", func(c *fiber.Ctx) error {
+	app.Get("/boom", func(c fiber.Ctx) error {
 		return apierror.NotFound("nope")
 	})
 	resp, err := app.Test(httptest.NewRequest("GET", "/boom", nil))
@@ -185,7 +185,7 @@ func TestUserErrorHandlerNotOverridden(t *testing.T) {
 
 func TestSecurityHeaders(t *testing.T) {
 	app := New(Options{SecurityHeaders: true})
-	app.Get("/", func(c *fiber.Ctx) error { return c.SendString("ok") })
+	app.Get("/", func(c fiber.Ctx) error { return c.SendString("ok") })
 	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
 	require.NoError(t, err)
 	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
@@ -193,7 +193,7 @@ func TestSecurityHeaders(t *testing.T) {
 
 func TestNoSecurityHeadersByDefault(t *testing.T) {
 	app := New(Options{})
-	app.Get("/", func(c *fiber.Ctx) error { return c.SendString("ok") })
+	app.Get("/", func(c fiber.Ctx) error { return c.SendString("ok") })
 	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
 	require.NoError(t, err)
 	assert.Empty(t, resp.Header.Get("X-Content-Type-Options"))
@@ -201,7 +201,7 @@ func TestNoSecurityHeadersByDefault(t *testing.T) {
 
 func TestCompression(t *testing.T) {
 	app := New(Options{Compression: true})
-	app.Get("/", func(c *fiber.Ctx) error { return c.SendString(strings.Repeat("a", 2048)) })
+	app.Get("/", func(c fiber.Ctx) error { return c.SendString(strings.Repeat("a", 2048)) })
 	req := httptest.NewRequest("GET", "/", nil)
 	req.Header.Set("Accept-Encoding", "gzip")
 	resp, err := app.Test(req)
@@ -212,7 +212,7 @@ func TestCompression(t *testing.T) {
 func TestIdempotencyReplaysResponse(t *testing.T) {
 	app := New(Options{Idempotency: true})
 	var calls int
-	app.Post("/pay", func(c *fiber.Ctx) error {
+	app.Post("/pay", func(c fiber.Ctx) error {
 		calls++
 		return c.SendString(strconv.Itoa(calls))
 	})
@@ -237,7 +237,7 @@ func TestIdempotencyReplaysResponse(t *testing.T) {
 func TestIdempotencyNoKeyPassesThrough(t *testing.T) {
 	app := New(Options{Idempotency: true})
 	var calls int
-	app.Post("/pay", func(c *fiber.Ctx) error {
+	app.Post("/pay", func(c fiber.Ctx) error {
 		calls++
 		return c.SendString(strconv.Itoa(calls))
 	})
@@ -270,7 +270,7 @@ func TestI18nMiddlewareMounted(t *testing.T) {
 	b.LoadMap("id", map[string]any{"welcome": "Halo"})
 
 	app := New(Options{I18n: b})
-	app.Get("/x", func(c *fiber.Ctx) error { return c.SendString(i18n.T(c, "welcome", nil)) })
+	app.Get("/x", func(c fiber.Ctx) error { return c.SendString(i18n.T(c, "welcome", nil)) })
 
 	req := httptest.NewRequest("GET", "/x?lang=id", nil)
 	resp, err := app.Test(req)
@@ -284,12 +284,12 @@ func TestTracingSpanReachesRequestContext(t *testing.T) {
 	otel.SetTracerProvider(tp)
 
 	app := New(Options{Tracing: true})
-	app.Get("/x", func(c *fiber.Ctx) error {
+	app.Get("/x", func(c fiber.Ctx) error {
 		// Both accessors must carry the request span, the timeout, and the
 		// request id, so DB calls made with either are traced and bounded.
 		for name, ctx := range map[string]context.Context{
-			"GetContext":  fibrcontext.GetContext(c),
-			"UserContext": c.UserContext(),
+			"GetContext": fibrcontext.GetContext(c),
+			"Context":    c.Context(),
 		} {
 			assert.True(t, oteltrace.SpanContextFromContext(ctx).IsValid(), "%s: span", name)
 			_, hasDeadline := ctx.Deadline()
@@ -305,8 +305,8 @@ func TestTracingSpanReachesRequestContext(t *testing.T) {
 }
 
 func TestCORSConfigRestrictsOrigin(t *testing.T) {
-	app := New(Options{CORS: &cors.Config{AllowOrigins: "https://app.example.com"}})
-	app.Get("/x", func(c *fiber.Ctx) error { return c.SendString("ok") })
+	app := New(Options{CORS: &cors.Config{AllowOrigins: []string{"https://app.example.com"}}})
+	app.Get("/x", func(c fiber.Ctx) error { return c.SendString("ok") })
 
 	origin := func(o string) string {
 		req := httptest.NewRequest("GET", "/x", nil)

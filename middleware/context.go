@@ -6,7 +6,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
 
@@ -18,18 +18,18 @@ const (
 )
 
 // ContextMiddleware attaches a timeout-bounded context and a unique request ID
-// to every incoming Fiber request. The context is derived from c.UserContext()
+// to every incoming Fiber request. The context is derived from c.Context()
 // (so it keeps values set by earlier middleware, such as a tracing span) and is
-// available both from context.GetContext and c.UserContext() while the rest of
+// available both from context.GetContext and c.Context() while the rest of
 // the chain runs; the previous user context is restored afterwards, so outer
 // middleware never sees the cancelled one.
 func ContextMiddleware(timeout time.Duration) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		parent := c.UserContext()
+	return func(c fiber.Ctx) error {
+		parent := c.Context()
 		ctx, cancel := context.WithTimeout(parent, timeout)
 		defer func() {
 			cancel()
-			c.SetUserContext(parent)
+			c.SetContext(parent)
 		}()
 		requestID, ok := c.Locals("requestid").(string)
 		if !ok || requestID == "" {
@@ -38,7 +38,7 @@ func ContextMiddleware(timeout time.Duration) fiber.Handler {
 		}
 		ctx = context.WithValue(ctx, RequestIDKey, requestID)
 		c.Locals("ctx", ctx)
-		c.SetUserContext(ctx)
+		c.SetContext(ctx)
 		c.Set("X-Request-ID", requestID)
 		return c.Next()
 	}

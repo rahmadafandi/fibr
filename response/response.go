@@ -3,7 +3,7 @@
 // Package response writes standardized JSON success and error envelopes.
 package response
 
-import "github.com/gofiber/fiber/v2"
+import "github.com/gofiber/fiber/v3"
 
 // Response is the standard JSON envelope returned by all API handlers.
 type Response struct {
@@ -16,7 +16,7 @@ type Response struct {
 
 // SendSuccess writes a JSON success response. The status code defaults to 200
 // unless an optional code argument is provided.
-func SendSuccess(c *fiber.Ctx, data any, message string, code ...int) error {
+func SendSuccess(c fiber.Ctx, data any, message string, code ...int) error {
 	statusCode := fiber.StatusOK
 	if len(code) > 0 {
 		statusCode = code[0]
@@ -31,7 +31,7 @@ func SendSuccess(c *fiber.Ctx, data any, message string, code ...int) error {
 
 // SendError writes a JSON error response. The status code defaults to 400
 // unless an optional code argument is provided.
-func SendError(c *fiber.Ctx, data any, message string, code ...int) error {
+func SendError(c fiber.Ctx, data any, message string, code ...int) error {
 	statusCode := fiber.StatusBadRequest
 	if len(code) > 0 {
 		statusCode = code[0]

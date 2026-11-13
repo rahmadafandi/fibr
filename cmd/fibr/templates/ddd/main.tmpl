@@ -20,7 +20,7 @@ import (
 	redislib "github.com/redis/go-redis/v9"
 {{if .Auth}}	fhauth "github.com/rahmadafandi/fibr/v2/auth"
 	zlog "github.com/rs/zerolog/log"
-{{end}}{{if or .Queue .Mailer}}	"github.com/gofiber/fiber/v2"
+{{end}}{{if or .Queue .Mailer}}	"github.com/gofiber/fiber/v3"
 {{end}}{{if .Queue}}	fhjobs "github.com/rahmadafandi/fibr/v2/jobs"
 	appjobs "{{.Module}}/internal/application/jobs"
 {{end}}{{if .Mailer}}	fhmailer "github.com/rahmadafandi/fibr/v2/mailer"
@@ -223,8 +223,8 @@ func runScheduler() error {
 {{end}}{{if .I18n}}	httpiface.RegisterI18n(app.App)
 {{end}}
 {{if .Queue}}	if queueClient != nil {
-		app.Post("/jobs/welcome", func(c *fiber.Ctx) error {
-			info, err := queueClient.Enqueue(c.UserContext(), appjobs.WelcomeType, appjobs.WelcomePayload{Email: "user@example.com"})
+		app.Post("/jobs/welcome", func(c fiber.Ctx) error {
+			info, err := queueClient.Enqueue(c.Context(), appjobs.WelcomeType, appjobs.WelcomePayload{Email: "user@example.com"})
 			if err != nil {
 				return err
 			}
@@ -232,8 +232,8 @@ func runScheduler() error {
 		})
 	}
 {{end}}{{if .Mailer}}	// demo smoke-test route; unauthenticated — remove or guard before exposing publicly.
-	app.Post("/email/test", func(c *fiber.Ctx) error {
-		if err := mailSender.Send(c.UserContext(), fhmailer.Message{To: []string{"someone@example.com"}, Subject: "Test email", Text: "It works.", HTML: "<p>It works.</p>"}); err != nil {
+	app.Post("/email/test", func(c fiber.Ctx) error {
+		if err := mailSender.Send(c.Context(), fhmailer.Message{To: []string{"someone@example.com"}, Subject: "Test email", Text: "It works.", HTML: "<p>It works.</p>"}); err != nil {
 			return err
 		}
 		return c.JSON(fiber.Map{"sent": true})

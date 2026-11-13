@@ -3,7 +3,7 @@ package http
 import (
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/bind"
 	"github.com/rahmadafandi/fibr/v2/response"
 	app{{.Pkg}} "{{.Module}}/internal/application/{{.Pkg}}"
@@ -28,32 +28,32 @@ func (h *{{.Type}}Handler) RegisterRoutes(app fiber.Router) {
 	g.Post("/", h.create)
 }
 
-func (h *{{.Type}}Handler) list(c *fiber.Ctx) error {
-	items, err := h.svc.List(c.UserContext())
+func (h *{{.Type}}Handler) list(c fiber.Ctx) error {
+	items, err := h.svc.List(c.Context())
 	if err != nil {
 		return response.SendError(c, nil, err.Error(), fiber.StatusInternalServerError)
 	}
 	return response.SendSuccess(c, items, "ok")
 }
 
-func (h *{{.Type}}Handler) get(c *fiber.Ctx) error {
+func (h *{{.Type}}Handler) get(c fiber.Ctx) error {
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
 		return response.SendError(c, nil, "invalid id", fiber.StatusBadRequest)
 	}
-	e, err := h.svc.Get(c.UserContext(), id)
+	e, err := h.svc.Get(c.Context(), id)
 	if err != nil {
 		return response.SendError(c, nil, err.Error(), fiber.StatusNotFound)
 	}
 	return response.SendSuccess(c, e, "ok")
 }
 
-func (h *{{.Type}}Handler) create(c *fiber.Ctx) error {
+func (h *{{.Type}}Handler) create(c fiber.Ctx) error {
 	e, ok := bind.Body[domain.{{.Type}}](c)
 	if !ok {
 		return nil
 	}
-	if err := h.svc.Create(c.UserContext(), &e); err != nil {
+	if err := h.svc.Create(c.Context(), &e); err != nil {
 		return response.SendError(c, nil, err.Error(), fiber.StatusInternalServerError)
 	}
 	return response.SendSuccess(c, e, "created", fiber.StatusCreated)

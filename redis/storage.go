@@ -37,10 +37,15 @@ func NewStorage(client *Client, opts ...StorageOption) *Storage {
 
 // Get returns the value for key, or (nil, nil) if it is missing.
 func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+// GetWithContext is Get bounded by ctx.
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	if key == "" {
 		return nil, nil
 	}
-	b, err := s.client.Get(context.Background(), s.prefix+key).Bytes()
+	b, err := s.client.Get(ctx, s.prefix+key).Bytes()
 	if errors.Is(err, redis.Nil) {
 		return nil, nil
 	}
@@ -54,24 +59,38 @@ func (s *Storage) Get(key string) ([]byte, error) {
 // empty key or value is a no-op, matching fiber's storage adapters (nil and
 // []byte{} are treated alike).
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	return s.SetWithContext(context.Background(), key, val, exp)
+}
+
+// SetWithContext is Set bounded by ctx.
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
 	if key == "" || len(val) == 0 {
 		return nil
 	}
-	return s.client.Set(context.Background(), s.prefix+key, val, exp).Err()
+	return s.client.Set(ctx, s.prefix+key, val, exp).Err()
 }
 
 // Delete removes key.
 func (s *Storage) Delete(key string) error {
+	return s.DeleteWithContext(context.Background(), key)
+}
+
+// DeleteWithContext is Delete bounded by ctx.
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	if key == "" {
 		return nil
 	}
-	return s.client.Del(context.Background(), s.prefix+key).Err()
+	return s.client.Del(ctx, s.prefix+key).Err()
 }
 
 // Reset deletes every key under the prefix (not the whole database). It deletes
 // in batches so a large key space does not build one giant DEL.
 func (s *Storage) Reset() error {
-	ctx := context.Background()
+	return s.ResetWithContext(context.Background())
+}
+
+// ResetWithContext is Reset bounded by ctx.
+func (s *Storage) ResetWithContext(ctx context.Context) error {
 	iter := s.client.Scan(ctx, 0, s.prefix+"*", 0).Iterator()
 	batch := make([]string, 0, 500)
 	for iter.Next(ctx) {

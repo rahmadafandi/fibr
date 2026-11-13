@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 const (
@@ -36,14 +36,14 @@ func Middleware(b *Bundle, opts ...MWOption) fiber.Handler {
 	for _, o := range opts {
 		o(&cfg)
 	}
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		c.Locals(localeKey, resolve(b, c, cfg))
 		c.Locals(bundleKey, b)
 		return c.Next()
 	}
 }
 
-func resolve(b *Bundle, c *fiber.Ctx, cfg mwConfig) string {
+func resolve(b *Bundle, c fiber.Ctx, cfg mwConfig) string {
 	if v := c.Query(cfg.queryKey); v != "" && b.Has(v) {
 		return v
 	}
@@ -97,7 +97,7 @@ func matchAcceptLanguage(b *Bundle, header string) string {
 }
 
 // Locale returns the resolved request locale (or the bundle fallback / "").
-func Locale(c *fiber.Ctx) string {
+func Locale(c fiber.Ctx) string {
 	if v, ok := c.Locals(localeKey).(string); ok && v != "" {
 		return v
 	}
@@ -108,7 +108,7 @@ func Locale(c *fiber.Ctx) string {
 }
 
 // T translates key for the request locale.
-func T(c *fiber.Ctx, key string, args M) string {
+func T(c fiber.Ctx, key string, args M) string {
 	b, ok := c.Locals(bundleKey).(*Bundle)
 	if !ok || b == nil {
 		return key
@@ -117,7 +117,7 @@ func T(c *fiber.Ctx, key string, args M) string {
 }
 
 // N translates the plural form of key for the request locale and count n.
-func N(c *fiber.Ctx, key string, n int, args M) string {
+func N(c fiber.Ctx, key string, n int, args M) string {
 	b, ok := c.Locals(bundleKey).(*Bundle)
 	if !ok || b == nil {
 		return key

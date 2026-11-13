@@ -10,7 +10,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	gws "github.com/fasthttp/websocket"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	fhredis "github.com/rahmadafandi/fibr/v2/redis"
 	"github.com/rahmadafandi/fibr/v2/ws"
 	goredis "github.com/redis/go-redis/v9"

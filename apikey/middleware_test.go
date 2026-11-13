@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -25,14 +25,14 @@ func testApp(t *testing.T) (*fiber.App, string) {
 
 	app := fiber.New(fiber.Config{ErrorHandler: apierror.Handler})
 	app.Use(a.Middleware())
-	app.Get("/me", func(c *fiber.Ctx) error {
+	app.Get("/me", func(c fiber.Ctx) error {
 		id, _ := apikey.FromContext(c)
 		return c.SendString(id.ID)
 	})
-	app.Get("/read", a.RequireScope("read"), func(c *fiber.Ctx) error {
+	app.Get("/read", a.RequireScope("read"), func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
-	app.Get("/admin", a.RequireScope("admin"), func(c *fiber.Ctx) error {
+	app.Get("/admin", a.RequireScope("admin"), func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 	return app, key
@@ -73,7 +73,7 @@ func TestIdentityAndHasScope(t *testing.T) {
 		apikey.Hash("k"): {ID: "u", Scopes: []string{"read"}},
 	})})
 	app.Use(a.Middleware())
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/", func(c fiber.Ctx) error {
 		id, ok := apikey.FromContext(c)
 		assert.True(t, ok)
 		assert.Equal(t, "u", id.ID)

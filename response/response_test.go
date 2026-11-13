@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,7 +14,7 @@ func TestResponse(t *testing.T) {
 	app := fiber.New()
 
 	t.Run("SendSuccess", func(t *testing.T) {
-		app.Get("/success", func(c *fiber.Ctx) error {
+		app.Get("/success", func(c fiber.Ctx) error {
 			return SendSuccess(c, "test", "test message")
 		})
 
@@ -25,7 +25,7 @@ func TestResponse(t *testing.T) {
 	})
 
 	t.Run("SendError", func(t *testing.T) {
-		app.Get("/error", func(c *fiber.Ctx) error {
+		app.Get("/error", func(c fiber.Ctx) error {
 			return SendError(c, nil, "test error", fiber.StatusInternalServerError)
 		})
 

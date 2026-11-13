@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rahmadafandi/fibr/v2/i18n"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +17,7 @@ func app(t *testing.T) *fiber.App {
 	t.Helper()
 	a := fiber.New()
 	a.Use(i18n.Middleware(bundle(t)))
-	a.Get("/hello", func(c *fiber.Ctx) error {
+	a.Get("/hello", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"locale": i18n.Locale(c), "msg": i18n.T(c, "welcome", i18n.M{"name": "Sam"})})
 	})
 	return a
