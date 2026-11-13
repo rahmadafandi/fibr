@@ -41,7 +41,7 @@ func planModule(md ModuleData) []fileSpec {
 			{"module/ddd/repository_iface.tmpl", "internal/domain/" + md.Pkg + "/repository.go"},
 			{"module/ddd/service.tmpl", "internal/application/" + md.Pkg + "/service.go"},
 			{"module/ddd/persistence.tmpl", "internal/infrastructure/persistence/" + md.Pkg + "_repository_bun.go"},
-			{"module/ddd/handler.tmpl", "internal/interface/http/" + md.Pkg + "_handler.go"},
+			{"module/handler.tmpl", "internal/interface/http/" + md.Pkg + "_handler.go"},
 			{"module/ddd/module.tmpl", "internal/interface/http/" + md.Pkg + "_module.go"},
 		}
 	case "layered":
@@ -49,7 +49,7 @@ func planModule(md ModuleData) []fileSpec {
 			{"module/layered/model.tmpl", "internal/model/" + md.Pkg + ".go"},
 			{"module/layered/repository.tmpl", "internal/repository/" + md.Pkg + "_repo.go"},
 			{"module/layered/service.tmpl", "internal/service/" + md.Pkg + "_service.go"},
-			{"module/layered/handler.tmpl", "internal/handler/" + md.Pkg + "_handler.go"},
+			{"module/handler.tmpl", "internal/handler/" + md.Pkg + "_handler.go"},
 			{"module/layered/module.tmpl", "internal/handler/" + md.Pkg + "_module.go"},
 		}
 	}

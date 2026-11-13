@@ -1,4 +1,7 @@
-package handler
+{{- /* One template for both layouts: $ddd selects the layout-specific names and blocks. */ -}}
+{{- $ddd := eq .Layout "ddd" -}}
+{{- $pkg := "handler" -}}{{- if $ddd}}{{$pkg = "http"}}{{end -}}
+package {{$pkg}}
 
 import (
 	"github.com/gofiber/fiber/v3"
