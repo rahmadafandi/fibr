@@ -10,8 +10,8 @@ import (
 	"github.com/rahmadafandi/fibr/v2/uploader"
 )
 
-// Wire an S3-compatible uploader. Upload(file, "photo.png") then returns
-// "https://cdn.example.com/avatars/photo.png".
+// Wire an S3-compatible uploader. Upload(ctx, file, "photo.png") then returns
+// "https://cdn.example.com/avatars/<random>-photo.png".
 func ExampleNewS3Uploader() {
 	client, err := minio.New("s3.amazonaws.com", &minio.Options{
 		Creds:  credentials.NewStaticV4("KEY", "SECRET", ""),

@@ -53,10 +53,12 @@ type Options struct {
 	RequestTimeout  time.Duration
 	ShutdownTimeout time.Duration
 	DB              *bun.DB
-	EnableCORS      bool
-	// CORS, if non-nil, enables CORS with this configuration (EnableCORS is
-	// then implied). EnableCORS alone uses Fiber's defaults, which allow every
-	// origin; set CORS to restrict AllowOrigins in production.
+	// CORSOrigins, if non-empty, enables CORS for exactly these origins
+	// (e.g. "https://app.example.com"). CORS is off when both this and CORS
+	// are unset.
+	CORSOrigins []string
+	// CORS, if non-nil, enables CORS with this full configuration and takes
+	// precedence over CORSOrigins.
 	CORS               *cors.Config
 	RateLimit          int
 	RateLimitStorage   fiber.Storage
@@ -153,8 +155,8 @@ func New(o Options) *App {
 
 	if o.CORS != nil {
 		f.Use(cors.New(*o.CORS))
-	} else if o.EnableCORS {
-		f.Use(cors.New())
+	} else if len(o.CORSOrigins) > 0 {
+		f.Use(cors.New(cors.Config{AllowOrigins: o.CORSOrigins}))
 	}
 	if o.RateLimit > 0 {
 		f.Use(limiter.New(limiter.Config{Max: o.RateLimit, Expiration: time.Minute, Storage: o.RateLimitStorage}))

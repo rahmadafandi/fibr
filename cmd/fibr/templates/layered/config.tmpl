@@ -10,6 +10,7 @@ type Config struct {
 	AutoMigrate bool   `mapstructure:"AUTO_MIGRATE" default:"false"`
 	MetricsEnabled bool `mapstructure:"METRICS_ENABLED" default:"false"`
 	TracingEnabled bool `mapstructure:"TRACING_ENABLED" default:"false"`
+	CORSOrigins []string `mapstructure:"CORS_ALLOW_ORIGINS"`
 {{if .Auth}}	JWTSecret string `mapstructure:"JWT_SECRET" required:"true"`
 {{end}}	RedisURL  string `mapstructure:"REDIS_URL"`
 {{if .Queue}}	QueueConcurrency int    `mapstructure:"QUEUE_CONCURRENCY" default:"10"`

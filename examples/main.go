@@ -30,7 +30,7 @@ func main() {
 
 	app := bootstrap.New(bootstrap.Options{
 		DB:           db,
-		EnableCORS:   true,
+		CORSOrigins:  []string{"http://localhost:5173"},
 		RateLimit:    100,
 		HealthChecks: []health.NamedCheck{health.PingBun(db)},
 	})

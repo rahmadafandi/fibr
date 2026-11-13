@@ -132,7 +132,7 @@ flat `Options` struct into a wired `*fiber.App`. Order matters:
 7. `otelfiber` *(if `Tracing`)*
 8. `middleware.RequestLogger`
 9. `metrics.Middleware` *(if `Metrics`)*
-10. `cors` *(if `EnableCORS`)*
+10. `cors` *(if `CORSOrigins` or `CORS` is set)*
 11. `limiter` *(if `RateLimit > 0`)* — backed by `RateLimitStorage`
 
 **Error handling:** `apierror.Handler` is installed as the default

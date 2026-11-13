@@ -318,3 +318,20 @@ func TestCORSConfigRestrictsOrigin(t *testing.T) {
 	assert.Equal(t, "https://app.example.com", origin("https://app.example.com"))
 	assert.Empty(t, origin("https://evil.example.com"))
 }
+
+func TestCORSOffByDefaultAndOriginsOptIn(t *testing.T) {
+	allowOrigin := func(app *App, origin string) string {
+		app.Get("/x", func(c fiber.Ctx) error { return c.SendString("ok") })
+		req := httptest.NewRequest("GET", "/x", nil)
+		req.Header.Set("Origin", origin)
+		resp, err := app.Test(req)
+		require.NoError(t, err)
+		return resp.Header.Get("Access-Control-Allow-Origin")
+	}
+
+	assert.Empty(t, allowOrigin(New(Options{}), "https://app.example.com"), "CORS must be off by default")
+
+	origins := Options{CORSOrigins: []string{"https://app.example.com"}}
+	assert.Equal(t, "https://app.example.com", allowOrigin(New(origins), "https://app.example.com"))
+	assert.Empty(t, allowOrigin(New(origins), "https://evil.example.com"))
+}
