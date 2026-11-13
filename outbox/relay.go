@@ -134,7 +134,7 @@ func (r *Relay) process(ctx context.Context, renew func() error) (int, error) {
 		Model(&events).
 		Where("published_at IS NULL").
 		OrderExpr("id ASC").
-		Limit(r.batchSize).
+		Limit(int64(r.batchSize)).
 		Scan(ctx); err != nil {
 		return 0, fmt.Errorf("outbox: load pending: %w", err)
 	}

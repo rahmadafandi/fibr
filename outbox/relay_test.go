@@ -370,7 +370,7 @@ func TestAttemptsSurviveARelayRestart(t *testing.T) {
 
 	dead, err := db.NewSelect().Model((*outbox.DeadEvent)(nil)).Count(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, 1, dead)
+	assert.EqualValues(t, 1, dead)
 	left, err := db.NewSelect().Model((*outbox.Attempt)(nil)).Count(ctx)
 	require.NoError(t, err)
 	assert.Zero(t, left, "the counter is dropped with the dead-lettered event")

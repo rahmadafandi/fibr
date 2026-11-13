@@ -88,7 +88,7 @@ func applyPaginationDefaults(q *bun.SelectQuery, pq *PaginationQuery) *bun.Selec
 	}
 	pq.Limit = clampLimit(pq.Limit, 10)
 	offset := (pq.Page - 1) * pq.Limit
-	return q.Offset(offset).Limit(pq.Limit)
+	return q.Offset(int64(offset)).Limit(int64(pq.Limit))
 }
 
 func applySearch(q *bun.SelectQuery, search string, columnsSearchable []string) *bun.SelectQuery {

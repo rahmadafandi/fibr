@@ -68,7 +68,7 @@ func TestPostgresRelayLifecycle(t *testing.T) {
 
 	dead, err := db.NewSelect().Model((*outbox.DeadEvent)(nil)).Count(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, 1, dead)
+	assert.EqualValues(t, 1, dead)
 
 	pruned, err := outbox.Prune(ctx, db, -time.Minute) // cutoff in the future: everything published
 	require.NoError(t, err)

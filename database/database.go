@@ -121,7 +121,7 @@ func NewBun(dsn string, opts ...Option) (*bun.DB, error) {
 	db := bun.NewDB(sqldb, dialect)
 
 	if cfg.tracing {
-		db.AddQueryHook(bunotel.NewQueryHook())
+		db = db.WithQueryHook(bunotel.NewQueryHook())
 	}
 
 	if !cfg.skipPing {
