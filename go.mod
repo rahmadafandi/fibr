@@ -9,8 +9,8 @@ require (
 	github.com/fasthttp/websocket v1.5.12
 	github.com/gabriel-vasile/mimetype v1.4.16
 	github.com/go-playground/validator/v10 v10.30.6
-	github.com/gofiber/contrib/v3/otel v1.3.4
-	github.com/gofiber/contrib/v3/websocket v1.2.14
+	github.com/gofiber/contrib/v3/otel v1.3.5
+	github.com/gofiber/contrib/v3/websocket v1.2.16
 	github.com/gofiber/fiber/v3 v3.7.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
@@ -30,7 +30,7 @@ require (
 	github.com/uptrace/bun/driver/pgdriver v1.3.0
 	github.com/uptrace/bun/driver/sqliteshim v1.3.0
 	github.com/uptrace/bun/extra/bunotel v1.3.0
-	github.com/valyala/fasthttp v1.78.0
+	github.com/valyala/fasthttp v1.79.0
 	github.com/wneessen/go-mail v0.8.2
 	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.47.0
@@ -49,7 +49,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-playground/locales v0.14.2 // indirect
 	github.com/go-playground/universal-translator v0.18.2 // indirect
-	github.com/gofiber/schema v1.9.4 // indirect
+	github.com/gofiber/schema v1.10.0 // indirect
 	github.com/gofiber/utils/v2 v2.6.5 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
@@ -96,7 +96,7 @@ require (
 	go.uber.org/atomic v1.12.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa // indirect
-	golang.org/x/net v0.62.0 // indirect
+	golang.org/x/net v0.63.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/text v0.44.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
